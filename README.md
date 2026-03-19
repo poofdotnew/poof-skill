@@ -124,27 +124,53 @@ await pollUntilDone(projectId);
 
 ## Using as an AI Skill
 
-This repo is designed to be consumed as a **skill** by AI coding agents. To install it:
+This repo is designed to be consumed as a **skill** by AI coding agents.
 
 ### Claude Code
 
-Add this to your Claude Code MCP config or project settings:
+#### Option A: Install to your project (recommended)
 
-```json
-{
-  "skills": ["path/to/poof-skill"]
-}
+Clone into your project's `.claude/skills/` directory — this makes it available whenever you work in that project and is shareable via git:
+
+```bash
+cd your-project
+git clone https://github.com/poofdotnew/poof-skill.git .claude/skills/poof
 ```
 
-Or reference it directly in your `CLAUDE.md`:
+#### Option B: Install globally
 
-```markdown
-For Poof projects, use the skill at: ./poof-skill/SKILL.md
+Clone to your home directory to make the skill available across all projects:
+
+```bash
+git clone https://github.com/poofdotnew/poof-skill.git ~/.claude/skills/poof
 ```
+
+#### Option C: Install as a plugin
+
+If you have a plugin marketplace set up, you can install it via Claude Code's `/plugin` command:
+
+```
+/plugin marketplace add poofdotnew/poof-skill
+/plugin install poof@poof-skill
+```
+
+#### Using it
+
+Once installed, just ask Claude Code to build a Poof project — the skill activates automatically on keywords like `poof project`, `deploy dApp`, `create poof app`, `@pooflabs/server`, etc.
+
+Example prompts:
+
+```
+> Create a poof project for a token-gated voting app
+> Deploy my poof dApp to production
+> Build a Solana app with poof that has a bonding curve and leaderboard
+```
+
+Claude Code will handle authentication, project creation, chat-driven iteration, testing, and deployment — all without leaving your terminal.
 
 ### Other AI Agents (Cursor, Windsurf, etc.)
 
-Point your agent's context/knowledge configuration at the `SKILL.md` file or the `docs/` directory. The skill auto-triggers on keywords like `poof project`, `deploy dApp`, `create poof app`, `@pooflabs/server`, etc.
+Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md) file or the [`docs/`](docs/) directory. The skill auto-triggers on the same keywords listed above.
 
 ### What the skill provides
 
