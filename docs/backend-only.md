@@ -234,9 +234,10 @@ async function main() {
   });
 
   const { connectionInfo } = status;
+  const draftEnv = connectionInfo.draft;
   console.log('\n--- Connection Info for Local Frontend ---');
-  console.log(`Tarobase App ID: ${connectionInfo.tarobaseAppId}`);
-  console.log(`Backend URL:     ${connectionInfo.backendUrl}`);
+  console.log(`Tarobase App ID: ${draftEnv?.tarobaseAppId}`);
+  console.log(`Backend URL:     ${draftEnv?.backendUrl}`);
   console.log(`WebSocket URL:   ${connectionInfo.wsUrl}`);
   console.log(`Auth API URL:    ${connectionInfo.authApiUrl}`);
 
@@ -244,9 +245,9 @@ async function main() {
   console.log('1. npm install @pooflabs/web');
   console.log('2. In your app entry point:');
   console.log(`   import { init, login, getDB } from '@pooflabs/web';`);
-  console.log(`   init({ appId: '${connectionInfo.tarobaseAppId}' });`);
+  console.log(`   init({ appId: '${draftEnv?.tarobaseAppId}' });`);
   console.log('3. Call login() before any authenticated operations');
-  console.log(`4. Backend API routes available at: ${connectionInfo.backendUrl}/api/...`);
+  console.log(`4. Backend API routes available at: ${draftEnv?.backendUrl}/api/...`);
 }
 
 main().catch(console.error);

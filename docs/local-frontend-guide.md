@@ -332,7 +332,7 @@ Copy these into your local project. They import from `@pooflabs/web` internally.
 ### Using Collection Functions
 
 ```typescript
-import { setNotes, getNotes, deletNotes, subscribeManyNotes } from './lib/collections/notes';
+import { setNotes, getNotes, deleteNotes, subscribeManyNotes } from './lib/collections/notes';
 import { Time, Address } from './lib/db-client';
 
 // Write (typed — TypeScript catches missing/wrong fields)
