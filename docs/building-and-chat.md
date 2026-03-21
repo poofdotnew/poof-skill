@@ -504,9 +504,10 @@ async function main() {
   console.log('Draft URL:', status.urls?.draft);
   console.log('Editor URL:', `${env.baseUrl}/project/${projectId}`);
 
-  // 7. Deploy to preview (requires Premium)
-  const membership = await mcpCall('tools/call', { name: 'get_membership', arguments: {} });
-  if (membership.tier === 'premium') {
+  // 7. Deploy to preview (requires any credit purchase)
+  const credits = await mcpCall('tools/call', { name: 'get_credits', arguments: {} });
+  const hasPaid = credits.credits?.addOn?.purchased > 0;
+  if (hasPaid) {
     await mcpCall('tools/call', {
       name: 'security_scan',
       arguments: { projectId, tarobaseToken: await getIdToken() },
@@ -517,7 +518,7 @@ async function main() {
     });
     console.log('Deployed to preview');
   } else {
-    console.log('Skipping deploy — Premium required');
+    console.log('Skipping deploy — credit purchase required. Use topup_credits to buy credits and unlock deployment.');
   }
 }
 

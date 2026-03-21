@@ -9,7 +9,7 @@ Build autonomous AI agents that create, deploy, and manage full-stack Solana app
 
 ## How It Works
 
-Poof exposes a **Model Context Protocol (MCP)** endpoint at `POST /api/mcp` with 32 tools covering the complete project lifecycle. Your agent authenticates with a Cognito JWT, then drives everything through chat — the Poof AI handles code generation, database policies, deployments, and blockchain operations.
+Poof exposes a **Model Context Protocol (MCP)** endpoint at `POST /api/mcp` with 30 tools covering the complete project lifecycle. Your agent authenticates with a Cognito JWT, then drives everything through chat — the Poof AI handles code generation, database policies, deployments, and blockchain operations.
 
 ```
 Your Agent ──► @pooflabs/server (init + getIdToken) ──► Cognito JWT
@@ -143,7 +143,7 @@ await mcpCall('tools/call', {
 // 4c. Cancel if stuck (optional)
 await mcpCall('tools/call', { name: 'cancel_ai', arguments: { projectId } });
 
-// 4d. Read/modify files directly (optional — get_files requires Premium)
+// 4d. Read/modify files directly (optional — get_files requires a credit purchase)
 const files = await mcpCall('tools/call', { name: 'get_files', arguments: { projectId } });
 await mcpCall('tools/call', {
   name: 'update_files',
@@ -190,9 +190,9 @@ Read these for deeper context — especially **how-poof-works** if you're orches
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | Building a frontend that connects to a Poof backend — SDK init, wallet auth, database access, API routes, real-time subscriptions, React hooks, gotchas. |
 | [**Database SDK**](docs/database-sdk.md) | The generated db-client + collections pattern — typed functions, read/write, frontend vs backend, how to extract and use. |
 | [**Deployment**](docs/deployment.md) | Environments (draft/preview/production/mobile), publishing, code downloads. |
-| [**Credits & Payments**](docs/credits-and-payments.md) | Credit system, membership tiers, x402 USDC top-up flow. |
+| [**Credits & Payments**](docs/credits-and-payments.md) | Credit system, paid features, x402 USDC top-up flow. |
 | [**Testing**](docs/testing.md) | Lifecycle actions, test files, bootstrap scripts, policy validation. |
-| [**API Reference**](docs/api-reference.md) | All 32 MCP tools, REST endpoints, JSON-RPC format, error codes. |
+| [**API Reference**](docs/api-reference.md) | All 30 MCP tools, REST endpoints, JSON-RPC format, error codes. |
 | [**Troubleshooting**](docs/troubleshooting.md) | Common errors, recovery patterns, stuck build handling, credit exhaustion. |
 | [**Cross-Compatibility**](docs/cross-compatibility.md) | curl examples, Python helper, OpenAI function calling format, direct REST usage. |
 
@@ -326,6 +326,7 @@ See [docs/how-poof-works.md](docs/how-poof-works.md) for the architecture knowle
 - **Poll with `pollUntilDone`** after every `chat` and `create_project` — includes timeout + exponential backoff. See [building-and-chat.md](docs/building-and-chat.md#polling-helper)
 - **Use `uuidv4()`** for all IDs (projectId, messageId) — import from the `uuid` package
 - **Check credits before AND during long workflows** — `get_credits` is free. A full build + test + polish cycle costs 3-5 credits. If credits run out mid-build, the AI stops responding. Free tier gets ~10 daily credits
+- **Any credit purchase unlocks deployment** — mainnet deployment requires that the wallet has completed at least one credit purchase. An x402 `topup_credits` purchase ($15 minimum) is the agent-friendly way to unlock both AI credits and deployment access without a browser. Once paid, paid features are permanently unlocked
 - **Always verify after building** — generate lifecycle tests and run them before deploying
 - **Deploy to preview first** — test before production
 - **Run `security_scan` before production deploys** — catches policy and code vulnerabilities

@@ -17,9 +17,9 @@ Poof has four distinct environments. Understanding the difference is critical �
 | Environment | Also called | Blockchain | URL pattern | Cost |
 |-------------|------------|-----------|-------------|------|
 | **Draft** | Poofnet | **Simulated** (fake tokens, free) | `{slug}-preview.poof.new` | Free |
-| **Preview** | Mainnet Preview | **Real mainnet** (real tokens) | `{slug}-mainnet-preview.poof.new` | Premium |
-| **Production** | Live | **Real mainnet** (real tokens) | `*.poof.new` or custom domain | Premium |
-| **Mobile** | — | **Real mainnet** (real tokens) | Seeker / iOS / Android | Premium |
+| **Preview** | Mainnet Preview | **Real mainnet** (real tokens) | `{slug}-mainnet-preview.poof.new` | Any payment |
+| **Production** | Live | **Real mainnet** (real tokens) | `*.poof.new` or custom domain | Any payment |
+| **Mobile** | — | **Real mainnet** (real tokens) | Seeker / iOS / Android | Any payment |
 
 ### Draft (Poofnet) vs Preview (Mainnet Preview)
 
@@ -31,7 +31,9 @@ This is the most common source of confusion:
 
 **Key rule:** If you're just building and iterating, you're on Draft (Poofnet). Token balances are fake. When you deploy to Preview or Production, tokens become real.
 
-Draft is always available — no deployment needed. Preview and production require a Premium subscription ($30/month).
+Draft is always available — no deployment needed. Preview and production require that the user has **completed at least one credit purchase** via x402.
+
+> **How it works:** The system calls `hasUserEverPaid()` — if the wallet has any completed payment record, deployment is unlocked permanently. If `check_publish_eligibility` returns `no_membership`, buy credits via `topup_credits` ($15 minimum for 50 credits) — this both provides AI credits and unlocks deployment.
 
 ## Pre-Deploy Checks
 
@@ -55,7 +57,7 @@ const check = await mcpCall('tools/call', {
   name: 'check_publish_eligibility',
   arguments: { projectId },
 });
-// Returns: membership status, security review status, project readiness
+// Returns: payment status, security review status, project readiness
 ```
 
 ## Publishing
@@ -124,7 +126,7 @@ const url = await mcpCall('tools/call', {
 });
 ```
 
-Requires Premium subscription.
+Requires at least one completed credit purchase.
 
 ## Custom Domains
 

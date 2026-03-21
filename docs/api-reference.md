@@ -87,7 +87,7 @@ Returns server info, protocol version, capabilities, and tool names with descrip
 
 | Tool | Description |
 |------|-------------|
-| `get_files` | Get all source files for a project with contents. **Requires Premium membership.** |
+| `get_files` | Get all source files for a project with contents. **Requires a credit purchase.** |
 | `update_files` | Directly modify project source files. Pass a map of file paths to contents. |
 
 ### Status & Tasks
@@ -103,19 +103,17 @@ Returns server info, protocol version, capabilities, and tool names with descrip
 
 | Tool | Description |
 |------|-------------|
-| `check_publish_eligibility` | Pre-deploy check: membership, security review, readiness. |
-| `publish_project` | Deploy. Targets: `preview`, `production`, `mobile`. Premium required. |
+| `check_publish_eligibility` | Pre-deploy check: payment status, security review, readiness. |
+| `publish_project` | Deploy. Targets: `preview`, `production`, `mobile`. Requires a credit purchase. |
 | `download_code` | Start code export. Returns `taskId` — poll then `get_download_url`. The zip includes generated `db-client` + `collections/` SDK files. |
 | `get_download_url` | Signed S3 URL for completed download (5-minute expiry). |
 
-### Credits & Membership
+### Credits & Payments
 
 | Tool | Description |
 |------|-------------|
-| `get_credits` | Credit balance: daily, subscription, add-on, totals. |
-| `get_membership` | Subscription status, tier, period. |
-| `subscribe` | Stripe checkout URL for Premium ($30/month). |
-| `topup_credits` | Buy credits via x402 USDC. See [credits-and-payments.md](credits-and-payments.md). |
+| `get_credits` | Credit balance: daily, add-on, totals. |
+| `topup_credits` | Buy credits via x402 USDC. Also unlocks paid features (deployment, downloads). See [credits-and-payments.md](credits-and-payments.md). |
 
 ### Security
 
@@ -140,8 +138,8 @@ Returns server info, protocol version, capabilities, and tool names with descrip
 
 | Tool | Description |
 |------|-------------|
-| `get_domains` | List custom domains configured for a project. **Requires Premium membership.** |
-| `add_domain` | Add a custom domain. Project must be deployed to production first. **Requires Premium membership.** |
+| `get_domains` | List custom domains configured for a project. **Requires a credit purchase.** |
+| `add_domain` | Add a custom domain. Project must be deployed to production first. **Requires a credit purchase.** |
 
 ### Logs
 
@@ -154,7 +152,7 @@ Returns server info, protocol version, capabilities, and tool names with descrip
 | Tool | Description |
 |------|-------------|
 | `get_ai_preferences` | Model tier per use case. |
-| `set_ai_preferences` | Update tiers: `average`, `smart`, `genius`. Requires subscription. |
+| `set_ai_preferences` | Update tiers: `average`, `smart`, `genius`. Requires a credit purchase. |
 
 ## REST API Endpoints
 
@@ -191,8 +189,6 @@ All MCP tools map to REST endpoints. Same auth headers required.
 | GET | `/api/project/[id]/check-publish-eligibility` | Check publish eligibility |
 | GET | `/api/template` | List templates |
 | GET | `/api/user/credits` | Get credit balance |
-| GET | `/api/user/membership` | Get membership status |
-| POST | `/api/membership/stripe-checkout` | Subscribe (Stripe checkout) |
 | GET | `/api/user/ai-preferences` | Get AI preferences |
 | PUT | `/api/user/ai-preferences` | Set AI preferences |
 | POST | `/api/credits/topup` | x402 credit purchase |
@@ -203,17 +199,16 @@ Each tool returns its data inside `result.content[0].text` as a JSON string. Her
 
 | Tool | Parsed Response Shape |
 |------|----------------------|
-| `get_credits` | `{ credits: { daily: { remaining, allotted, resetsAt }, subscription: { remaining, purchased }, addOn: { remaining, purchased }, total }, membershipStatus }` |
+| `get_credits` | `{ credits: { daily: { remaining, allotted, resetsAt }, addOn: { remaining, purchased }, total } }` |
 | `get_messages` | `{ messages: [{ id, role: "user" \| "assistant", content: string, createdAt, status }] }` — **not a bare array**. `status` is `"queued"`, `"processing"`, or `"completed"` |
 | `check_ai_active` | `{ active: boolean, status: "ok" \| "error" }` — `status` is `"error"` if the AI server is unreachable (vs `"ok"` when actively responding) |
 | `get_project_status` | `{ project: { id, title, description, slug, ... }, latestTask: { id, status, title, ... }, publishState: { draft, preview, live, mobile }, urls: { preview, production, draft, mainnetPreview }, connectionInfo: { draft: { tarobaseAppId, backendUrl } \| null, preview: { tarobaseAppId, backendUrl } \| null, production: { tarobaseAppId, backendUrl } \| null, wsUrl, apiUrl, authApiUrl } }` |
 | `create_project` | `{ success: true, projectId, message }` |
 | `chat` | `{ success: true, messageId, queued: boolean }` — `queued` is `true` if AI was already active (HTTP 202). Messages execute in FIFO order |
 | `list_projects` | `{ projects: [...] }` |
-| `get_files` | `{ files: { [path: string]: string } }` — requires Premium (returns `{ error, membershipRequired: true }` if not Premium) |
+| `get_files` | `{ files: { [path: string]: string } }` — requires a credit purchase (returns `{ error, membershipRequired: true }` if unpaid) |
 | `get_secrets` | `{ secrets: { required: string[], optional: string[] } }` |
-| `get_membership` | `{ membership: { tier, status, currentPeriodEnd, ... } \| null }` — `null` when user has no subscription |
-| `get_domains` | `{ domains: [{ domain, isDefault, status }] }` — requires Premium (returns `{ error, membershipRequired: true }` if not Premium) |
+| `get_domains` | `{ domains: [{ domain, isDefault, status }] }` — requires a credit purchase (returns `{ error, membershipRequired: true }` if unpaid) |
 | `get_test_results` | `{ results: [{ id, fileName, testName, status, counts: { steps, expects, failed }, lastError, duration, startedAt }], summary: { total, passed, failed, errors, running } }` |
 | `get_logs` | `{ logs: [{ timestamp, level, message }] }` |
 | `list_templates` | `{ templates: [{ id, name, slug, description, category }] }` |
@@ -239,7 +234,7 @@ Errors come in the result payload:
 |-------|-------|-----|
 | `Not authenticated` | Invalid/expired JWT | Call `getIdToken()` again |
 | `Project not found` | Wrong project ID or not owner | Check project ownership |
-| `You have run out of credits` | No credits remaining | Top up via x402 or subscribe |
+| `You have run out of credits` | No credits remaining | Top up via x402 `topup_credits` |
 | `Invalid projectId format` | Non-UUID project ID | Use `uuid.v4()` |
 
 ### Tips

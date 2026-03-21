@@ -160,7 +160,7 @@ You can also use `steer_ai` to redirect the AI mid-execution, or `update_files` 
 
 ## Extracting the Generated SDK
 
-If you have a Premium membership, you can download the generated typed SDK to use in your local project:
+If you have purchased credits, you can download the generated typed SDK to use in your local project:
 
 ```typescript
 // Start the download

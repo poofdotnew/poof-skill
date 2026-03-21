@@ -2,9 +2,20 @@
 
 ## Contents
 - [Credit System](#credit-system)
-- [Membership](#membership)
+- [Paid Features](#paid-features)
 - [x402 Credit Top-Up](#x402-credit-top-up)
 - [AI Preferences](#ai-preferences)
+
+## Important: How Payment Unlocks Features
+
+Poof gates paid features (mainnet deployment, code downloads, custom domains) on whether the user has **ever completed any credit purchase**. There is no separate membership or subscription required.
+
+| What you need | How to get it |
+|---------------|---------------|
+| **AI credits** (for `chat`, `create_project`, builds) | Free daily allotment (~10/day), OR buy add-on credits via x402 USDC |
+| **Paid features** (mainnet deploy, code downloads, custom domains) | Complete any credit purchase. Once you've purchased credits, paid features are permanently unlocked for that wallet |
+
+**Key point:** A single x402 credit purchase unlocks both AI credits AND paid features (deployment, downloads, etc.). The `check_publish_eligibility` check passes as long as `hasUserEverPaid` is true for the wallet.
 
 ## Credit System
 
@@ -15,7 +26,7 @@ const credits = await mcpCall('tools/call', {
   name: 'get_credits',
   arguments: {},
 });
-// Returns: daily (free), subscription, and add-on credits with totals
+// Returns: daily (free) and add-on credits with totals
 ```
 
 ### Credit Types
@@ -23,7 +34,6 @@ const credits = await mcpCall('tools/call', {
 | Type | Source | Details |
 |------|--------|---------|
 | Daily | Free | ~10 credits, reset daily, available to all users |
-| Subscription | Premium plan | Included with $30/month subscription |
 | Add-on | x402 purchase | Bought with USDC, expire in 6 months |
 
 ### Credit Cost Estimates
@@ -44,7 +54,7 @@ async function ensureCredits(minRequired: number) {
   if (credits.credits.total < minRequired) {
     throw new Error(
       `Insufficient credits: ${credits.credits.total} remaining, need ${minRequired}. ` +
-      `Subscribe for more credits or wait for daily reset at ${credits.credits.daily.resetsAt}.`
+      `Buy more credits via x402 or wait for daily reset at ${credits.credits.daily.resetsAt}.`
     );
   }
   return credits.credits.total;
@@ -54,35 +64,35 @@ async function ensureCredits(minRequired: number) {
 await ensureCredits(3); // Need at least 3 for build + test + polish
 ```
 
-## Membership
+## Paid Features
 
-```typescript
-const membership = await mcpCall('tools/call', {
-  name: 'get_membership',
-  arguments: {},
-});
-// Returns: tier, status, period details
-```
-
-Premium ($30/month) is required for:
-- Preview and production deployments
+Paid features require **any completed credit purchase**:
+- Preview and production deployments (mainnet)
 - Code downloads
+- Custom domains
+- Advanced AI model preferences
 
-Add-on credit purchases via x402 do **not** require a subscription — any authenticated user can buy credits.
+The system checks `hasUserEverPaid()` — if the wallet has any completed payment record, paid features are unlocked **permanently**.
 
-### Subscribe
+### How to Unlock
+
+Buy credits via x402 using `topup_credits` (USDC on Solana, no browser needed). A single purchase ($15 minimum) creates a payment record and unlocks all paid features. See [x402 Credit Top-Up](#x402-credit-top-up) below.
+
+### Check Payment Status
 
 ```typescript
-const checkout = await mcpCall('tools/call', {
-  name: 'subscribe',
+const credits = await mcpCall('tools/call', {
+  name: 'get_credits',
   arguments: {},
 });
-// Returns: Stripe checkout URL — open in browser to complete
+// If add-on credits exist, the wallet has paid and features are unlocked
 ```
 
 ## x402 Credit Top-Up
 
 Agents can buy credits with USDC on Solana — no browser needed. Uses the x402 payment protocol.
+
+> A completed x402 credit purchase also unlocks all paid features (mainnet deployment, code downloads, custom domains) since the system only requires that the user has ever completed any payment.
 
 ### Flow
 
@@ -132,7 +142,7 @@ const result = await mcpCall('tools/call', {
 | 5 packages | $75 | 250 | 6 months |
 | 10 packages (max) | $150 | 500 | 6 months |
 
-No subscription required — any authenticated user can purchase. Payments are idempotent via transaction ID.
+Any authenticated user can purchase. Payments are idempotent via transaction ID. A completed purchase also unlocks paid features (deployment, downloads, etc.).
 
 ## AI Preferences
 
@@ -146,7 +156,7 @@ const prefs = await mcpCall('tools/call', {
 });
 // Returns: tier per use case (mainChat, planMode, codingAgent, etc.)
 
-// Update preferences (requires subscription)
+// Update preferences (requires any credit purchase)
 await mcpCall('tools/call', {
   name: 'set_ai_preferences',
   arguments: {

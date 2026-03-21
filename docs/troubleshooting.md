@@ -31,17 +31,20 @@ Common errors, causes, and agent recovery patterns.
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `check_publish_eligibility` fails | Missing Premium subscription or failed security review | Subscribe via `subscribe` tool, run `security_scan` and fix issues |
+| `check_publish_eligibility` returns `no_membership` | User has never purchased credits | The wallet needs at least one completed credit purchase. Buy x402 add-on credits via `topup_credits` ($15 minimum). Once any purchase completes, deployment is permanently unlocked for that wallet |
+| `check_publish_eligibility` fails with security review | Failed security scan | Run `security_scan` and fix flagged issues before retrying |
 | Preview deploy fails | Missing `authToken` | Pass `authToken: await getIdToken()` in `publish_project` arguments |
 | Production deploy fails | Haven't passed eligibility check | Run `check_publish_eligibility` first and resolve any blockers |
+| `topup_credits` returns HTTP 500 | Poof platform bug with x402 payment processing | This is a server-side issue, not a wallet problem. Retry later |
 
 ## Credit Errors
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `You have run out of credits` | No credits remaining | Check `get_credits` — wait for daily reset, subscribe for more, or top up via x402 |
+| `You have run out of credits` | No credits remaining | Check `get_credits` — wait for daily reset or top up via x402 |
 | AI stops responding mid-build | Credits exhausted during execution | Check credits with `get_credits`. If zero, top up and send a new `chat` message to continue |
 | `chat` silently does nothing | Insufficient credits to start | Always call `get_credits` before starting a workflow. A full build + test + polish cycle costs 3-5 credits |
+| Agent can't deploy after buying credits | `topup_credits` may have returned HTTP 500 (server bug) so payment didn't complete | Verify the payment actually completed — check `get_credits` for add-on records. If the x402 call failed, retry |
 
 ## Agent Recovery Patterns
 
@@ -76,7 +79,7 @@ async function ensureCredits(minRequired: number) {
   if (credits.credits.total < minRequired) {
     throw new Error(
       `Insufficient credits: ${credits.credits.total} remaining, need ${minRequired}. ` +
-      `Top up via x402 or wait for daily reset at ${credits.credits.daily.resetsAt}.`
+      `Buy credits via x402 or wait for daily reset at ${credits.credits.daily.resetsAt}.`
     );
   }
 }

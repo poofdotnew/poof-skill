@@ -319,7 +319,7 @@ When Poof builds your project, it generates a typed SDK from the policy — coll
 
 ### Getting the SDK
 
-Download via `download_code` → `get_download_url` (requires Premium), then extract:
+Download via `download_code` → `get_download_url` (requires a credit purchase), then extract:
 
 ```
 src/lib/db-client.ts              # Shared utilities (Time, Address, Increment, Token)

@@ -31,7 +31,7 @@ Poof is a Backend-as-a-Service for Solana. It generates full-stack dApps (databa
 Your Agent ──► @pooflabs/server (auth) ──► Cognito JWT
     │
     ▼
-POST /api/mcp ──► 32 tools: create, chat, deploy, test, download, and more
+POST /api/mcp ──► 30 tools: create, chat, deploy, test, download, and more
 ```
 
 Your agent authenticates with a Solana keypair, gets a JWT, then calls Poof's MCP endpoint to create projects, iterate via chat, run tests, and deploy — all through code.
@@ -175,7 +175,7 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 ### What the skill provides
 
 - **Authentication setup** — Solana keypair generation and Cognito JWT flow
-- **32 MCP tools** — Complete API for project lifecycle (create, chat, deploy, test, download)
+- **30 MCP tools** — Complete API for project lifecycle (create, chat, deploy, test, download)
 - **Generation modes** — `full`, `policy`, `backend,policy`, `ui,policy`
 - **Polling patterns** — Timeout + exponential backoff helpers
 - **Testing workflows** — Lifecycle action tests with pass/fail evaluation
@@ -198,13 +198,13 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 | [**SKILL.md**](SKILL.md) | Main skill reference — auth, workflow, checklist, best practices |
 | [**How Poof Works**](docs/how-poof-works.md) | Architecture, policy system, plugins, on-chain vs off-chain |
 | [**Building & Chat**](docs/building-and-chat.md) | Project creation, chat workflow, polling, full code examples |
-| [**API Reference**](docs/api-reference.md) | All 32 MCP tools with inputs/outputs |
+| [**API Reference**](docs/api-reference.md) | All 30 MCP tools with inputs/outputs |
 | [**Backend-Only Mode**](docs/backend-only.md) | Custom frontend with Poof backend |
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | SDK init, wallet auth, database access, React hooks |
 | [**Database SDK**](docs/database-sdk.md) | Generated typed SDK, collections, read/write patterns |
 | [**Deployment**](docs/deployment.md) | Environments, publishing, code downloads, custom domains |
 | [**Testing**](docs/testing.md) | Lifecycle actions, test syntax, bootstrap scripts |
-| [**Credits & Payments**](docs/credits-and-payments.md) | Credit system, membership tiers, USDC top-up |
+| [**Credits & Payments**](docs/credits-and-payments.md) | Credit system, paid features, USDC top-up |
 | [**Troubleshooting**](docs/troubleshooting.md) | Common errors and recovery patterns |
 | [**Cross-Compatibility**](docs/cross-compatibility.md) | curl, Python, OpenAI function calling format |
 
