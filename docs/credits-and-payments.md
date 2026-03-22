@@ -105,6 +105,8 @@ These rules are **non-negotiable**. Violating any one causes `unexpected_verify_
 | Send the unsigned tx to the server — the **facilitator submits it on-chain** | Submit the transaction on-chain yourself |
 | Encode as x402 v2 PaymentPayload (base64 JSON with `x402Version`, `scheme`, `network`, `payload.transaction`) | Send raw signature bytes or raw transaction bytes |
 | Use the amount from `accepts[0].amount` directly (already in USDC atomic units as a string) | Multiply the amount by `1e6` (it's already in micro-USDC) |
+| Use **`createTransferCheckedInstruction`** (includes mint + decimals) | Use `createTransferInstruction` (facilitator rejects it) |
+| Include exactly **3 instructions**: `setComputeUnitLimit` (≤50000) + `setComputeUnitPrice` + `transferChecked` | Use 1 instruction or >3 instructions, or set compute limit >50000 |
 
 ### Approach 1: Automatic (Recommended for REST)
 
@@ -147,8 +149,8 @@ This is the simplest and most reliable approach. The `x402-axios` interceptor:
 When using the MCP `topup_credits` tool, you must construct the payment manually:
 
 ```typescript
-import { Connection, PublicKey, Transaction } from '@solana/web3.js';
-import { createTransferInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { Connection, PublicKey, Transaction, ComputeBudgetProgram } from '@solana/web3.js';
+import { createTransferCheckedInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 const connection = new Connection('https://api.mainnet-beta.solana.com');
@@ -186,17 +188,25 @@ const amountMicroUsdc = Number(paymentReqs.amount); // Already in atomic units!
 const network = paymentReqs.network;
 
 // Step 2: Build a USDC transfer tx with the FACILITATOR as fee payer
+// IMPORTANT: The facilitator requires EXACTLY 3 instructions in this order:
+//   1. ComputeBudgetProgram.setComputeUnitLimit (≤ 50000 CU)
+//   2. ComputeBudgetProgram.setComputeUnitPrice
+//   3. createTransferCheckedInstruction (NOT createTransferInstruction)
 const facilitatorPubkey = new PublicKey(facilitatorAddress);
 const treasuryPubkey = new PublicKey(treasuryAddress);
 const senderAta = await getAssociatedTokenAddress(USDC_MINT, keypair.publicKey);
 const treasuryAta = await getAssociatedTokenAddress(USDC_MINT, treasuryPubkey);
 
 const tx = new Transaction().add(
-  createTransferInstruction(
-    senderAta,       // from: your USDC token account
-    treasuryAta,     // to: Poof treasury USDC token account
+  ComputeBudgetProgram.setComputeUnitLimit({ units: 50000 }),
+  ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }),
+  createTransferCheckedInstruction(
+    senderAta,         // from: your USDC token account
+    USDC_MINT,         // mint: USDC mint address (required by transferChecked)
+    treasuryAta,       // to: Poof treasury USDC token account
     keypair.publicKey, // authority: your wallet (signs the transfer)
-    amountMicroUsdc, // amount: already in atomic units from the 402 response
+    amountMicroUsdc,   // amount: already in atomic units from the 402 response
+    6,                 // decimals: USDC has 6 decimals
     [],
     TOKEN_PROGRAM_ID
   )
