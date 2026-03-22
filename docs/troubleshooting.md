@@ -42,7 +42,7 @@ Common errors, causes, and agent recovery patterns.
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `unexpected_verify_error` | The facilitator rejected the payment — usually wrong fee payer, tx already submitted, or bad encoding | See debug checklist in [credits-and-payments.md](credits-and-payments.md#troubleshooting-x402-payments) |
-| `Invalid PAYMENT-SIGNATURE header format` | Header is not valid base64-encoded JSON with required x402 fields | Must be `base64(JSON({ x402Version: 2, scheme, network, payload: { transaction } }))` |
+| `Invalid X-PAYMENT header format` | Header is not valid base64-encoded JSON with required x402 fields | Must be `base64(JSON({ x402Version: 2, scheme, network, payload: { transaction } }))` |
 | `missing x402Version field` | Sending raw tx bytes instead of the x402 PaymentPayload wrapper | Wrap serialized tx inside the full PaymentPayload JSON structure |
 | `not valid base64 JSON` | Header is not base64 or doesn't decode to valid JSON | Double-check encoding — the ENTIRE PaymentPayload JSON must be base64-encoded |
 | `Payment settlement failed` | Facilitator couldn't submit the tx on-chain | Ensure tx is NOT already submitted, blockhash is recent, and wallet has sufficient USDC |

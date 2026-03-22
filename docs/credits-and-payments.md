@@ -107,46 +107,14 @@ These rules are **non-negotiable**. Violating any one causes `unexpected_verify_
 | Use the amount from `accepts[0].amount` directly (already in USDC atomic units as a string) | Multiply the amount by `1e6` (it's already in micro-USDC) |
 | Use **`createTransferCheckedInstruction`** (includes mint + decimals) | Use `createTransferInstruction` (facilitator rejects it) |
 | Include exactly **3 instructions**: `setComputeUnitLimit` (≤50000) + `setComputeUnitPrice` + `transferChecked` | Use 1 instruction or >3 instructions, or set compute limit >50000 |
+| For REST: send payment as **`X-PAYMENT`** header (x402 v2 standard) | Use `PAYMENT-SIGNATURE` or other non-standard header names |
+| Use legacy `Transaction` from `@solana/web3.js` | Use `VersionedTransaction` or `@solana/kit` (facilitator may reject) |
 
-### Approach 1: Automatic (Recommended for REST)
+> **Note:** `x402-axios` does NOT work with Poof's topup endpoint — it fails on schema validation because Poof's network identifier (`solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`) isn't in its enum and `maxAmountRequired` is missing from the response. Use the manual approach below instead.
 
-Use the `x402-axios` package which handles the entire 402 flow automatically — fee payer selection, partial signing, encoding, and retry:
+### Manual Payment Flow
 
-```typescript
-import axios from 'axios';
-import { withPaymentInterceptor, createSigner } from 'x402-axios';
-
-// Create an x402-aware HTTP client
-const signer = await createSigner('solana', privateKeyBase58);
-const client = withPaymentInterceptor(
-  axios.create({ baseURL: env.baseUrl }),
-  signer
-);
-
-// Make the request — x402-axios handles the 402 → sign → retry flow automatically
-const response = await client.post('/api/credits/topup',
-  { quantity: 1 },
-  {
-    headers: {
-      'Authorization': `Bearer ${idToken}`,
-      'X-Wallet-Address': walletAddress,
-    },
-  }
-);
-// response.data = { credits: 50, priceUsd: 15, txId: '...', message: '...' }
-```
-
-This is the simplest and most reliable approach. The `x402-axios` interceptor:
-1. Detects the 402 response
-2. Reads the facilitator's fee payer address from the payment requirements
-3. Builds a USDC transfer transaction with the facilitator as fee payer
-4. Partially signs it (does NOT submit on-chain)
-5. Encodes it as a proper x402 v2 PaymentPayload
-6. Retries the request with the `X-PAYMENT` header
-
-### Approach 2: Manual (For MCP tool usage)
-
-When using the MCP `topup_credits` tool, you must construct the payment manually:
+Construct the payment using `@solana/web3.js`. Works for both MCP tool usage and direct REST calls:
 
 ```typescript
 import { Connection, PublicKey, Transaction, ComputeBudgetProgram } from '@solana/web3.js';
@@ -235,10 +203,37 @@ const result = await mcpCall('tools/call', {
   name: 'topup_credits',
   arguments: {
     quantity: 1,
-    paymentSignature: x402Payment,
+    payment: x402Payment,
   },
 });
 // Returns: { credits: 50, priceUsd: 15, txId: '...' }
+```
+
+**For direct REST calls** (instead of MCP), replace Steps 1 and 4 with fetch:
+
+```typescript
+// Step 1 (REST): Get payment requirements
+const reqRes = await fetch(`${env.baseUrl}/api/credits/topup`, {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${idToken}`, 'X-Wallet-Address': walletAddress, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ quantity: 1 }),
+});
+const requirementsResponse = await reqRes.json(); // 402 response body
+
+// ... Steps 2-3 same as above (build tx, encode payload) ...
+
+// Step 4 (REST): Send payment via X-PAYMENT header
+const result = await fetch(`${env.baseUrl}/api/credits/topup`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${idToken}`,
+    'X-Wallet-Address': walletAddress,
+    'X-PAYMENT': x402Payment,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ quantity: 1 }),
+});
+const data = await result.json(); // { credits: 50, priceUsd: 15, txId: '...' }
 ```
 
 ### How x402 Works (Under the Hood)
@@ -266,7 +261,7 @@ Agent                          Poof Server                    PayAI Facilitator
   │   DO NOT sendTransaction!      │                                │
   │                                │                                │
   │ POST /api/credits/topup        │                                │
-  │ + PAYMENT-SIGNATURE header     │                                │
+  │ + X-PAYMENT header             │                                │
   │ ──────────────────────────────►│                                │
   │                                │  POST /verify                  │
   │                                │  { paymentPayload, reqs }      │
@@ -298,7 +293,7 @@ Any authenticated user can purchase. Payments are idempotent via transaction ID.
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `unexpected_verify_error` | Generic — the facilitator rejected the payment or the header couldn't be parsed | Check ALL the rules in the Critical Rules table above. Most common: wrong fee payer, tx already submitted, or bad encoding |
-| `Invalid PAYMENT-SIGNATURE header format` | The header is not valid base64-encoded JSON with `x402Version` and `payload` fields | Ensure the header is `base64(JSON({ x402Version: 2, scheme: "exact", network: "...", payload: { transaction: "..." } }))` |
+| `Invalid X-PAYMENT header format` | The header is not valid base64-encoded JSON with `x402Version` and `payload` fields | Ensure the header is `base64(JSON({ x402Version: 2, scheme: "exact", network: "...", payload: { transaction: "..." } }))` |
 | `missing x402Version field` | The decoded JSON doesn't have `x402Version` | You may be sending raw tx bytes instead of the x402 PaymentPayload wrapper |
 | `missing payload field` | The decoded JSON doesn't have `payload` | Wrap the serialized transaction inside `{ payload: { transaction: "..." } }` |
 | `not valid base64 JSON` | The header is not valid base64 or doesn't decode to JSON | Double-check your base64 encoding. The ENTIRE PaymentPayload JSON must be base64-encoded |
