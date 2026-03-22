@@ -35,7 +35,20 @@ Common errors, causes, and agent recovery patterns.
 | `check_publish_eligibility` fails with security review | Failed security scan | Run `security_scan` and fix flagged issues before retrying |
 | Preview deploy fails | Missing `authToken` | Pass `authToken: await getIdToken()` in `publish_project` arguments |
 | Production deploy fails | Haven't passed eligibility check | Run `check_publish_eligibility` first and resolve any blockers |
-| `topup_credits` returns HTTP 500 | Poof platform bug with x402 payment processing | This is a server-side issue, not a wallet problem. Retry later |
+| `topup_credits` returns HTTP 500 | Settlement or credit award failed | Check `get_credits` to see if the payment was partially processed. If charged on-chain but no credits, contact support with the txId |
+
+## x402 Payment Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `unexpected_verify_error` | The facilitator rejected the payment — usually wrong fee payer, tx already submitted, or bad encoding | See debug checklist in [credits-and-payments.md](credits-and-payments.md#troubleshooting-x402-payments) |
+| `Invalid PAYMENT-SIGNATURE header format` | Header is not valid base64-encoded JSON with required x402 fields | Must be `base64(JSON({ x402Version: 2, scheme, network, payload: { transaction } }))` |
+| `missing x402Version field` | Sending raw tx bytes instead of the x402 PaymentPayload wrapper | Wrap serialized tx inside the full PaymentPayload JSON structure |
+| `not valid base64 JSON` | Header is not base64 or doesn't decode to valid JSON | Double-check encoding — the ENTIRE PaymentPayload JSON must be base64-encoded |
+| `Payment settlement failed` | Facilitator couldn't submit the tx on-chain | Ensure tx is NOT already submitted, blockhash is recent, and wallet has sufficient USDC |
+| First `topup_credits` call returns error (isError: true) | **This is expected** — the first call returns 402 with payment requirements | Parse the response body to get `accepts[0].extra.feePayer`, `accepts[0].payTo`, and `accepts[0].amount`, then construct the payment |
+
+**Most common mistake:** Using your own wallet as `tx.feePayer`. The fee payer MUST be the facilitator address from `accepts[0].extra.feePayer` in the 402 response. The facilitator co-signs and submits the transaction — your agent should NEVER call `connection.sendTransaction()`.
 
 ## Credit Errors
 
@@ -44,7 +57,7 @@ Common errors, causes, and agent recovery patterns.
 | `You have run out of credits` | No credits remaining | Check `get_credits` — wait for daily reset or top up via x402 |
 | AI stops responding mid-build | Credits exhausted during execution | Check credits with `get_credits`. If zero, top up and send a new `chat` message to continue |
 | `chat` silently does nothing | Insufficient credits to start | Always call `get_credits` before starting a workflow. A full build + test + polish cycle costs 3-5 credits |
-| Agent can't deploy after buying credits | `topup_credits` may have returned HTTP 500 (server bug) so payment didn't complete | Verify the payment actually completed — check `get_credits` for add-on records. If the x402 call failed, retry |
+| Agent can't deploy after buying credits | Payment may not have completed successfully | Verify the payment actually completed — check `get_credits` for add-on records. If the x402 call returned an error, follow the debug checklist in [credits-and-payments.md](credits-and-payments.md#troubleshooting-x402-payments) |
 
 ## Agent Recovery Patterns
 

@@ -90,48 +90,187 @@ const credits = await mcpCall('tools/call', {
 
 ## x402 Credit Top-Up
 
-Agents can buy credits with USDC on Solana — no browser needed. Uses the x402 payment protocol.
+Agents can buy credits with USDC on Solana — no browser needed. Uses the x402 payment protocol with the PayAI facilitator (free, no API keys required).
 
 > A completed x402 credit purchase also unlocks all paid features (mainnet deployment, code downloads, custom domains) since the system only requires that the user has ever completed any payment.
 
-### Flow
+### Critical Rules
+
+These rules are **non-negotiable**. Violating any one causes `unexpected_verify_error`:
+
+| DO | DON'T |
+|----|-------|
+| Use the **facilitator address** as `tx.feePayer` (from `accepts[0].extra.feePayer` in the 402 response) | Use your own wallet as fee payer |
+| **Partially sign** with `tx.partialSign(keypair)` | Fully sign the transaction |
+| Send the unsigned tx to the server — the **facilitator submits it on-chain** | Submit the transaction on-chain yourself |
+| Encode as x402 v2 PaymentPayload (base64 JSON with `x402Version`, `scheme`, `network`, `payload.transaction`) | Send raw signature bytes or raw transaction bytes |
+| Use the amount from `accepts[0].amount` directly (already in USDC atomic units as a string) | Multiply the amount by `1e6` (it's already in micro-USDC) |
+
+### Approach 1: Automatic (Recommended for REST)
+
+Use the `x402-axios` package which handles the entire 402 flow automatically — fee payer selection, partial signing, encoding, and retry:
 
 ```typescript
-// Step 1: Get payment requirements
-const requirements = await mcpCall('tools/call', {
-  name: 'topup_credits',
-  arguments: { quantity: 1 },
-});
-// Returns: treasury address, USDC amount, network info
+import axios from 'axios';
+import { withPaymentInterceptor, createSigner } from 'x402-axios';
 
-// Step 2: Sign a USDC transfer tx with your Solana wallet
+// Create an x402-aware HTTP client
+const signer = await createSigner('solana', privateKeyBase58);
+const client = withPaymentInterceptor(
+  axios.create({ baseURL: env.baseUrl }),
+  signer
+);
+
+// Make the request — x402-axios handles the 402 → sign → retry flow automatically
+const response = await client.post('/api/credits/topup',
+  { quantity: 1 },
+  {
+    headers: {
+      'Authorization': `Bearer ${idToken}`,
+      'X-Wallet-Address': walletAddress,
+    },
+  }
+);
+// response.data = { credits: 50, priceUsd: 15, txId: '...', message: '...' }
+```
+
+This is the simplest and most reliable approach. The `x402-axios` interceptor:
+1. Detects the 402 response
+2. Reads the facilitator's fee payer address from the payment requirements
+3. Builds a USDC transfer transaction with the facilitator as fee payer
+4. Partially signs it (does NOT submit on-chain)
+5. Encodes it as a proper x402 v2 PaymentPayload
+6. Retries the request with the `X-PAYMENT` header
+
+### Approach 2: Manual (For MCP tool usage)
+
+When using the MCP `topup_credits` tool, you must construct the payment manually:
+
+```typescript
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import { createTransferInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 const connection = new Connection('https://api.mainnet-beta.solana.com');
 
+// Step 1: Request payment requirements (returns 402 with facilitator info)
+const requirementsResponse = await mcpCall('tools/call', {
+  name: 'topup_credits',
+  arguments: { quantity: 1 },
+});
+
+// Parse the 402 response body — the MCP tool returns it as JSON text
+// Response shape:
+// {
+//   x402Version: 2,
+//   accepts: [{
+//     scheme: 'exact',
+//     network: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+//     amount: '15000000',          ← USDC atomic units (already multiplied, $15 = 15000000)
+//     payTo: '<treasury-address>',  ← where USDC goes
+//     asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+//     extra: {
+//       feePayer: '2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4',  ← FACILITATOR address
+//       ...
+//     }
+//   }],
+//   priceUsd: 15,
+//   priceUsdc: '15000000',
+//   credits: 50,
+//   quantity: 1,
+// }
+const paymentReqs = requirementsResponse.accepts[0];
+const facilitatorAddress = paymentReqs.extra.feePayer;
+const treasuryAddress = paymentReqs.payTo;
+const amountMicroUsdc = Number(paymentReqs.amount); // Already in atomic units!
+const network = paymentReqs.network;
+
+// Step 2: Build a USDC transfer tx with the FACILITATOR as fee payer
+const facilitatorPubkey = new PublicKey(facilitatorAddress);
+const treasuryPubkey = new PublicKey(treasuryAddress);
 const senderAta = await getAssociatedTokenAddress(USDC_MINT, keypair.publicKey);
-const treasuryAta = await getAssociatedTokenAddress(USDC_MINT, new PublicKey(requirements.treasuryAddress));
+const treasuryAta = await getAssociatedTokenAddress(USDC_MINT, treasuryPubkey);
 
 const tx = new Transaction().add(
-  createTransferInstruction(senderAta, treasuryAta, keypair.publicKey, requirements.usdcAmount * 1e6, [], TOKEN_PROGRAM_ID)
+  createTransferInstruction(
+    senderAta,       // from: your USDC token account
+    treasuryAta,     // to: Poof treasury USDC token account
+    keypair.publicKey, // authority: your wallet (signs the transfer)
+    amountMicroUsdc, // amount: already in atomic units from the 402 response
+    [],
+    TOKEN_PROGRAM_ID
+  )
 );
 tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-tx.feePayer = keypair.publicKey;
-tx.sign(keypair);
+tx.feePayer = facilitatorPubkey;  // MUST be the facilitator — NOT your keypair
+tx.partialSign(keypair);          // Sign ONLY as the token transfer authority
+// DO NOT call connection.sendTransaction() — the facilitator submits it
 
-const base64EncodedSignature = Buffer.from(tx.serialize()).toString('base64');
+// Step 3: Encode as x402 v2 PaymentPayload
+const serializedTx = Buffer.from(
+  tx.serialize({ requireAllSignatures: false }) // Allow missing facilitator signature
+).toString('base64');
 
-// Step 3: Complete purchase with payment signature
+const x402Payment = Buffer.from(JSON.stringify({
+  x402Version: 2,
+  scheme: 'exact',
+  network: network, // Use the network from the 402 response
+  payload: {
+    transaction: serializedTx,
+  },
+})).toString('base64');
+
+// Step 4: Complete purchase — send the payment header back
 const result = await mcpCall('tools/call', {
   name: 'topup_credits',
   arguments: {
     quantity: 1,
-    paymentSignature: base64EncodedSignature,
+    paymentSignature: x402Payment,
   },
 });
 // Returns: { credits: 50, priceUsd: 15, txId: '...' }
+```
+
+### How x402 Works (Under the Hood)
+
+Understanding this prevents common mistakes:
+
+```
+Agent                          Poof Server                    PayAI Facilitator
+  │                                │                                │
+  │ POST /api/credits/topup        │                                │
+  │ (no payment header)            │                                │
+  │ ──────────────────────────────►│                                │
+  │                                │  GET /supported                │
+  │                                │ ──────────────────────────────►│
+  │                                │  { feePayer: "2wKup..." }     │
+  │                                │ ◄──────────────────────────────│
+  │  402 { accepts: [...],         │                                │
+  │    extra: { feePayer } }       │                                │
+  │ ◄──────────────────────────────│                                │
+  │                                │                                │
+  │ Build tx:                      │                                │
+  │   feePayer = facilitator       │                                │
+  │   transfer USDC → treasury     │                                │
+  │   partialSign(myKeypair)       │                                │
+  │   DO NOT sendTransaction!      │                                │
+  │                                │                                │
+  │ POST /api/credits/topup        │                                │
+  │ + PAYMENT-SIGNATURE header     │                                │
+  │ ──────────────────────────────►│                                │
+  │                                │  POST /verify                  │
+  │                                │  { paymentPayload, reqs }      │
+  │                                │ ──────────────────────────────►│
+  │                                │  { isValid: true }             │
+  │                                │ ◄──────────────────────────────│
+  │                                │  POST /settle                  │
+  │                                │  (facilitator co-signs &       │
+  │                                │   submits tx on-chain)         │
+  │                                │ ──────────────────────────────►│
+  │                                │  { success, transaction }      │
+  │                                │ ◄──────────────────────────────│
+  │  200 { credits: 50, txId }     │                                │
+  │ ◄──────────────────────────────│                                │
 ```
 
 ### Pricing
@@ -143,6 +282,26 @@ const result = await mcpCall('tools/call', {
 | 10 packages (max) | $150 | 500 | 6 months |
 
 Any authenticated user can purchase. Payments are idempotent via transaction ID. A completed purchase also unlocks paid features (deployment, downloads, etc.).
+
+### Troubleshooting x402 Payments
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `unexpected_verify_error` | Generic — the facilitator rejected the payment or the header couldn't be parsed | Check ALL the rules in the Critical Rules table above. Most common: wrong fee payer, tx already submitted, or bad encoding |
+| `Invalid PAYMENT-SIGNATURE header format` | The header is not valid base64-encoded JSON with `x402Version` and `payload` fields | Ensure the header is `base64(JSON({ x402Version: 2, scheme: "exact", network: "...", payload: { transaction: "..." } }))` |
+| `missing x402Version field` | The decoded JSON doesn't have `x402Version` | You may be sending raw tx bytes instead of the x402 PaymentPayload wrapper |
+| `missing payload field` | The decoded JSON doesn't have `payload` | Wrap the serialized transaction inside `{ payload: { transaction: "..." } }` |
+| `not valid base64 JSON` | The header is not valid base64 or doesn't decode to JSON | Double-check your base64 encoding. The ENTIRE PaymentPayload JSON must be base64-encoded |
+| `Payment settlement failed` | Facilitator couldn't submit the tx on-chain | Ensure the tx is not already submitted, the blockhash is recent, and you have sufficient USDC balance |
+| HTTP 402 returned twice | First call is expected to return 402 (payment requirements). Second call with payment header should return 200 | This is normal for the first call. Parse the 402 body and construct the payment |
+
+**Debug checklist if you get `unexpected_verify_error`:**
+1. Is `tx.feePayer` set to the facilitator address from `accepts[0].extra.feePayer`? (NOT your wallet)
+2. Did you call `tx.partialSign(keypair)` and NOT `tx.sign(keypair)` or `connection.sendTransaction()`?
+3. Is the tx serialized with `{ requireAllSignatures: false }`?
+4. Is the serialized tx wrapped in `{ x402Version: 2, scheme: "exact", network: "...", payload: { transaction: "..." } }` and then base64-encoded?
+5. Is the amount from `accepts[0].amount` used directly (NOT multiplied by `1e6`)?
+6. Does your wallet have enough USDC balance for the transfer?
 
 ## AI Preferences
 
