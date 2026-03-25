@@ -110,6 +110,7 @@ POOF_ENVIRONMENTS = {
         "app_id": "6993d4b0b2b6ac08cd334dfb",
         "base_url": "https://staging.poof.new",
         "auth_url": "https://auth-staging.tarobase.com",
+        "vercel_bypass_token": os.environ.get("VERCEL_BYPASS_TOKEN"),
     },
 }
 
@@ -133,13 +134,17 @@ getIdToken().then(t => process.stdout.write(t));
 
 def mcp_call(token: str, wallet_address: str, tool_name: str, arguments: dict = None) -> dict:
     """Call an MCP tool and return the parsed result."""
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+        "X-Wallet-Address": wallet_address,
+    }
+    bypass_token = poof_env.get("vercel_bypass_token")
+    if bypass_token:
+        headers["x-vercel-protection-bypass"] = bypass_token
     resp = requests.post(
         f"{POOF_BASE_URL}/api/mcp",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {token}",
-            "X-Wallet-Address": wallet_address,
-        },
+        headers=headers,
         json={
             "jsonrpc": "2.0",
             "id": 1,

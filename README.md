@@ -55,6 +55,7 @@ Create a `.env` file:
 SOLANA_PRIVATE_KEY=<your-base58-private-key>
 SOLANA_WALLET_ADDRESS=<your-solana-public-key>
 POOF_ENV=production
+# VERCEL_BYPASS_TOKEN=<token>  # optional — Vercel protection bypass for staging
 ```
 
 Don't have a keypair? Generate one:

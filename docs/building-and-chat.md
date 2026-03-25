@@ -30,6 +30,7 @@ const POOF_ENVIRONMENTS = {
     appId: '6993d4b0b2b6ac08cd334dfb',
     baseUrl: 'https://staging.poof.new',
     authUrl: 'https://auth-staging.tarobase.com',
+    vercelBypassToken: process.env.VERCEL_BYPASS_TOKEN,
   },
   local: {
     appId: '6993d4b0b2b6ac08cd334dfb',
@@ -48,13 +49,17 @@ const walletAddress = process.env.SOLANA_WALLET_ADDRESS!;
 
 async function mcpCall(method: string, params?: any) {
   const idToken = await getIdToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${idToken}`,
+    'X-Wallet-Address': walletAddress,
+  };
+  if ('vercelBypassToken' in env && env.vercelBypassToken) {
+    headers['x-vercel-protection-bypass'] = env.vercelBypassToken;
+  }
   const res = await fetch(`${env.baseUrl}/api/mcp`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${idToken}`,
-      'X-Wallet-Address': walletAddress,
-    },
+    headers,
     body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
   });
 
@@ -367,6 +372,7 @@ Minimal project structure for an agent script. Create a dedicated directory with
 SOLANA_PRIVATE_KEY=<base58-encoded-private-key>
 SOLANA_WALLET_ADDRESS=<public-key>
 # POOF_ENV=staging  # uncomment for staging/local testing
+# VERCEL_BYPASS_TOKEN=<token>  # optional — Vercel protection bypass for staging
 ```
 
 Then put your agent logic in `src/index.ts` using the `mcpCall` and `pollUntilDone` helpers above.
@@ -390,6 +396,7 @@ const POOF_ENVIRONMENTS = {
     appId: '6993d4b0b2b6ac08cd334dfb',
     baseUrl: 'https://staging.poof.new',
     authUrl: 'https://auth-staging.tarobase.com',
+    vercelBypassToken: process.env.VERCEL_BYPASS_TOKEN,
   },
   local: {
     appId: '6993d4b0b2b6ac08cd334dfb',
@@ -407,13 +414,17 @@ const walletAddress = process.env.SOLANA_WALLET_ADDRESS!;
 
 async function mcpCall(method: string, params?: any) {
   const idToken = await getIdToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${idToken}`,
+    'X-Wallet-Address': walletAddress,
+  };
+  if ('vercelBypassToken' in env && env.vercelBypassToken) {
+    headers['x-vercel-protection-bypass'] = env.vercelBypassToken;
+  }
   const res = await fetch(`${env.baseUrl}/api/mcp`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${idToken}`,
-      'X-Wallet-Address': walletAddress,
-    },
+    headers,
     body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
   });
   const json: any = await res.json();

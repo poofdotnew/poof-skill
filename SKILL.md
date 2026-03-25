@@ -66,6 +66,7 @@ const POOF_ENVIRONMENTS = {
     appId: '6993d4b0b2b6ac08cd334dfb',
     baseUrl: 'https://staging.poof.new',
     authUrl: 'https://auth-staging.tarobase.com',
+    vercelBypassToken: process.env.VERCEL_BYPASS_TOKEN,
   },
   local: {
     appId: '6993d4b0b2b6ac08cd334dfb',
@@ -93,6 +94,7 @@ You only need `init` and `getIdToken` from the SDK. Everything else goes through
 | `SOLANA_PRIVATE_KEY` | Solana private key (base58) | Yes |
 | `SOLANA_WALLET_ADDRESS` | Your Solana wallet public address | Yes |
 | `POOF_ENV` | Target environment: `production` (default), `staging`, or `local` | No |
+| `VERCEL_BYPASS_TOKEN` | Vercel protection bypass token for staging | No |
 
 > **Important:** The keypair you use becomes the project owner. The wallet address is set as `ADMIN_ADDRESS` in your project's constants, controlling admin permissions in policies.
 
