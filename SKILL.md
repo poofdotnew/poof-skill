@@ -175,6 +175,7 @@ Copy this checklist and track your progress:
 - [ ] Test: Generate + run lifecycle tests via chat
 - [ ] Evaluate: get_test_results → check summary.failed === 0
 - [ ] Fix: If tests failed, iterate with structured error details
+- [ ] UI Test: Generate + run UI functional tests via chat → get_test_results to verify
 - [ ] Deploy: security_scan → check_publish_eligibility → publish_project
 ```
 
@@ -191,7 +192,7 @@ Read these for deeper context — especially **how-poof-works** if you're orches
 | [**Database SDK**](docs/database-sdk.md) | The generated db-client + collections pattern — typed functions, read/write, frontend vs backend, how to extract and use. |
 | [**Deployment**](docs/deployment.md) | Environments (draft/preview/production/mobile), publishing, code downloads. |
 | [**Credits & Payments**](docs/credits-and-payments.md) | Credit system, paid features, x402 USDC top-up flow. |
-| [**Testing**](docs/testing.md) | Lifecycle actions, test files, bootstrap scripts, policy validation. |
+| [**Testing**](docs/testing.md) | Lifecycle actions, test files, bootstrap scripts, UI functional tests, expression syntax, testing strategy by layer. |
 | [**API Reference**](docs/api-reference.md) | All 30 MCP tools, REST endpoints, JSON-RPC format, error codes. |
 | [**Troubleshooting**](docs/troubleshooting.md) | Common errors, recovery patterns, stuck build handling, credit exhaustion. |
 | [**Cross-Compatibility**](docs/cross-compatibility.md) | curl examples, Python helper, OpenAI function calling format, direct REST usage. |
@@ -223,6 +224,30 @@ The Poof AI will:
 - Generate `lifecycle-actions/test-*.json` files that validate your policies
 - Execute them against ephemeral test environments
 - Report pass/fail results
+
+### 1b. Run UI Functional Tests
+
+After policy tests pass, generate browser-based tests to verify the full stack:
+
+```typescript
+await mcpCall('tools/call', {
+  name: 'chat',
+  arguments: {
+    projectId,
+    message: 'Generate and run UI functional tests for the features you built. Test form submissions, navigation, CRUD operations, and any onchain interactions. Fund the mock test user if needed.',
+    messageId: uuidv4(),
+    tarobaseToken: await getIdToken(),
+  },
+});
+
+await pollUntilDone(projectId);
+```
+
+The Poof AI will:
+- Generate `lifecycle-actions/ui-test-*.json` files with browser-based tests
+- Fund the mock test user (`HKbZbRR7jWWR5VRN8KFjvTCHEzJQgameYxKQxh2gPoof`) if the app has onchain features
+- Execute tests using browser automation against the draft app
+- Report results alongside policy tests via `get_test_results`
 
 ### 2. Check Project Status & Get URLs
 
@@ -274,7 +299,7 @@ await mcpCall('tools/call', {
 });
 await pollUntilDone(projectId);
 
-// 3. Check structured test results
+// 3. Check structured test results (policy tests)
 const testResults = await mcpCall('tools/call', {
   name: 'get_test_results',
   arguments: { projectId },
@@ -301,9 +326,28 @@ if (!allPassed) {
   });
   await pollUntilDone(projectId);
 }
+
+// 6. Generate and run UI functional tests
+await mcpCall('tools/call', {
+  name: 'chat',
+  arguments: {
+    projectId,
+    message: 'Generate and run UI functional tests. Test form submissions, navigation, CRUD operations, and any onchain interactions. Fund the mock test user if needed.',
+    messageId: uuidv4(),
+    tarobaseToken: await getIdToken(),
+  },
+});
+await pollUntilDone(projectId);
+
+// 7. Check all results (includes both policy and UI tests)
+const allResults = await mcpCall('tools/call', {
+  name: 'get_test_results',
+  arguments: { projectId },
+});
+const uiPassed = allResults.summary.total > 0 && allResults.summary.failed === 0 && allResults.summary.errors === 0;
 ```
 
-See [docs/testing.md](docs/testing.md) for details on lifecycle action syntax and patterns.
+See [docs/testing.md](docs/testing.md) for details on lifecycle action syntax, UI test format, and testing strategy by layer.
 
 ## Writing the `firstMessage` Prompt
 

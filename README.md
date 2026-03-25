@@ -203,7 +203,7 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | SDK init, wallet auth, database access, React hooks |
 | [**Database SDK**](docs/database-sdk.md) | Generated typed SDK, collections, read/write patterns |
 | [**Deployment**](docs/deployment.md) | Environments, publishing, code downloads, custom domains |
-| [**Testing**](docs/testing.md) | Lifecycle actions, test syntax, bootstrap scripts |
+| [**Testing**](docs/testing.md) | Lifecycle actions, test files, bootstrap scripts, UI functional tests, expression syntax, testing strategy by layer |
 | [**Credits & Payments**](docs/credits-and-payments.md) | Credit system, paid features, USDC top-up |
 | [**Troubleshooting**](docs/troubleshooting.md) | Common errors and recovery patterns |
 | [**Cross-Compatibility**](docs/cross-compatibility.md) | curl, Python, OpenAI function calling format |
