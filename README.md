@@ -2,16 +2,16 @@
   <img src="https://poof.new/_next/image?url=%2Fimages%2Flogo-transparent-bg.png&w=256&q=75" alt="Poof" width="120" />
 </p>
 
-<h3 align="center">Poof CLI Skill</h3>
+<h3 align="center">Poof Agent SDK</h3>
 
 <p align="center">
-  Build autonomous AI agents that create, deploy, and manage full-stack Solana dApps — using the <code>poof</code> CLI, no custom code needed.
+  Build autonomous AI agents that create, deploy, and manage full-stack Solana dApps — entirely programmatically.
 </p>
 
 <p align="center">
   <a href="https://poof.new">Website</a> ·
   <a href="#quick-start">Quick Start</a> ·
-  <a href="docs/api-reference.md">CLI Command Reference</a> ·
+  <a href="docs/api-reference.md">API Reference</a> ·
   <a href="docs/troubleshooting.md">Troubleshooting</a>
 </p>
 
@@ -19,7 +19,7 @@
 
 ## What is this?
 
-This repository contains the **Poof skill** — a documentation and reference package that teaches AI agents (Claude Code, Cursor, Windsurf, etc.) how to use the [Poof](https://poof.new) platform programmatically via the `poof` CLI.
+This repository contains the **Poof skill** — a documentation and reference package that teaches AI agents (Claude Code, Cursor, Windsurf, etc.) how to use the [Poof](https://poof.new) platform programmatically via its MCP API.
 
 Poof is a Backend-as-a-Service for Solana. It generates full-stack dApps (database policies, backend APIs, frontend UI, blockchain operations) from natural language — and this skill gives your AI agent the knowledge to drive that entire lifecycle without a browser.
 
@@ -28,53 +28,99 @@ Poof is a Backend-as-a-Service for Solana. It generates full-stack dApps (databa
 ## How It Works
 
 ```
-Your Agent ──► poof CLI (auth + API + polling built in) ──► poof.new
+Your Agent ──► @pooflabs/server (auth) ──► Cognito JWT
+    │
+    ▼
+POST /api/mcp ──► 30 tools: create, chat, deploy, test, download, and more
 ```
 
-Your agent runs `poof` CLI commands to create projects, iterate via chat, run tests, and deploy — all through simple shell commands.
+Your agent authenticates with a Solana keypair, gets a JWT, then calls Poof's MCP endpoint to create projects, iterate via chat, run tests, and deploy — all through code.
 
 ## Quick Start
 
-### 1. Install the CLI
+### 1. Install dependencies
 
 ```bash
-brew install poofdotnew/tap/poof
+mkdir my-poof-agent && cd my-poof-agent
+npm init -y
+npm install @pooflabs/server @solana/web3.js bs58 dotenv uuid
+npm install -D typescript @types/node
 ```
 
-Or see the [poof-cli repo](https://github.com/poofdotnew/poof-cli) for other install methods.
+### 2. Set up environment
 
-### 2. Set up credentials
-
-```bash
-poof keygen >> .env    # Generate a Solana keypair
-poof auth login         # Authenticate
-```
-
-Or if you have existing keys, create a `.env`:
+Create a `.env` file:
 
 ```env
 SOLANA_PRIVATE_KEY=<your-base58-private-key>
 SOLANA_WALLET_ADDRESS=<your-solana-public-key>
+POOF_ENV=production
+# VERCEL_BYPASS_TOKEN=<token>  # optional — Vercel protection bypass for staging
+```
+
+Don't have a keypair? Generate one:
+
+```typescript
+import { Keypair } from '@solana/web3.js';
+import bs58 from 'bs58';
+
+const keypair = Keypair.generate();
+console.log('Private key:', bs58.encode(keypair.secretKey));
+console.log('Wallet:', keypair.publicKey.toBase58());
 ```
 
 ### 3. Create your first project
 
-```bash
-poof build -m "Build a token-gated voting app where holders can create proposals and vote"
+```typescript
+import 'dotenv/config';
+import { init, getIdToken } from '@pooflabs/server';
+import { v4 as uuidv4 } from 'uuid';
+
+// Auth
+init({
+  appId: '697d5189a1e3dd2cc1a82d2b',
+  authApiUrl: 'https://auth.tarobase.com',
+});
+process.env.TAROBASE_SOLANA_KEYPAIR = process.env.SOLANA_PRIVATE_KEY!;
+
+const idToken = await getIdToken();
+const projectId = uuidv4();
+
+// Create project — Poof AI starts building immediately
+await mcpCall('tools/call', {
+  name: 'create_project',
+  arguments: {
+    projectId,
+    firstMessage: 'Build a token-gated voting app where holders can create proposals and vote',
+    tarobaseToken: idToken,
+    isPublic: true,
+  },
+});
+
+// Wait for build to finish, then deploy
+await pollUntilDone(projectId);
+await mcpCall('tools/call', {
+  name: 'publish_project',
+  arguments: { projectId, target: 'preview', authToken: idToken },
+});
 ```
 
-This creates the project, waits for the AI to finish building, and returns the project ID and URLs.
+See [`docs/building-and-chat.md`](docs/building-and-chat.md) for the full `mcpCall` and `pollUntilDone` helper implementations.
 
 ### 4. Iterate
 
-```bash
-poof iterate -p <project-id> -m "Add a leaderboard page showing top voters"
-```
-
-### 5. Deploy
-
-```bash
-poof ship -p <project-id> --signed-permit <tx>
+```typescript
+// Chat to add features
+await mcpCall('tools/call', {
+  name: 'chat',
+  arguments: {
+    projectId,
+    message: 'Add a leaderboard page showing top voters',
+    messageId: uuidv4(),
+    tarobaseToken: await getIdToken(),
+  },
+});
+await pollUntilDone(projectId);
 ```
 
 ## Using as an AI Skill
@@ -111,7 +157,7 @@ If you have a plugin marketplace set up, you can install it via Claude Code's `/
 
 #### Using it
 
-Once installed, just ask Claude Code to build a Poof project — the skill activates automatically on keywords like `poof project`, `deploy dApp`, `create poof app`, `poof CLI`, `poof build`, etc.
+Once installed, just ask Claude Code to build a Poof project — the skill activates automatically on keywords like `poof project`, `deploy dApp`, `create poof app`, `@pooflabs/server`, etc.
 
 Example prompts:
 
@@ -129,9 +175,10 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 
 ### What the skill provides
 
-- **CLI commands** — Complete interface for project lifecycle (build, iterate, deploy, test, download)
+- **Authentication setup** — Solana keypair generation and Cognito JWT flow
+- **30 MCP tools** — Complete API for project lifecycle (create, chat, deploy, test, download)
 - **Generation modes** — `full`, `policy`, `backend,policy`, `ui,policy`
-- **Composite workflows** — `poof build` (create + wait), `poof iterate` (chat + wait + test results), `poof ship` (scan + check + deploy)
+- **Polling patterns** — Timeout + exponential backoff helpers
 - **Testing workflows** — Lifecycle action tests with pass/fail evaluation
 - **Deployment pipeline** — Draft → Preview → Production with security scanning
 - **Troubleshooting** — Common errors and recovery patterns
@@ -151,8 +198,8 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 |-----|--------|
 | [**SKILL.md**](SKILL.md) | Main skill reference — auth, workflow, checklist, best practices |
 | [**How Poof Works**](docs/how-poof-works.md) | Architecture, policy system, plugins, on-chain vs off-chain |
-| [**Building & Chat**](docs/building-and-chat.md) | Project creation, chat workflow, full code examples |
-| [**CLI Command Reference**](docs/api-reference.md) | All CLI commands with inputs/outputs |
+| [**Building & Chat**](docs/building-and-chat.md) | Project creation, chat workflow, polling, full code examples |
+| [**API Reference**](docs/api-reference.md) | All 30 MCP tools with inputs/outputs |
 | [**Backend-Only Mode**](docs/backend-only.md) | Custom frontend with Poof backend |
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | SDK init, wallet auth, database access, React hooks |
 | [**Database SDK**](docs/database-sdk.md) | Generated typed SDK, collections, read/write patterns |
@@ -160,6 +207,7 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 | [**Testing**](docs/testing.md) | Lifecycle actions, test files, bootstrap scripts, UI functional tests, expression syntax, testing strategy by layer |
 | [**Credits & Payments**](docs/credits-and-payments.md) | Credit system, paid features, USDC top-up |
 | [**Troubleshooting**](docs/troubleshooting.md) | Common errors and recovery patterns |
+| [**Cross-Compatibility**](docs/cross-compatibility.md) | curl, Python, OpenAI function calling format |
 
 ## Environments
 
@@ -169,11 +217,7 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 | Staging | `https://staging.poof.new` | Testing against staging |
 | Local | `http://localhost:3000` | Local development |
 
-Switch environments with the `--env` flag:
-
-```bash
-poof --env staging build -m "Test my app on staging"
-```
+Set `POOF_ENV` in your `.env` to switch. Defaults to `production`.
 
 ## License
 

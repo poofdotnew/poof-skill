@@ -1,12 +1,11 @@
 # Troubleshooting
 
-Common errors, causes, and CLI recovery patterns.
+Common errors, causes, and agent recovery patterns.
 
 ## Contents
 - [Authentication Errors](#authentication-errors)
 - [Build & Chat Errors](#build--chat-errors)
 - [Deployment Errors](#deployment-errors)
-- [x402 Payment Errors](#x402-payment-errors)
 - [Credit Errors](#credit-errors)
 - [Agent Recovery Patterns](#agent-recovery-patterns)
 
@@ -14,56 +13,104 @@ Common errors, causes, and CLI recovery patterns.
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `Not authenticated` | Invalid or expired session | Run `poof auth login` to re-authenticate |
-| `Invalid projectId format` | Non-UUID project ID | Project IDs must be valid UUIDs — copy from `poof project list` output |
+| `Not authenticated` | Invalid or expired JWT | Call `getIdToken()` again — tokens expire after ~1 hour |
+| `Invalid projectId format` | Non-UUID project ID | Use `uuidv4()` from the `uuid` package |
 | Auth succeeds but operations fail | Environment mismatch | Check `POOF_ENV` — must be `production`, `staging`, or `local`. Omit for production (default) |
 
 ## Build & Chat Errors
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| Build stuck for >10 minutes | AI is stuck or in a loop | Run `poof chat cancel -p <id>`, then start a new iteration with clearer instructions |
-| Build finishes immediately | AI server may be unreachable | Check the exit status — a non-zero code means the server is down. Retry after a short delay, or run `poof project status -p <id>` for the latest task status |
-| Build fails after starting | Session expired mid-build | Run `poof auth login` and retry |
-| AI builds the wrong thing | Vague or ambiguous `-m` flag in `poof build` | Be specific about data models, access rules, token operations, and on-chain vs off-chain. See [how-poof-works.md](how-poof-works.md) |
+| `check_ai_active` returns `true` for >10 minutes | AI is stuck or in a loop | Call `cancel_ai`, then send a new `chat` message with clearer instructions |
+| `check_ai_active` returns `false` immediately after `chat` | AI server may be unreachable | Check the `status` field: `"error"` means the server is down (vs `"ok"` meaning AI genuinely finished). Retry after a short delay, or check `get_project_status` for the latest task status |
+| `chat` returns error after build started | Token expired mid-build | Refresh token with `getIdToken()` and retry |
+| AI builds the wrong thing | Vague or ambiguous `firstMessage` | Be specific about data models, access rules, token operations, and on-chain vs off-chain. See [how-poof-works.md](how-poof-works.md) |
 | `Project not found` | Wrong project ID or not the owner | Verify project ID and that you're using the same keypair that created the project |
 
 ## Deployment Errors
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| Deploy blocked — `no_membership` | User has never purchased credits | The wallet needs at least one completed credit purchase. Run `poof credits topup` ($15 minimum). Once any purchase completes, deployment is permanently unlocked for that wallet |
-| Deploy blocked — security review | Failed security scan | Fix flagged issues and retry. `poof ship` runs the security scan automatically |
-| Preview deploy fails | Missing or expired auth | Run `poof auth login`, then retry `poof deploy` |
-| Production deploy fails | Haven't passed eligibility check | Run `poof deploy check` first and resolve any blockers, or use `poof ship` which checks automatically |
-| `poof credits topup` returns an error | Settlement or credit award failed | Run `poof credits balance` to see if the payment was partially processed. If charged on-chain but no credits, contact support with the txId |
+| `check_publish_eligibility` returns `no_membership` | User has never purchased credits | The wallet needs at least one completed credit purchase. Buy x402 add-on credits via `topup_credits` ($15 minimum). Once any purchase completes, deployment is permanently unlocked for that wallet |
+| `check_publish_eligibility` fails with security review | Failed security scan | Run `security_scan` and fix flagged issues before retrying |
+| Preview deploy fails | Missing `authToken` | Pass `authToken: await getIdToken()` in `publish_project` arguments |
+| Production deploy fails | Haven't passed eligibility check | Run `check_publish_eligibility` first and resolve any blockers |
+| `topup_credits` returns HTTP 500 | Settlement or credit award failed | Check `get_credits` to see if the payment was partially processed. If charged on-chain but no credits, contact support with the txId |
 
 ## x402 Payment Errors
 
-The CLI handles x402 payments internally. If `poof credits topup` fails, ensure your wallet has sufficient USDC on Solana mainnet and try again.
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `unexpected_verify_error` | The facilitator rejected the payment — usually wrong fee payer, tx already submitted, or bad encoding | See debug checklist in [credits-and-payments.md](credits-and-payments.md#troubleshooting-x402-payments) |
+| `Invalid X-PAYMENT header format` | Header is not valid base64-encoded JSON with required x402 fields | Must be `base64(JSON({ x402Version: 2, scheme, network, payload: { transaction } }))` |
+| `missing x402Version field` | Sending raw tx bytes instead of the x402 PaymentPayload wrapper | Wrap serialized tx inside the full PaymentPayload JSON structure |
+| `not valid base64 JSON` | Header is not base64 or doesn't decode to valid JSON | Double-check encoding — the ENTIRE PaymentPayload JSON must be base64-encoded |
+| `Payment settlement failed` | Facilitator couldn't submit the tx on-chain | Ensure tx is NOT already submitted, blockhash is recent, and wallet has sufficient USDC |
+| First `topup_credits` call returns error (isError: true) | **This is expected** — the first call returns 402 with payment requirements | Parse the response body to get `accepts[0].extra.feePayer`, `accepts[0].payTo`, and `accepts[0].amount`, then construct the payment |
+
+**Most common mistake:** Using your own wallet as `tx.feePayer`. The fee payer MUST be the facilitator address from `accepts[0].extra.feePayer` in the 402 response. The facilitator co-signs and submits the transaction — your agent should NEVER call `connection.sendTransaction()`.
 
 ## Credit Errors
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `You have run out of credits` | No credits remaining | Run `poof credits balance` — wait for daily reset or top up with `poof credits topup` |
-| AI stops responding mid-build | Credits exhausted during execution | Run `poof credits balance`. If zero, top up and run `poof iterate -p <id>` to continue |
-| Build silently does nothing | Insufficient credits to start | Always run `poof credits balance` before starting a workflow. A full build + test + polish cycle costs 3-5 credits |
-| Can't deploy after buying credits | Payment may not have completed | Verify the payment actually completed — run `poof credits balance` and check for add-on records |
+| `You have run out of credits` | No credits remaining | Check `get_credits` — wait for daily reset or top up via x402 |
+| AI stops responding mid-build | Credits exhausted during execution | Check credits with `get_credits`. If zero, top up and send a new `chat` message to continue |
+| `chat` silently does nothing | Insufficient credits to start | Always call `get_credits` before starting a workflow. A full build + test + polish cycle costs 3-5 credits |
+| Agent can't deploy after buying credits | Payment may not have completed successfully | Verify the payment actually completed — check `get_credits` for add-on records. If the x402 call returned an error, follow the debug checklist in [credits-and-payments.md](credits-and-payments.md#troubleshooting-x402-payments) |
 
 ## Agent Recovery Patterns
 
 ### Stuck Build Recovery
-```bash
-poof chat cancel -p <id>
-poof iterate -p <id> -m "The previous build got stuck. Review current state and continue."
+```typescript
+const status = await mcpCall('tools/call', {
+  name: 'check_ai_active',
+  arguments: { projectId },
+});
+
+if (status.active) {
+  await mcpCall('tools/call', { name: 'cancel_ai', arguments: { projectId } });
+  await new Promise(r => setTimeout(r, 2000));
+
+  await mcpCall('tools/call', {
+    name: 'chat',
+    arguments: {
+      projectId,
+      message: 'The previous build got stuck. Please review the current state and continue from where you left off.',
+      messageId: uuidv4(),
+      tarobaseToken: await getIdToken(),
+    },
+  });
+  await pollUntilDone(projectId);
+}
 ```
 
 ### Credit Check Before Workflow
-```bash
-TOTAL=$(poof credits balance --json | jq '.credits.total')
-if [ "$TOTAL" -lt 5 ]; then
-  echo "Insufficient credits: ${TOTAL} remaining, need 5. Top up or wait for daily reset."
-  exit 1
-fi
+```typescript
+async function ensureCredits(minRequired: number) {
+  const credits = await mcpCall('tools/call', { name: 'get_credits', arguments: {} });
+  if (credits.credits.total < minRequired) {
+    throw new Error(
+      `Insufficient credits: ${credits.credits.total} remaining, need ${minRequired}. ` +
+      `Buy credits via x402 or wait for daily reset at ${credits.credits.daily.resetsAt}.`
+    );
+  }
+}
+
+await ensureCredits(5);
+```
+
+### Token Refresh Pattern
+```typescript
+async function withFreshToken<T>(fn: (token: string) => Promise<T>): Promise<T> {
+  const token = await getIdToken();
+  return fn(token);
+}
+
+await withFreshToken(token =>
+  mcpCall('tools/call', {
+    name: 'chat',
+    arguments: { projectId, message: '...', messageId: uuidv4(), tarobaseToken: token },
+  })
+);
 ```

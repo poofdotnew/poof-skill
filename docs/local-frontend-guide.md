@@ -2,7 +2,7 @@
 
 How to build a frontend that connects to a Poof-hosted backend. This covers SDK setup, wallet authentication, database access, calling PartyServer API routes, and real-time subscriptions.
 
-Use this guide when you're building your own UI (React, Vue, Svelte, React Native, plain HTML) and connecting it to a Poof project created with `poof build --mode backend,policy` or `poof build --mode policy`.
+Use this guide when you're building your own UI (React, Vue, Svelte, React Native, plain HTML) and connecting it to a Poof project created with `generationMode: "backend,policy"` or `"policy"`.
 
 ## Contents
 - [Prerequisites](#prerequisites)
@@ -19,8 +19,8 @@ Use this guide when you're building your own UI (React, Vue, Svelte, React Nativ
 
 ## Prerequisites
 
-1. A Poof project with a backend — created via `poof build --mode backend,policy` or `poof build --mode policy`. See [backend-only.md](backend-only.md).
-2. Connection info from `poof project status -p <id> --json` — you need `tarobaseAppId`, `backendUrl`, and the API URLs. Get connection info with `poof project status -p <id> --json | jq '.connectionInfo'`.
+1. A Poof project with a backend — created via `create_project` with `generationMode: "backend,policy"` or `"policy"`. See [backend-only.md](backend-only.md).
+2. Connection info from `get_project_status` — you need `tarobaseAppId`, `backendUrl`, and the API URLs.
 
 ## SDK Installation & Setup
 
@@ -44,7 +44,7 @@ window.Buffer = Buffer;
 
 import { init } from '@pooflabs/web';
 
-// connectionInfo comes from: poof project status -p <id> --json | jq '.connectionInfo'
+// connectionInfo comes from get_project_status
 // Pick the environment you're connecting to: draft, preview, or production
 const env = connectionInfo.draft; // or connectionInfo.preview, connectionInfo.production
 await init({
@@ -177,7 +177,7 @@ await set('notes/note-123', {
   title: 'My Note',
   content: 'Hello world',
   authorAddress: user.address,
-  createdAt: Math.floor(Date.now() / 1000),
+  createdAt: Date.now(),
 });
 ```
 
@@ -319,7 +319,7 @@ When Poof builds your project, it generates a typed SDK from the policy — coll
 
 ### Getting the SDK
 
-Download via `poof deploy download` or `poof deploy download-url`, then extract:
+Download via `download_code` → `get_download_url` (requires a credit purchase), then extract:
 
 ```
 src/lib/db-client.ts              # Shared utilities (Time, Address, Increment, Token)
@@ -547,7 +547,7 @@ export default function App() {
   // Create note via PartyServer API route
   async function createNote(title: string, content: string) {
     const token = await getIdToken();
-    const res = await fetch(`${BACKEND_URL}/api/notes`, {
+    const res = await fetch(`https://${BACKEND_URL}/api/notes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -562,12 +562,12 @@ export default function App() {
 
   // Or create note via direct database write
   async function createNoteDirect(title: string, content: string) {
-    const noteId = `note-${crypto.randomUUID()}`;
+    const noteId = `note-${Date.now()}`;
     await set(`notes/${noteId}`, {
       title,
       content,
       authorAddress: user!.address,
-      createdAt: Math.floor(Date.now() / 1000),
+      createdAt: Date.now(),
     });
   }
 

@@ -1,6 +1,6 @@
 # Deployment
 
-Poof projects have four environments. Deploy to any of them using the `poof` CLI.
+Poof projects have four environments. Your agent can deploy to any of them via MCP.
 
 ## Contents
 - [Environments](#environments)
@@ -27,90 +27,103 @@ This is the most common source of confusion:
 
 - **Draft / Poofnet** — Automatically available for every project, no deployment needed. Uses a **simulated blockchain** — all token transfers, staking, swaps etc. use fake/test tokens with zero real cost. Great for rapid iteration and testing. Token balances are simulated and won't reflect real amounts.
 
-- **Preview / Mainnet Preview** — Requires explicit deployment. Uses the **real Solana mainnet** — transactions cost real SOL, tokens are real. This is your staging environment to test with real blockchain behavior before going to production.
+- **Preview / Mainnet Preview** — Requires explicit deployment via `publish_project`. Uses the **real Solana mainnet** — transactions cost real SOL, tokens are real. This is your staging environment to test with real blockchain behavior before going to production.
 
 **Key rule:** If you're just building and iterating, you're on Draft (Poofnet). Token balances are fake. When you deploy to Preview or Production, tokens become real.
 
 Draft is always available — no deployment needed. Preview and production require that the user has **completed at least one credit purchase** via x402.
 
-> **How it works:** The system calls `hasUserEverPaid()` — if the wallet has any completed payment record, deployment is unlocked permanently. If `poof deploy check` returns `no_membership`, buy credits via `poof credits topup` ($15 minimum for 50 credits) — this both provides AI credits and unlocks deployment.
+> **How it works:** The system calls `hasUserEverPaid()` — if the wallet has any completed payment record, deployment is unlocked permanently. If `check_publish_eligibility` returns `no_membership`, buy credits via `topup_credits` ($15 minimum for 50 credits) — this both provides AI credits and unlocks deployment.
 
 ## Pre-Deploy Checks
 
 ### Security Scan
 
-`poof ship` runs a security scan automatically before deploying. To run one manually:
+Run a security audit before deploying to production:
 
-```bash
-poof security scan -p <projectId>
+```typescript
+const scan = await mcpCall('tools/call', {
+  name: 'security_scan',
+  arguments: { projectId, tarobaseToken },
+});
 ```
 
 ### Eligibility Check
 
-`poof ship` checks eligibility automatically before deploying. To check manually:
+Always check eligibility before deploying:
 
-```bash
-poof deploy check -p <projectId>
-# Returns: payment status, security review status, project readiness
+```typescript
+const check = await mcpCall('tools/call', {
+  name: 'check_publish_eligibility',
+  arguments: { projectId },
+});
+// Returns: payment status, security review status, project readiness
 ```
 
 ## Publishing
 
-Deploy to preview (recommended first):
-
-```bash
-poof ship -p <projectId> --target preview --signed-permit <tx>
+```typescript
+// Deploy to preview (recommended first)
+await mcpCall('tools/call', {
+  name: 'publish_project',
+  arguments: {
+    projectId,
+    target: 'preview',       // 'preview' | 'production' | 'mobile'
+    authToken: tarobaseToken,
+  },
+});
 ```
 
-Or deploy to a specific environment directly:
+Deployment creates a task. Poll it to track progress:
 
-```bash
-# Deploy to preview (--signed-permit is required)
-poof deploy preview -p <projectId> --signed-permit <tx>
+```typescript
+const tasks = await mcpCall('tools/call', {
+  name: 'list_tasks',
+  arguments: { projectId },
+});
+// tasks is an object with a tasks array — access via tasks.tasks
+const latestTask = tasks.tasks?.[0];
 
-# Deploy to production
-poof deploy production -p <projectId> --yes
-
-# Deploy to mobile (all three flags are required)
-poof deploy mobile -p <projectId> --platform seeker --app-name "My App" --app-icon-url "https://..."
-```
-
-> **Note:** Preview deploys require `--signed-permit <tx>` — a signed permit transaction authorizing the deployment. The `poof ship` command with `--target preview` also requires this flag.
-
-> **Note:** Mobile deploys require `--platform`, `--app-name`, and `--app-icon-url`. Platform values: `seeker`, `ios`, `android`.
-
-Deployment creates a background task. Check its progress:
-
-```bash
-# List all tasks for the project
-poof task list -p <projectId>
-
-# Get status of a specific task
-poof task get <taskId> -p <projectId>
-# Poll until status is 'completed'
+const task = await mcpCall('tools/call', {
+  name: 'get_task',
+  arguments: { projectId, taskId: latestTask.id },
+});
+// Poll until task.status is 'completed'
 ```
 
 ### Deployment Flow
 
-1. **Deploy to preview first** — test with real mainnet behavior (`--signed-permit` required)
+1. **Deploy to preview first** — test with real mainnet behavior
 2. **Verify on preview** — check functionality, transactions, UI
 3. **Deploy to production** — when preview looks good
-4. **Deploy to mobile** (optional) — requires `--platform`, `--app-name`, and `--app-icon-url`
+4. **Deploy to mobile** (optional) — for Seeker, iOS, or Android
 
 ## Code Downloads
 
 Export your project's source code:
 
-```bash
-# 1. Initiate download (returns a taskId)
-poof deploy download -p <projectId>
+```typescript
+// 1. Initiate download
+const download = await mcpCall('tools/call', {
+  name: 'download_code',
+  arguments: { projectId },
+});
 
-# 2. Check task status (poll until 'completed')
-poof task get <taskId> -p <projectId>
+// 2. Poll the task until complete
+let task;
+do {
+  await new Promise(r => setTimeout(r, 3000));
+  task = await mcpCall('tools/call', {
+    name: 'get_task',
+    arguments: { projectId, taskId: download.taskId },
+  });
+} while (task.status !== 'completed');
 
-# 3. Get signed download URL (expires in 5 minutes)
-poof deploy download-url -p <projectId> --task <taskId>
-# Note: download-url requires --task flag (not positional)
+// 3. Get signed download URL (expires in 5 minutes)
+const url = await mcpCall('tools/call', {
+  name: 'get_download_url',
+  arguments: { projectId, taskId: download.taskId },
+});
 ```
 
 Requires at least one completed credit purchase.
@@ -119,12 +132,23 @@ Requires at least one completed credit purchase.
 
 After deploying to production, you can add custom domains:
 
-```bash
-# List existing domains
-poof domain list -p <projectId>
+```typescript
+// List existing domains
+const domains = await mcpCall('tools/call', {
+  name: 'get_domains',
+  arguments: { projectId },
+});
 
-# Add a custom domain
-poof domain add myapp.com -p <projectId> --default
+// Add a custom domain
+await mcpCall('tools/call', {
+  name: 'add_domain',
+  arguments: {
+    projectId,
+    domain: 'myapp.com',
+    isDefault: true,
+    tarobaseToken,
+  },
+});
 ```
 
 After adding a domain, configure your DNS to point to Poof's servers. The response includes the required DNS records.

@@ -178,7 +178,7 @@ The db-client and collections files are **generated from the policy** by the Poo
 
 - **Do not modify** generated collection files — your changes will be overwritten on the next policy update.
 - **Do regenerate** after any policy change by sending a chat message like: *"Regenerate the db-client and collection files to match the updated policy."*
-- The Poof AI automatically regenerates these files when it modifies the policy during a `poof iterate` / `poof chat send` interaction.
+- The Poof AI automatically regenerates these files when it modifies the policy during a `chat` interaction.
 
 ## For External Agents — Using the Database SDK
 
@@ -186,15 +186,15 @@ If you're building an agent that needs to interact with a Poof project's databas
 
 ### Option 1: Let Poof Handle Everything (Recommended)
 
-Use `poof build --mode full` or `poof build --mode ui,policy` — the Poof AI generates the UI, policy, AND the typed SDK. Your agent just sends `poof iterate` / `poof chat send` messages describing what to build.
+Use `generationMode: 'full'` or `'ui,policy'` — the Poof AI generates the UI, policy, AND the typed SDK. Your agent just sends `chat` messages describing what to build.
 
 ### Option 2: Policy-Only + Download SDK
 
 For agents that build their own frontend/backend but want Poof's database:
 
-1. **Create a project** with `poof build --mode policy`
-2. **Chat** to define your data model via `poof iterate` / `poof chat send` — the AI generates the policy
-3. **Download the code** via `poof deploy download` or `poof deploy download-url`
+1. **Create a project** with `generationMode: 'policy'`
+2. **Chat** to define your data model — the AI generates the policy
+3. **Download the code** via `download_code` → `get_download_url`
 4. **Extract** `src/lib/db-client.ts` + `src/lib/collections/` (for frontend) or `partyserver/src/db-client.ts` + `partyserver/src/collections/` (for backend)
 5. **Copy** those files into your own project
 6. **After policy changes**, re-download and re-extract — the generated files will reflect the updated schema
@@ -203,17 +203,28 @@ For agents that build their own frontend/backend but want Poof's database:
 >
 > See [local-frontend-guide.md](local-frontend-guide.md) for complete SDK setup, auth integration, and usage patterns in a local frontend.
 
-```bash
-# 1. Create policy-only project
-poof build --mode policy -m 'Create collections for: users/$userId (name String, bio String?, avatar String?, createdAt UInt), posts/$postId (title String, content String, author Address, createdAt UInt, likes UInt?)'
+```typescript
+// 1. Create policy-only project
+await mcpCall('tools/call', {
+  name: 'create_project',
+  arguments: {
+    projectId,
+    firstMessage: 'Create collections for: users/$userId (name String, bio String?, avatar String?, createdAt UInt), posts/$postId (title String, content String, author Address, createdAt UInt, likes UInt?)',
+    tarobaseToken,
+    generationMode: 'policy',
+  },
+});
 
-# 2. Wait for build to complete (poof build waits automatically)
+// 2. Wait for build
+// ... poll check_ai_active ...
 
-# 3. Download and extract SDK files
-poof deploy download -p <project-id>
-# Or get a download URL:
-poof deploy download-url -p <project-id> --task <taskId>
-# Extract: src/lib/db-client.ts + src/lib/collections/*
+// 3. Download and extract SDK files
+const download = await mcpCall('tools/call', {
+  name: 'download_code',
+  arguments: { projectId },
+});
+// ... poll task, get_download_url, download zip ...
+// Extract: src/lib/db-client.ts + src/lib/collections/*
 ```
 
 ### Option 3: Full Generation + Selective Use

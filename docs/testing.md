@@ -21,7 +21,7 @@ Poof uses **lifecycle actions** — declarative JSON files — to test database 
 
 ## Why This Matters for Agents
 
-When you ask the Poof AI to add features via `poof iterate`, it generates policies (rules, hooks, fields). Lifecycle actions let you validate those policies work correctly before deploying. You can ask the Poof AI to generate these test files for you via `poof iterate`.
+When you ask the Poof AI to add features via `chat`, it generates policies (rules, hooks, fields). Lifecycle actions let you validate those policies work correctly before deploying. You can ask the Poof AI to generate these test files for you via chat.
 
 ## Three Test Modes
 
@@ -324,12 +324,12 @@ UI test files verify that the app's frontend works correctly — buttons functio
 
 ### How They Work
 
-1. The Poof AI generates `ui-test-*.json` files when you ask via `poof iterate`
+1. The Poof AI generates `ui-test-*.json` files when you ask via `chat`
 2. The test runner opens your draft app in a real browser with mock authentication
 3. Each step executes a natural language `act` instruction, then runs a structured `verify` assertion
-4. Results are available via `poof task test-results` alongside policy test results
+4. Results are available via `get_test_results` alongside policy test results
 
-External agents trigger UI tests the same way as policy tests: `poof iterate -p <id> -m "Generate and run UI tests..."` (handles waiting automatically), then check `poof task test-results`.
+External agents trigger UI tests the same way as policy tests: `chat` → `pollUntilDone` → `get_test_results`.
 
 ### Mock Test User
 
@@ -473,9 +473,9 @@ If the app has onchain features (staking, transfers, swaps), the mock user needs
 ### Execution Workflow
 
 1. **Check if app has onchain features** — look at the policy for `onchain: true` collections
-2. **Fund the mock test user if needed** — ask the Poof AI via `poof iterate` to fund the test user before running UI tests
-3. **Ask the Poof AI to generate and run UI tests** — use `poof iterate -p <id> -m "..."` (handles waiting automatically)
-4. **Check results** — `poof task test-results` includes UI test results alongside policy test results
+2. **Fund the mock test user if needed** — ask the Poof AI via `chat` to fund the test user before running UI tests
+3. **Ask the Poof AI to generate and run UI tests** — same `chat` → `pollUntilDone` pattern
+4. **Check results** — `get_test_results` includes UI test results alongside policy test results
 5. Tests run sequentially (they may modify shared app state)
 6. Each test gets its own browser session
 7. Screenshots are captured after every step for debugging
@@ -636,28 +636,37 @@ Place `fund` steps at the beginning, before any data operations that require bal
 
 ## Credit Cost
 
-Generating and running tests goes through `poof iterate` (or `poof chat send`), which costs credits (~1 credit per message). A build + test + fix cycle typically costs 3-5 credits total. Always check `poof credits balance` before starting test generation to avoid running out mid-workflow.
+Generating and running tests goes through `chat`, which costs credits (~1 credit per message). A build + test + fix cycle typically costs 3-5 credits total. Always check `get_credits` before starting test generation to avoid running out mid-workflow.
 
 ## Checking Test Results Programmatically
 
-Use `poof task test-results` to evaluate test outcomes with structured data instead of parsing chat messages. This returns results for **both policy tests and UI tests**.
+Use `get_test_results` to evaluate test outcomes with structured data instead of parsing chat messages. This returns results for **both policy tests and UI tests**.
 
-```bash
-# Get test results for the current project
-poof task test-results -p <project-id>
+```typescript
+const testResults = await mcpCall('tools/call', {
+  name: 'get_test_results',
+  arguments: { projectId },
+});
 
-# The output includes structured JSON with results and summary
+// Check if all tests passed
+const allPassed = testResults.summary.total > 0 && testResults.summary.failed === 0 && testResults.summary.errors === 0;
+
+// Get details for failed tests
+const failures = testResults.results.filter((r: any) => r.status === 'failed' || r.status === 'error');
+for (const f of failures) {
+  console.log(`${f.fileName}: ${f.lastError}`);
+}
 ```
 
 The response includes:
 - `results` — array of individual test executions with `status`, `counts`, `lastError`, `duration`
 - `summary` — aggregate counts: `total`, `passed`, `failed`, `errors`, `running`
 
-This is more reliable than parsing chat output — it reads directly from the structured `lifecycleExecutions` database.
+This is more reliable than parsing `get_messages` output — it reads directly from the structured `lifecycleExecutions` database.
 
 ## Asking Poof to Generate Tests
 
-You can ask the Poof AI via `poof iterate` to generate all three types of test files:
+You can ask the Poof AI via `chat` to generate all three types of test files:
 
 **Policy tests:**
 > "Generate lifecycle action tests for the staking policy — test that users can stake, can't double-stake, and can unstake after the lock period."

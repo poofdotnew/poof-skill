@@ -1,6 +1,6 @@
 # How Poof Works
 
-This is the most important doc for an agent orchestrating Poof. Understanding how Poof works means you can write better prompts to `poof iterate` / `poof chat send` — you'll know what's possible, what to ask for, and how to frame requests so the Poof AI builds the right thing.
+This is the most important doc for an agent orchestrating Poof. Understanding how Poof works means you can write better prompts to the `chat` tool — you'll know what's possible, what to ask for, and how to frame requests so the Poof AI builds the right thing.
 
 ## Contents
 - [Core Concept](#core-concept)
@@ -189,7 +189,7 @@ Each collection file exports typed functions: `setItems()`, `getItems()`, `getMa
 
 ## Why This Matters for Your Agent
 
-When you send a `poof iterate` / `poof chat send` message to the Poof AI, you're essentially telling it what to build. Knowing the above means you can:
+When you send a `chat` message to the Poof AI, you're essentially telling it what to build. Knowing the above means you can:
 
 1. **Ask for the right things** — "Add a staking vault using @AccountPlugin" instead of vague "add staking"
 2. **Avoid impossible requests** — don't ask for Ethereum integration or array fields
