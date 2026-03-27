@@ -105,6 +105,7 @@ Returns server info, protocol version, capabilities, and tool names with descrip
 |------|-------------|
 | `check_publish_eligibility` | Pre-deploy check: payment status, security review, readiness. |
 | `publish_project` | Deploy. Targets: `preview`, `production`, `mobile`. Requires a credit purchase. |
+| `deploy_static_frontend` | Deploy a pre-built static frontend (tar.gz, base64-encoded). See [static-deploy.md](static-deploy.md). |
 | `download_code` | Start code export. Returns `taskId` — poll then `get_download_url`. The zip includes generated `db-client` + `collections/` SDK files. |
 | `get_download_url` | Signed S3 URL for completed download (5-minute expiry). |
 
@@ -171,6 +172,7 @@ All MCP tools map to REST endpoints. Same auth headers required.
 | GET | `/api/project/[id]/tasks` | List tasks |
 | POST | `/api/project/[id]/deploy-mainnet-preview` | Deploy preview |
 | POST | `/api/project/[id]/deploy-prod` | Deploy production |
+| POST | `/api/project/[id]/deploy-static` | Deploy a pre-built static frontend (`tar.gz` upload). See [static-deploy.md](static-deploy.md). |
 | POST | `/api/project/[id]/mobile/publish` | Publish mobile app |
 | POST | `/api/project/[id]/cancel` | Cancel AI execution |
 | POST | `/api/project/[id]/steer` | Steer AI mid-execution |
@@ -210,6 +212,7 @@ Each tool returns its data inside `result.content[0].text` as a JSON string. Her
 | `get_secrets` | `{ secrets: { required: string[], optional: string[] } }` |
 | `get_domains` | `{ domains: [{ domain, isDefault, status }] }` — requires a credit purchase (returns `{ error, membershipRequired: true }` if unpaid) |
 | `get_test_results` | `{ results: [{ id, fileName, testName, status, counts: { steps, expects, failed }, lastError, duration, startedAt }], summary: { total, passed, failed, errors, running } }` |
+| `deploy_static_frontend` | `{ projectId, taskId, bundleUrl, slug }` |
 | `get_logs` | `{ logs: [{ timestamp, level, message }] }` |
 | `list_templates` | `{ templates: [{ id, name, slug, description, category }] }` |
 

@@ -193,6 +193,7 @@ Read these for deeper context — especially **how-poof-works** if you're orches
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | Building a frontend that connects to a Poof backend — SDK init, wallet auth, database access, API routes, real-time subscriptions, React hooks, gotchas. |
 | [**Database SDK**](docs/database-sdk.md) | The generated db-client + collections pattern — typed functions, read/write, frontend vs backend, how to extract and use. |
 | [**Deployment**](docs/deployment.md) | Environments (draft/preview/production/mobile), publishing, code downloads. |
+| [**Static Frontend Deploy**](docs/static-deploy.md) | Deploy a self-built static frontend to Poof — tar.gz upload via REST API, MCP tool, or CLI. |
 | [**Credits & Payments**](docs/credits-and-payments.md) | Credit system, paid features, x402 USDC top-up flow. |
 | [**Testing**](docs/testing.md) | Lifecycle actions, test files, bootstrap scripts, UI functional tests, expression syntax, testing strategy by layer. |
 | [**API Reference**](docs/api-reference.md) | All 30 MCP tools, REST endpoints, JSON-RPC format, error codes. |
