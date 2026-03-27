@@ -1,6 +1,6 @@
 # Deployment
 
-Poof projects have four environments. Your agent can deploy to any of them via MCP.
+Poof projects have four environments. Deploy to any of them using the `poof` CLI.
 
 ## Contents
 - [Environments](#environments)
@@ -27,85 +27,86 @@ This is the most common source of confusion:
 
 - **Draft / Poofnet** — Automatically available for every project, no deployment needed. Uses a **simulated blockchain** — all token transfers, staking, swaps etc. use fake/test tokens with zero real cost. Great for rapid iteration and testing. Token balances are simulated and won't reflect real amounts.
 
-- **Preview / Mainnet Preview** — Requires explicit deployment via `publish_project`. Uses the **real Solana mainnet** — transactions cost real SOL, tokens are real. This is your staging environment to test with real blockchain behavior before going to production.
+- **Preview / Mainnet Preview** — Requires explicit deployment. Uses the **real Solana mainnet** — transactions cost real SOL, tokens are real. This is your staging environment to test with real blockchain behavior before going to production.
 
 **Key rule:** If you're just building and iterating, you're on Draft (Poofnet). Token balances are fake. When you deploy to Preview or Production, tokens become real.
 
 Draft is always available — no deployment needed. Preview and production require that the user has **completed at least one credit purchase** via x402.
 
-> **How it works:** The system calls `hasUserEverPaid()` — if the wallet has any completed payment record, deployment is unlocked permanently. If `check_publish_eligibility` returns `no_membership`, buy credits via `topup_credits` ($15 minimum for 50 credits) — this both provides AI credits and unlocks deployment.
+> **How it works:** The system calls `hasUserEverPaid()` — if the wallet has any completed payment record, deployment is unlocked permanently. If `poof deploy check` returns `no_membership`, buy credits via `poof credits topup` ($15 minimum for 50 credits) — this both provides AI credits and unlocks deployment.
 
 ## Pre-Deploy Checks
 
 ### Security Scan
 
-Run a security audit before deploying to production:
+`poof ship` initiates a security scan automatically before deploying and waits for it to complete before proceeding to the eligibility check and deployment. If the scan finds critical issues, the eligibility check will block deployment. To run a scan manually:
 
-```typescript
-const scan = await mcpCall('tools/call', {
-  name: 'security_scan',
-  arguments: { projectId, tarobaseToken },
-});
+```bash
+poof security scan -p <projectId>
 ```
 
 ### Eligibility Check
 
-Always check eligibility before deploying:
+`poof ship` checks eligibility automatically before deploying. To check manually:
 
-```typescript
-const check = await mcpCall('tools/call', {
-  name: 'check_publish_eligibility',
-  arguments: { projectId },
-});
-// Returns: payment status, security review status, project readiness
+```bash
+poof deploy check -p <projectId>
+# Returns: payment status, security review status, project readiness
 ```
 
 ## Publishing
 
-```typescript
-// Deploy to preview (recommended first)
-await mcpCall('tools/call', {
-  name: 'publish_project',
-  arguments: {
-    projectId,
-    target: 'preview',       // 'preview' | 'production' | 'mobile'
-    authToken: tarobaseToken,
-  },
-});
+Deploy to preview (recommended first):
+
+```bash
+poof ship -p <projectId> --target preview --signed-permit <tx>
 ```
 
-Deployment creates a task. Poll it to track progress:
+Or deploy to a specific environment directly:
 
-```typescript
-const tasks = await mcpCall('tools/call', {
-  name: 'list_tasks',
-  arguments: { projectId },
-});
-// tasks is an object with a tasks array — access via tasks.tasks
-const latestTask = tasks.tasks?.[0];
+```bash
+# Deploy to preview (--signed-permit is required)
+poof deploy preview -p <projectId> --signed-permit <tx>
 
-const task = await mcpCall('tools/call', {
-  name: 'get_task',
-  arguments: { projectId, taskId: latestTask.id },
-});
-// Poll until task.status is 'completed'
+# Deploy to production (first time)
+poof deploy production -p <projectId> --yes
+
+# Re-deploy to production (subsequent deploys require --signed-permit)
+poof deploy production -p <projectId> --yes --signed-permit <tx>
+
+# Deploy to mobile (all three flags are required)
+poof deploy mobile -p <projectId> --platform seeker --app-name "My App" --app-icon-url "https://..."
+```
+
+> **Note:** Preview deploys always require `--signed-permit <tx>` — a signed permit transaction authorizing the deployment. Production re-deploys (updating an existing production app) also require `--signed-permit`. The first production deploy does not require it. The `poof ship` command also accepts `--signed-permit`.
+
+> **Note:** Mobile deploys require `--platform`, `--app-name`, and `--app-icon-url`. Platform values: `seeker`, `ios`, `android`.
+
+Deployment creates a background task. Check its progress:
+
+```bash
+# List all tasks for the project
+poof task list -p <projectId>
+
+# Get status of a specific task
+poof task get <taskId> -p <projectId>
+# Poll until status is 'completed'
 ```
 
 ### Deployment Flow
 
-1. **Deploy to preview first** — test with real mainnet behavior
+1. **Deploy to preview first** — test with real mainnet behavior (`--signed-permit` required)
 2. **Verify on preview** — check functionality, transactions, UI
 3. **Deploy to production** — when preview looks good
-4. **Deploy to mobile** (optional) — for Seeker, iOS, or Android
+4. **Deploy to mobile** (optional) — requires `--platform`, `--app-name`, and `--app-icon-url`
 
 ## Static Frontend Deploy
 
 If you're building your frontend outside of Poof (e.g. with `generationMode: 'backend,policy'` or `'policy'`) and want to deploy it to your Poof project, use the static deploy API. This uploads a pre-built `tar.gz` of your dist folder and hosts it on Poof alongside your backend.
 
-Three ways to deploy:
-- **REST API** — presigned URL flow (`upload-url` → S3 PUT → `trigger`)
-- **MCP tool** — `deploy_static_frontend` with base64-encoded archive
-- **CLI** — `poof deploy static -p <id> --archive dist.tar.gz`
+```bash
+poof deploy static -p <id> --archive dist.tar.gz
+```
 
 See [static-deploy.md](static-deploy.md) for the full guide, API reference, and examples.
 
@@ -113,28 +114,16 @@ See [static-deploy.md](static-deploy.md) for the full guide, API reference, and 
 
 Export your project's source code:
 
-```typescript
-// 1. Initiate download
-const download = await mcpCall('tools/call', {
-  name: 'download_code',
-  arguments: { projectId },
-});
+```bash
+# 1. Initiate download (returns a taskId)
+poof deploy download -p <projectId>
 
-// 2. Poll the task until complete
-let task;
-do {
-  await new Promise(r => setTimeout(r, 3000));
-  task = await mcpCall('tools/call', {
-    name: 'get_task',
-    arguments: { projectId, taskId: download.taskId },
-  });
-} while (task.status !== 'completed');
+# 2. Check task status (poll until 'completed')
+poof task get <taskId> -p <projectId>
 
-// 3. Get signed download URL (expires in 5 minutes)
-const url = await mcpCall('tools/call', {
-  name: 'get_download_url',
-  arguments: { projectId, taskId: download.taskId },
-});
+# 3. Get signed download URL (expires in 5 minutes)
+poof deploy download-url -p <projectId> --task <taskId>
+# Note: download-url requires --task flag (not positional)
 ```
 
 Requires at least one completed credit purchase.
@@ -143,23 +132,12 @@ Requires at least one completed credit purchase.
 
 After deploying to production, you can add custom domains:
 
-```typescript
-// List existing domains
-const domains = await mcpCall('tools/call', {
-  name: 'get_domains',
-  arguments: { projectId },
-});
+```bash
+# List existing domains
+poof domain list -p <projectId>
 
-// Add a custom domain
-await mcpCall('tools/call', {
-  name: 'add_domain',
-  arguments: {
-    projectId,
-    domain: 'myapp.com',
-    isDefault: true,
-    tarobaseToken,
-  },
-});
+# Add a custom domain
+poof domain add myapp.com -p <projectId> --default
 ```
 
 After adding a domain, configure your DNS to point to Poof's servers. The response includes the required DNS records.

@@ -11,100 +11,13 @@ Use `deploy-static` when:
 
 Don't use this when:
 - You're using Poof's AI to generate the UI (`generationMode: 'full'` or `'ui,policy'`) — Poof handles deployment automatically
-- You only need the backend — use `publish_project` instead
+- You only need the backend — use `poof ship` instead
 
 ## Prerequisites
 
-1. An existing Poof project (create one with `create_project`)
+1. An existing Poof project (create one with `poof build`)
 2. A built frontend in a `dist/` folder (e.g. `npm run build`)
-3. Standard Poof auth (Cognito JWT + wallet address)
-
-## REST API
-
-Static deploy uses a presigned URL flow (3 steps):
-
-### Step 1: Get upload URL
-
-```
-POST /api/project/{projectId}/deploy-static/upload-url
-Content-Type: application/json
-Authorization: Bearer <cognito-id-token>
-X-Wallet-Address: <solana-wallet-address>
-
-Body: { "title": "optional", "description": "optional" }
-```
-
-Returns:
-```json
-{
-  "success": true,
-  "data": {
-    "uploadUrl": "https://s3.amazonaws.com/...presigned...",
-    "taskId": "uuid",
-    "maxSize": 52428800,
-    "expiresIn": 600
-  }
-}
-```
-
-### Step 2: Upload to S3
-
-```
-PUT {uploadUrl}
-Content-Type: application/gzip
-
-Body: raw tar.gz bytes
-```
-
-### Step 3: Trigger deploy
-
-```
-POST /api/project/{projectId}/deploy-static/trigger
-Content-Type: application/json
-Authorization: Bearer <cognito-id-token>
-X-Wallet-Address: <solana-wallet-address>
-
-Body: { "taskId": "uuid-from-step-1" }
-```
-
-Returns:
-```json
-{
-  "success": true,
-  "data": {
-    "projectId": "uuid",
-    "taskId": "uuid",
-    "bundleUrl": "https://your-slug-preview.poof.new",
-    "slug": "your-project-slug"
-  }
-}
-```
-
-## MCP Tool
-
-The `deploy_static_frontend` MCP tool handles all three steps internally. Since MCP uses JSON, the archive must be **base64-encoded**.
-
-```typescript
-await mcpCall('tools/call', {
-  name: 'deploy_static_frontend',
-  arguments: {
-    projectId: 'your-project-id',
-    archiveBase64: fs.readFileSync('dist.tar.gz').toString('base64'),
-    title: 'v1.2.0 release',           // optional
-    description: 'Updated dashboard',   // optional
-  },
-});
-```
-
-Response:
-```json
-{
-  "projectId": "uuid",
-  "taskId": "uuid",
-  "bundleUrl": "https://your-slug-preview.poof.new",
-  "slug": "your-project-slug"
-}
-```
+3. Authenticated CLI (`poof auth login`)
 
 ## CLI Command
 
@@ -129,34 +42,16 @@ poof deploy static -p $PROJECT_ID --archive dist.tar.gz --title "v2.0 release"
 
 ## Workflow Example
 
-```typescript
-// 1. Create project with backend-only mode
-await mcpCall('tools/call', {
-  name: 'create_project',
-  arguments: {
-    projectId: uuidv4(),
-    firstMessage: 'Build a token staking backend with...',
-    tarobaseToken: idToken,
-    generationMode: 'backend,policy',
-    isPublic: true,
-  },
-});
-await pollUntilDone(projectId);
+```bash
+# 1. Create project with backend-only mode
+PROJECT_ID=$(poof build -m "Build a token staking backend with..." --mode backend,policy --quiet)
 
-// 2. Build frontend locally
-execSync('npm run build', { cwd: './my-frontend', stdio: 'inherit' });
-execSync('tar czf dist.tar.gz -C ./my-frontend/dist .', { stdio: 'inherit' });
+# 2. Build frontend locally
+cd ./my-frontend && npm run build && cd ..
+tar czf dist.tar.gz -C ./my-frontend/dist .
 
-// 3. Deploy via MCP (handles presigned URL flow internally)
-const result = await mcpCall('tools/call', {
-  name: 'deploy_static_frontend',
-  arguments: {
-    projectId,
-    archiveBase64: fs.readFileSync('dist.tar.gz').toString('base64'),
-    title: 'Initial frontend deploy',
-  },
-});
-console.log('Live at:', result.bundleUrl);
+# 3. Deploy static frontend
+poof deploy static -p $PROJECT_ID --archive dist.tar.gz --title "Initial frontend deploy"
 ```
 
 ## How It Works
@@ -182,12 +77,10 @@ Static deploys create a checkpoint task with `focusArea: 'static_deploy'`. The p
 
 ## Error Handling
 
-| Status | Cause | Fix |
-|--------|-------|-----|
-| 400 | Empty body, invalid archive, or missing taskId | Ensure valid `tar.gz` created with `tar czf dist.tar.gz -C dist .` |
-| 401 | Invalid or expired JWT | Refresh with `getIdToken()` |
-| 403 | Not the project owner | Only the project creator can deploy |
-| 404 | Project or task not found | Verify project ID and task ID |
-| 409 | Task already triggered | Each upload URL can only be triggered once |
-| 413 | Archive exceeds 50 MB | Reduce bundle size (tree-shake, compress assets, remove source maps) |
-| 500 | S3 upload or R2 sync failed | Retry the request |
+| Error | Cause | Fix |
+|-------|-------|-----|
+| Empty/invalid archive | Empty body or bad format | Ensure valid `tar.gz` created with `tar czf dist.tar.gz -C dist .` |
+| Not authenticated | Invalid or expired token | Run `poof auth login` |
+| Not project owner | Wrong account | Only the project creator can deploy |
+| Archive too large | Exceeds 50 MB | Reduce bundle size (tree-shake, compress assets, remove source maps) |
+

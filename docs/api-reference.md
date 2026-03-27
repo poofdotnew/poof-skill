@@ -1,248 +1,174 @@
-# API Reference
+# CLI Command Reference
 
 ## Contents
-- [MCP Endpoint](#mcp-endpoint)
-- [All MCP Tools](#all-mcp-tools)
-- [REST API Endpoints](#rest-api-endpoints)
-- [Response Shapes](#response-shapes)
+- [Workflow Commands](#workflow-commands)
+- [All Commands](#all-commands)
+- [JSON Output Shapes](#json-output-shapes)
 - [Error Handling](#error-handling)
 
-## MCP Endpoint
+## Workflow Commands
 
-**URL:** `POST ${POOF_BASE_URL}/api/mcp` (default: `https://poof.new/api/mcp`)
+These composite commands handle multi-step operations automatically (polling, security checks, etc.) and are the **primary interface** for AI agents:
 
-Implements MCP over HTTP using JSON-RPC 2.0.
+| Command | What it does |
+|---------|-------------|
+| `poof build -m "..." [--mode MODE] [--public] [--stdin]` | Create a project, wait for AI to finish. Returns project ID and URLs. Mode: `full` (default), `policy`, `ui,policy`, `backend,policy`. |
+| `poof iterate -p <id> -m "..." [--stdin]` | Send a chat message, wait for AI to finish, show test results. |
+| `poof ship -p <id> [-t TARGET] [--signed-permit <tx>] [--dry-run] [--yes]` | Run security scan, check eligibility, deploy. Targets: `preview` (default), `production`, `mobile`. `--signed-permit` is required for `preview` (the default target) and for production re-deploys. Passes through all target-specific flags (e.g., `--allowed-addresses`, `--constants-overrides`, `--config` for preview/production; `--platform`, `--app-name`, `--app-icon-url`, `--app-description`, `--theme-color`, `--draft`, `--target-environment` for mobile). |
 
-### Discovery (No Auth)
+## All Commands
 
-```bash
-curl https://poof.new/api/mcp  # or your staging URL
-```
+### Authentication
 
-Returns server info, protocol version, capabilities, and tool names with descriptions. For full tool schemas (including `inputSchema`), use the `tools/list` JSON-RPC method via POST.
-
-### JSON-RPC Methods
-
-| Method | Purpose |
-|--------|---------|
-| `initialize` | Handshake — returns server info and capabilities |
-| `tools/list` | List all available tools with input schemas |
-| `tools/call` | Execute a tool by name with arguments |
-| `notifications/initialized` | Client notification (no-op) |
-| `ping` | Health check |
-
-### Request Format
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "list_projects",
-    "arguments": { "limit": 10 }
-  }
-}
-```
-
-### Response Format
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "content": [{ "type": "text", "text": "{\"projects\": [...]}" }]
-  }
-}
-```
-
-## All MCP Tools
+| Command | Description |
+|---------|-------------|
+| `poof keygen` | Generate a new Solana keypair. Outputs `SOLANA_PRIVATE_KEY` and `SOLANA_WALLET_ADDRESS`. |
+| `poof auth login` | Authenticate and cache token. |
+| `poof auth status` | Show current auth status and token validity. |
+| `poof auth logout` | Clear cached credentials. |
 
 ### Project Management
 
-| Tool | Description |
-|------|-------------|
-| `list_projects` | List all projects. Supports `limit`, `offset`. |
-| `create_project` | Create project. AI builds from `firstMessage`. Use `generationMode` to scope output (e.g. `"policy"`, `"ui,policy"`). Requires `tarobaseToken`. |
-| `update_project` | Update title, description, slug, visibility, generation mode. |
-| `delete_project` | Delete a project and all its data. Irreversible. |
+| Command | Description |
+|---------|-------------|
+| `poof project list [--limit N] [--offset N]` | List all projects. Default limit: 10. |
+| `poof project create -m "..." [--mode MODE] [--public] [--stdin]` | Create a project (AI starts building). Does NOT wait — use `poof build` instead. Mode: `full` (default), `policy`, `ui,policy`, `backend,policy`. |
+| `poof project status -p <id>` | Get metadata, task status, deployment URLs, connection info. |
+| `poof project update -p <id> [--title T] [--description D] [--slug S] [--public] [--generation-mode MODE] [--network NET]` | Update project settings. |
+| `poof project delete -p <id> --yes [--dry-run]` | Delete a project permanently. Use `--dry-run` to preview without deleting. |
+| `poof project messages -p <id> [--limit N] [--offset N]` | Get conversation history. Default limit: 50. |
 
-### AI Chat
+### Chat & AI Control
 
-| Tool | Description |
-|------|-------------|
-| `chat` | Send a message. AI builds features — backend, policy, UI, everything. Main interaction point. |
-| `check_ai_active` | Check if AI is processing. Poll after `chat`. |
-| `get_messages` | Get conversation history (chronological, non-internal). |
+| Command | Description |
+|---------|-------------|
+| `poof chat send -p <id> -m "..." [--stdin]` | Send a message (does NOT wait). Use `poof iterate` instead for wait + results. |
+| `poof chat active -p <id>` | Check if AI is currently processing. |
+| `poof chat cancel -p <id>` | Cancel in-progress AI execution. |
+| `poof chat steer -p <id> -m "..." [--stdin]` | Redirect AI mid-execution without cancelling. |
 
-### Execution Control
+### Files
 
-| Tool | Description |
-|------|-------------|
-| `cancel_ai` | Cancel an in-progress AI execution. Use when the AI is stuck or you want to abort. |
-| `steer_ai` | Redirect the AI mid-execution without cancelling. Injects a steering message to course-correct. |
+| Command | Description |
+|---------|-------------|
+| `poof files get -p <id>` | Get all source files. **Requires a credit purchase.** |
+| `poof files update -p <id> --file PATH --content "..."` | Update a single file. |
+| `poof files update -p <id> --from-json FILE` | Update multiple files from a JSON map. |
 
-### File Access
+### Tasks & Testing
 
-| Tool | Description |
-|------|-------------|
-| `get_files` | Get all source files for a project with contents. **Requires a credit purchase.** |
-| `update_files` | Directly modify project source files. Pass a map of file paths to contents. |
+| Command | Description |
+|---------|-------------|
+| `poof task list -p <id> [--change-id ID]` | List tasks (builds, deployments, downloads). Defaults to latest change. |
+| `poof task get <taskId> -p <id>` | Get task details. |
+| `poof task test-results -p <id> [--limit N] [--offset N]` | Structured test results — pass/fail, errors, counts. Default limit: 100. |
 
-### Status & Tasks
+### Deployment
 
-| Tool | Description |
-|------|-------------|
-| `get_project_status` | Metadata, task status, publish state, deployment URLs. |
-| `list_tasks` | List tasks (builds, deployments, downloads). |
-| `get_task` | Task details — poll for deployment/download progress. |
-| `get_test_results` | Structured lifecycle test results — pass/fail, error messages, counts. Use instead of parsing chat messages. |
-
-### Deployment & Publishing
-
-| Tool | Description |
-|------|-------------|
-| `check_publish_eligibility` | Pre-deploy check: payment status, security review, readiness. |
-| `publish_project` | Deploy. Targets: `preview`, `production`, `mobile`. Requires a credit purchase. |
-| `deploy_static_frontend` | Deploy a pre-built static frontend (tar.gz, base64-encoded). See [static-deploy.md](static-deploy.md). |
-| `download_code` | Start code export. Returns `taskId` — poll then `get_download_url`. The zip includes generated `db-client` + `collections/` SDK files. |
-| `get_download_url` | Signed S3 URL for completed download (5-minute expiry). |
-
-### Credits & Payments
-
-| Tool | Description |
-|------|-------------|
-| `get_credits` | Credit balance: daily, add-on, totals. |
-| `topup_credits` | Buy credits via x402 USDC. Also unlocks paid features (deployment, downloads). See [credits-and-payments.md](credits-and-payments.md). |
+| Command | Description |
+|---------|-------------|
+| `poof deploy check -p <id>` | Check publish eligibility (payment status, readiness). |
+| `poof deploy preview -p <id> --signed-permit <tx> [--dry-run] [--yes]` | Deploy to mainnet preview. `--signed-permit` is required. Optional: `--allowed-addresses addr1,addr2` (max 10), `--constants-overrides '{...}'`, `--config '{...}'`. |
+| `poof deploy production -p <id> --yes [--dry-run]` | Deploy to production. Optional: `--signed-permit <tx>` (required for re-deploys), `--constants-overrides '{...}'`, `--config '{...}'`. |
+| `poof deploy mobile -p <id> --platform <platform> --app-name "<name>" --app-icon-url "<url>" [--dry-run] [--yes]` | Publish mobile app. All three flags are required. Platform: `seeker`, `ios`, `android`. Optional: `--app-description`, `--theme-color` (default: `#0a0a0a`), `--draft`, `--target-environment` (`draft`, `mainnet-preview`), `--yes`. |
+| `poof deploy static -p <id> --archive dist.tar.gz [--title T] [--description D] [--dry-run]` | Deploy a pre-built static frontend. Archive must be a gzip-compressed tar (`.tar.gz`). |
+| `poof deploy download -p <id>` | Start code export. Returns task ID. |
+| `poof deploy download-url -p <id> --task <taskId>` | Get signed download URL (5-min expiry). |
 
 ### Security
 
-| Tool | Description |
-|------|-------------|
-| `security_scan` | Run a security audit. Analyzes policies, code, and config for vulnerabilities. |
-
-### Templates
-
-| Tool | Description |
-|------|-------------|
-| `list_templates` | Browse available project templates. Filter by `category`, `search`, `sortBy`. |
+| Command | Description |
+|---------|-------------|
+| `poof security scan -p <id> [--task <taskId>]` | Run security audit on policies, code, and config. Use `--task` to check status of a previous scan. |
 
 ### Secrets
 
-| Tool | Description |
-|------|-------------|
-| `get_secrets` | Get secret names and requirements per environment (not values). |
-| `set_secrets` | Store secret values (API keys, tokens) for a project. Encrypted at rest. |
+| Command | Description |
+|---------|-------------|
+| `poof secrets get -p <id> [--environment ENV]` | List required and optional secret names. Environment: `development` (default), `mainnet-preview`, `production`. |
+| `poof secrets set -p <id> KEY=VALUE [KEY=VALUE...]` | Set secret values. Secrets are stored globally and available across all environments. |
 
-### Custom Domains
+### Domains
 
-| Tool | Description |
-|------|-------------|
-| `get_domains` | List custom domains configured for a project. **Requires a credit purchase.** |
-| `add_domain` | Add a custom domain. Project must be deployed to production first. **Requires a credit purchase.** |
+| Command | Description |
+|---------|-------------|
+| `poof domain list -p <id>` | List custom domains. **Requires a credit purchase.** |
+| `poof domain add DOMAIN -p <id> [--default]` | Add a custom domain. **Requires a credit purchase.** |
 
 ### Logs
 
-| Tool | Description |
-|------|-------------|
-| `get_logs` | Get runtime logs for a deployed project. Supports `environment` and `limit` params. |
+| Command | Description |
+|---------|-------------|
+| `poof logs -p <id> [--environment ENV] [--limit N] [--offset N]` | Get runtime logs. Environment: `development`, `mainnet-preview`, `production`. Limit range: 1-50, default 50. |
+
+### Credits & Payments
+
+| Command | Description |
+|---------|-------------|
+| `poof credits balance` | Credit balance: daily, add-on, totals. |
+| `poof credits topup [--quantity N]` | Buy credits via x402 USDC (1-10 packages, each = 50 credits / $15). Also unlocks paid features. |
+
+### Templates
+
+| Command | Description |
+|---------|-------------|
+| `poof template list [--category CAT] [--search Q] [--sort SORT] [--limit N] [--skip N]` | Browse available project templates. `--sort` values: `newest`, `most_used`, `staff_picks`. |
 
 ### AI Preferences
 
-| Tool | Description |
+| Command | Description |
+|---------|-------------|
+| `poof preferences get` | View current AI model tier preferences. |
+| `poof preferences set KEY=VALUE [KEY=VALUE...]` | Set tiers: `average`, `smart`, `genius`. Requires a credit purchase. |
+
+### Configuration
+
+| Command | Description |
+|---------|-------------|
+| `poof config show` | Display current CLI configuration. |
+| `poof config set KEY VALUE` | Set persistent config. Valid keys: `default_project_id`, `environment`, `output_format`. |
+| `poof browser` | Generate a sign-in link for poof.new using CLI credentials. |
+| `poof version` | Print version, commit, and build date. |
+
+## Global Flags
+
+All commands support these flags:
+
+| Flag | Description |
 |------|-------------|
-| `get_ai_preferences` | Model tier per use case. |
-| `set_ai_preferences` | Update tiers: `average`, `smart`, `genius`. Requires a credit purchase. |
+| `-p, --project <id>` | Project ID (or set `default_project_id` via `poof config set`). |
+| `--env <environment>` | Target environment: `production` (default), `staging`, `local`. |
+| `--json` | Output as JSON (for scripting and parsing). |
+| `--quiet` | Minimal output (IDs and URLs only). |
 
-## REST API Endpoints
+## JSON Output Shapes
 
-All MCP tools map to REST endpoints. Same auth headers required.
+When using `--json`, commands return structured JSON. Key shapes:
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/api/project` | List projects |
-| POST | `/api/project/[id]` | Create project |
-| PUT | `/api/project/[id]` | Update project |
-| DELETE | `/api/project/[id]` | Delete project |
-| POST | `/api/project/[id]/chat` | Send chat message |
-| GET | `/api/project/[id]/ai/active` | Check AI status |
-| GET | `/api/project/[id]/messages` | Get messages |
-| GET | `/api/project/[id]/status` | Get project status |
-| GET | `/api/project/[id]/tasks` | List tasks |
-| POST | `/api/project/[id]/deploy-mainnet-preview` | Deploy preview |
-| POST | `/api/project/[id]/deploy-prod` | Deploy production |
-| POST | `/api/project/[id]/deploy-static/upload-url` | Get presigned S3 URL for static frontend upload. See [static-deploy.md](static-deploy.md). |
-| POST | `/api/project/[id]/deploy-static/trigger` | Trigger deploy after S3 upload completes. See [static-deploy.md](static-deploy.md). |
-| POST | `/api/project/[id]/mobile/publish` | Publish mobile app |
-| POST | `/api/project/[id]/cancel` | Cancel AI execution |
-| POST | `/api/project/[id]/steer` | Steer AI mid-execution |
-| GET | `/api/project/[id]/files` | Get project files |
-| POST | `/api/project/[id]/files/update` | Update project files |
-| POST | `/api/project/[id]/security-scan` | Run security scan |
-| GET | `/api/project/[id]/secrets` | Get secret names |
-| POST | `/api/project/[id]/secrets` | Set secret values |
-| GET | `/api/project/[id]/domains` | List custom domains |
-| POST | `/api/project/[id]/domains` | Add custom domain |
-| GET | `/api/project/[id]/logs` | Get runtime logs |
-| POST | `/api/project/[id]/download` | Start code export |
-| POST | `/api/project/[id]/download/get-signed-url` | Get signed download URL |
-| GET | `/api/project/[id]/test-results` | Get structured test results |
-| GET | `/api/project/[id]/task/[taskId]` | Get task details |
-| GET | `/api/project/[id]/check-publish-eligibility` | Check publish eligibility |
-| GET | `/api/template` | List templates |
-| GET | `/api/user/credits` | Get credit balance |
-| GET | `/api/user/ai-preferences` | Get AI preferences |
-| PUT | `/api/user/ai-preferences` | Set AI preferences |
-| POST | `/api/credits/topup` | x402 credit purchase |
-
-## Response Shapes
-
-Each tool returns its data inside `result.content[0].text` as a JSON string. Here are the parsed shapes for commonly used tools:
-
-| Tool | Parsed Response Shape |
-|------|----------------------|
-| `get_credits` | `{ credits: { daily: { remaining, allotted, resetsAt }, addOn: { remaining, purchased }, total } }` |
-| `get_messages` | `{ messages: [{ id, role: "user" \| "assistant", content: string, createdAt, status }] }` — **not a bare array**. `status` is `"queued"`, `"processing"`, or `"completed"` |
-| `check_ai_active` | `{ active: boolean, status: "ok" \| "error" }` — `status` is `"error"` if the AI server is unreachable (vs `"ok"` when actively responding) |
-| `get_project_status` | `{ project: { id, title, description, slug, ... }, latestTask: { id, status, title, ... }, publishState: { draft, preview, live, mobile }, urls: { preview, production, draft, mainnetPreview }, connectionInfo: { draft: { tarobaseAppId, backendUrl } \| null, preview: { tarobaseAppId, backendUrl } \| null, production: { tarobaseAppId, backendUrl } \| null, wsUrl, apiUrl, authApiUrl } }` |
-| `create_project` | `{ success: true, projectId, message }` |
-| `chat` | `{ success: true, messageId, queued: boolean }` — `queued` is `true` if AI was already active (HTTP 202). Messages execute in FIFO order |
-| `list_projects` | `{ projects: [...] }` |
-| `get_files` | `{ files: { [path: string]: string } }` — requires a credit purchase (returns `{ error, membershipRequired: true }` if unpaid) |
-| `get_secrets` | `{ secrets: { required: string[], optional: string[] } }` |
-| `get_domains` | `{ domains: [{ domain, isDefault, status }] }` — requires a credit purchase (returns `{ error, membershipRequired: true }` if unpaid) |
-| `get_test_results` | `{ results: [{ id, fileName, testName, status, counts: { steps, expects, failed }, lastError, duration, startedAt }], summary: { total, passed, failed, errors, running } }` |
-| `deploy_static_frontend` | `{ projectId, taskId, bundleUrl, slug }` |
-| `get_logs` | `{ logs: [{ timestamp, level, message }] }` |
-| `list_templates` | `{ templates: [{ id, name, slug, description, category }] }` |
-
-> **Important:** Some responses may be plain strings rather than JSON objects. Always use try/catch when parsing `content[0].text`. See the robust `mcpCall` helper in [building-and-chat.md](building-and-chat.md).
+| Command | JSON Shape |
+|---------|-----------|
+| `poof credits balance` | `{ credits: { daily: { remaining, allotted, resetsAt }, subscription: { remaining, purchased }, addOn: { remaining, purchased }, total } }` (Note: `subscription` is deprecated but still present. Credit values may be fractional.) |
+| `poof project messages` | `{ messages: [{ id, role, content, createdAt, status }], hasMore }` |
+| `poof chat active` | `{ active: boolean, status: "ok" \| "error" }` |
+| `poof project status` | `{ project: {...}, latestTask: {...}, publishState: {...}, urls: { draft, mainnetPreview, preview, production }, connectionInfo: {...} }` |
+| `poof build` | `{ projectId, urls: {...}, project: {...} }` |
+| `poof iterate` | `{ results: [{id, fileName, testName, status, counts: {steps, expects, failed}, lastError, duration, startedAt}], summary: {total, passed, failed, errors, running}, hasMore }` (If no tests exist, may return a success message with no structured test data.) |
+| `poof task test-results` | `{ results: [{id, fileName, testName, status, counts: {steps, expects, failed}, lastError, duration, startedAt}], summary: {total, passed, failed, errors, running}, hasMore }` |
+| `poof files get` | `{ files: { [path]: content } }` |
 
 ## Error Handling
 
-Errors come in the result payload:
-
-```json
-{
-  "result": {
-    "content": [{ "type": "text", "text": "{\"error\": \"Not authenticated\"}" }],
-    "isError": true
-  }
-}
-```
-
-### Common Errors
+The CLI provides context-aware error messages:
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `Not authenticated` | Invalid/expired JWT | Call `getIdToken()` again |
-| `Project not found` | Wrong project ID or not owner | Check project ownership |
-| `You have run out of credits` | No credits remaining | Top up via x402 `topup_credits` |
-| `Invalid projectId format` | Non-UUID project ID | Use `uuid.v4()` |
+| `Not authenticated` | Invalid/expired token | Run `poof auth login` |
+| `Project not found` | Wrong ID or not owner | Check with `poof project list` |
+| `You have run out of free credits` | No credits remaining | Run `poof credits topup` or wait for daily reset |
+| `Credit purchase required` | Paid feature without payment | Run `poof credits topup` to unlock |
 
 ### Tips
 
-- JWTs expire after ~1 hour — refresh with `getIdToken()` before each batch
-- All IDs (projectId, messageId, taskId) must be UUIDs
-- `get_credits` is free — check before starting long workflows
+- The CLI automatically refreshes expired tokens
+- All IDs (projectId, messageId) are generated automatically by the CLI
+- `poof credits balance` is free — check before long workflows
