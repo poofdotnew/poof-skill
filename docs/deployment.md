@@ -103,7 +103,7 @@ const task = await mcpCall('tools/call', {
 If you're building your frontend outside of Poof (e.g. with `generationMode: 'backend,policy'` or `'policy'`) and want to deploy it to your Poof project, use the static deploy API. This uploads a pre-built `tar.gz` of your dist folder and hosts it on Poof alongside your backend.
 
 Three ways to deploy:
-- **REST API** — `POST /api/project/{projectId}/deploy-static` with raw gzip body
+- **REST API** — presigned URL flow (`upload-url` → S3 PUT → `trigger`)
 - **MCP tool** — `deploy_static_frontend` with base64-encoded archive
 - **CLI** — `poof deploy static -p <id> --archive dist.tar.gz`
 
