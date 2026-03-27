@@ -153,6 +153,12 @@ await mcpCall('tools/call', {
 
 After adding a domain, configure your DNS to point to Poof's servers. The response includes the required DNS records.
 
+## Static Frontend Deploy
+
+If you're building your frontend outside of Poof and want to deploy it to your Poof project, use the static deploy API. This uploads a pre-built `tar.gz` of your dist folder and hosts it on Poof alongside your backend.
+
+See [static-deploy.md](static-deploy.md) for the full guide, API reference, and examples.
+
 ## Authentication on Deployed Apps
 
 Deployed apps need wallet authentication for users:

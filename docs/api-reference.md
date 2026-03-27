@@ -182,6 +182,7 @@ All MCP tools map to REST endpoints. Same auth headers required.
 | GET | `/api/project/[id]/domains` | List custom domains |
 | POST | `/api/project/[id]/domains` | Add custom domain |
 | GET | `/api/project/[id]/logs` | Get runtime logs |
+| POST | `/api/project/[id]/deploy-static` | Deploy a pre-built static frontend (`tar.gz` upload). See [static-deploy.md](static-deploy.md). |
 | POST | `/api/project/[id]/download` | Start code export |
 | POST | `/api/project/[id]/download/get-signed-url` | Get signed download URL |
 | GET | `/api/project/[id]/test-results` | Get structured test results |
