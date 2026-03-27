@@ -41,7 +41,6 @@ Returns:
   "data": {
     "uploadUrl": "https://s3.amazonaws.com/...presigned...",
     "taskId": "uuid",
-    "s3Key": "projects/{projectId}/static-dist/{taskId}.tar.gz",
     "maxSize": 52428800,
     "expiresIn": 600
   }
