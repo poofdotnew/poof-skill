@@ -172,7 +172,8 @@ All MCP tools map to REST endpoints. Same auth headers required.
 | GET | `/api/project/[id]/tasks` | List tasks |
 | POST | `/api/project/[id]/deploy-mainnet-preview` | Deploy preview |
 | POST | `/api/project/[id]/deploy-prod` | Deploy production |
-| POST | `/api/project/[id]/deploy-static` | Deploy a pre-built static frontend (`tar.gz` upload). See [static-deploy.md](static-deploy.md). |
+| POST | `/api/project/[id]/deploy-static/upload-url` | Get presigned S3 URL for static frontend upload. See [static-deploy.md](static-deploy.md). |
+| POST | `/api/project/[id]/deploy-static/trigger` | Trigger deploy after S3 upload completes. See [static-deploy.md](static-deploy.md). |
 | POST | `/api/project/[id]/mobile/publish` | Publish mobile app |
 | POST | `/api/project/[id]/cancel` | Cancel AI execution |
 | POST | `/api/project/[id]/steer` | Steer AI mid-execution |
