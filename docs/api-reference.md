@@ -12,7 +12,7 @@ These composite commands handle multi-step operations automatically (polling, se
 
 | Command | What it does |
 |---------|-------------|
-| `poof build -m "..." [--mode MODE] [--public] [--stdin]` | Create a project, wait for AI to finish. Returns project ID and URLs. Mode: `full` (default), `policy`, `ui,policy`, `backend,policy`. |
+| `poof build -m "..." [--mode MODE] [--public] [--stdin]` | Create a project, wait for AI to finish. Returns project ID and URLs. Mode: `full` (default), `policy`, `ui,policy`, `backend,policy`. Bare values `ui` and `backend` are also accepted (policy is auto-included). |
 | `poof iterate -p <id> -m "..." [--stdin]` | Send a chat message, wait for AI to finish, show test results. |
 | `poof ship -p <id> [-t TARGET] [--dry-run] [--yes]` | Run security scan, check eligibility, deploy. Targets: `preview` (default), `production`, `mobile`. Passes through all target-specific flags (e.g., `--allowed-addresses`, `--constants-overrides`, `--config` for preview/production; `--platform`, `--app-name`, `--app-icon-url`, `--app-description`, `--theme-color`, `--draft`, `--target-environment` for mobile). |
 
@@ -32,7 +32,7 @@ These composite commands handle multi-step operations automatically (polling, se
 | Command | Description |
 |---------|-------------|
 | `poof project list [--limit N] [--offset N]` | List all projects. Default limit: 10. |
-| `poof project create -m "..." [--mode MODE] [--public] [--stdin]` | Create a project (AI starts building). Does NOT wait — use `poof build` instead. Mode: `full` (default), `policy`, `ui,policy`, `backend,policy`. |
+| `poof project create -m "..." [--mode MODE] [--public] [--stdin]` | Create a project (AI starts building). Does NOT wait — use `poof build` instead. Mode: `full` (default), `policy`, `ui,policy`, `backend,policy`. Bare values `ui` and `backend` are also accepted (policy is auto-included). |
 | `poof project status -p <id>` | Get metadata, task status, deployment URLs, connection info. |
 | `poof project update -p <id> [--title T] [--description D] [--slug S] [--public] [--generation-mode MODE] [--network NET]` | Update project settings. |
 | `poof project delete -p <id> --yes [--dry-run]` | Delete a project permanently. Use `--dry-run` to preview without deleting. |
@@ -129,6 +129,7 @@ These composite commands handle multi-step operations automatically (polling, se
 | `poof config set KEY VALUE` | Set persistent config. Valid keys: `default_project_id`, `environment`, `output_format`. |
 | `poof browser` | Generate a sign-in link for poof.new using CLI credentials. |
 | `poof version` | Print version, commit, and build date. |
+| `poof completion [bash\|zsh\|fish\|powershell]` | Generate shell completion script for the specified shell. |
 
 ## Global Flags
 
