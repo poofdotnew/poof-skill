@@ -201,8 +201,7 @@ poof iterate -p "$PROJECT_ID" -m "Generate and run UI functional tests. Test for
 poof project status -p "$PROJECT_ID"
 
 # 8. Deploy (runs security scan + eligibility check + publish)
-# Preview deploys (default target) require --signed-permit
-poof ship -p "$PROJECT_ID" --signed-permit <tx>
+poof ship -p "$PROJECT_ID"
 
 echo "Done! Project deployed."
 ```

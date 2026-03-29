@@ -74,11 +74,10 @@ poof files get -p <project-id>
 poof files update -p <project-id> --file src/config.ts --content 'export const MAX = 100;'
 
 # 7. Deploy (runs security scan + eligibility check + publish)
-# Preview deploys (default target) require --signed-permit
-poof ship -p <project-id> --signed-permit <tx>
+poof ship -p <project-id>
 ```
 
-**Environment note:** After `poof build`, the app runs on **Draft (Poofnet)** — a simulated blockchain with fake tokens. This is free and great for testing. To test with real mainnet tokens, deploy to **Preview** using `poof ship -p <id> --target preview --signed-permit <tx>`. See [docs/deployment.md](docs/deployment.md) for the full environment breakdown.
+**Environment note:** After `poof build`, the app runs on **Draft (Poofnet)** — a simulated blockchain with fake tokens. This is free and great for testing. To test with real mainnet tokens, deploy to **Preview** using `poof ship -p <id> --target preview`. See [docs/deployment.md](docs/deployment.md) for the full environment breakdown.
 
 ### Agent Workflow Checklist
 
@@ -92,7 +91,7 @@ Copy this checklist and track your progress:
 - [ ] Evaluate: poof task test-results -p <id> --json → check summary.failed === 0
 - [ ] Fix: poof iterate -p <id> -m "Fix: <error details>"
 - [ ] UI Test: poof iterate -p <id> -m "Generate and run UI functional tests..."
-- [ ] Deploy: poof ship -p <id> --signed-permit <tx>
+- [ ] Deploy: poof ship -p <id>
 ```
 
 ## Documentation
@@ -189,8 +188,8 @@ fi
 # 5. Generate and run UI functional tests
 poof iterate -p "$PROJECT_ID" -m "Generate and run UI functional tests. Test form submissions, navigation, CRUD operations, and any onchain interactions. Fund the mock test user if needed."
 
-# 6. Deploy (preview target requires --signed-permit)
-poof ship -p "$PROJECT_ID" --signed-permit <tx>
+# 6. Deploy
+poof ship -p "$PROJECT_ID"
 ```
 
 See [docs/testing.md](docs/testing.md) for details on lifecycle action syntax, UI test format, and testing strategy by layer.

@@ -14,7 +14,7 @@ These composite commands handle multi-step operations automatically (polling, se
 |---------|-------------|
 | `poof build -m "..." [--mode MODE] [--public] [--stdin]` | Create a project, wait for AI to finish. Returns project ID and URLs. Mode: `full` (default), `policy`, `ui,policy`, `backend,policy`. |
 | `poof iterate -p <id> -m "..." [--stdin]` | Send a chat message, wait for AI to finish, show test results. |
-| `poof ship -p <id> [-t TARGET] [--signed-permit <tx>] [--dry-run] [--yes]` | Run security scan, check eligibility, deploy. Targets: `preview` (default), `production`, `mobile`. `--signed-permit` is required for `preview` (the default target) and for production re-deploys. Passes through all target-specific flags (e.g., `--allowed-addresses`, `--constants-overrides`, `--config` for preview/production; `--platform`, `--app-name`, `--app-icon-url`, `--app-description`, `--theme-color`, `--draft`, `--target-environment` for mobile). |
+| `poof ship -p <id> [-t TARGET] [--dry-run] [--yes]` | Run security scan, check eligibility, deploy. Targets: `preview` (default), `production`, `mobile`. Passes through all target-specific flags (e.g., `--allowed-addresses`, `--constants-overrides`, `--config` for preview/production; `--platform`, `--app-name`, `--app-icon-url`, `--app-description`, `--theme-color`, `--draft`, `--target-environment` for mobile). |
 
 ## All Commands
 
@@ -68,8 +68,8 @@ These composite commands handle multi-step operations automatically (polling, se
 | Command | Description |
 |---------|-------------|
 | `poof deploy check -p <id>` | Check publish eligibility (payment status, readiness). |
-| `poof deploy preview -p <id> --signed-permit <tx> [--dry-run] [--yes]` | Deploy to mainnet preview. `--signed-permit` is required. Optional: `--allowed-addresses addr1,addr2` (max 10), `--constants-overrides '{...}'`, `--config '{...}'`. |
-| `poof deploy production -p <id> --yes [--dry-run]` | Deploy to production. Optional: `--signed-permit <tx>` (required for re-deploys), `--constants-overrides '{...}'`, `--config '{...}'`. |
+| `poof deploy preview -p <id> [--dry-run] [--yes]` | Deploy to mainnet preview. Optional: `--allowed-addresses addr1,addr2` (max 10), `--constants-overrides '{...}'`, `--config '{...}'`. |
+| `poof deploy production -p <id> --yes [--dry-run]` | Deploy to production. Optional: `--constants-overrides '{...}'`, `--config '{...}'`. |
 | `poof deploy mobile -p <id> --platform <platform> --app-name "<name>" --app-icon-url "<url>" [--dry-run] [--yes]` | Publish mobile app. All three flags are required. Platform: `seeker`, `ios`, `android`. Optional: `--app-description`, `--theme-color` (default: `#0a0a0a`), `--draft`, `--target-environment` (`draft`, `mainnet-preview`), `--yes`. |
 | `poof deploy static -p <id> --archive dist.tar.gz [--title T] [--description D] [--dry-run]` | Deploy a pre-built static frontend. Archive must be a gzip-compressed tar (`.tar.gz`). |
 | `poof deploy download -p <id>` | Start code export. Returns task ID. |

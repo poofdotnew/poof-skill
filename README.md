@@ -74,7 +74,7 @@ poof iterate -p <project-id> -m "Add a leaderboard page showing top voters"
 ### 5. Deploy
 
 ```bash
-poof ship -p <project-id> --signed-permit <tx>
+poof ship -p <project-id>
 ```
 
 ## Using as an AI Skill

@@ -59,26 +59,21 @@ poof deploy check -p <projectId>
 Deploy to preview (recommended first):
 
 ```bash
-poof ship -p <projectId> --target preview --signed-permit <tx>
+poof ship -p <projectId> --target preview
 ```
 
 Or deploy to a specific environment directly:
 
 ```bash
-# Deploy to preview (--signed-permit is required)
-poof deploy preview -p <projectId> --signed-permit <tx>
+# Deploy to preview
+poof deploy preview -p <projectId>
 
-# Deploy to production (first time)
+# Deploy to production
 poof deploy production -p <projectId> --yes
-
-# Re-deploy to production (subsequent deploys require --signed-permit)
-poof deploy production -p <projectId> --yes --signed-permit <tx>
 
 # Deploy to mobile (all three flags are required)
 poof deploy mobile -p <projectId> --platform seeker --app-name "My App" --app-icon-url "https://..."
 ```
-
-> **Note:** Preview deploys always require `--signed-permit <tx>` — a signed permit transaction authorizing the deployment. Production re-deploys (updating an existing production app) also require `--signed-permit`. The first production deploy does not require it. The `poof ship` command also accepts `--signed-permit`.
 
 > **Note:** Mobile deploys require `--platform`, `--app-name`, and `--app-icon-url`. Platform values: `seeker`, `ios`, `android`.
 
@@ -95,7 +90,7 @@ poof task get <taskId> -p <projectId>
 
 ### Deployment Flow
 
-1. **Deploy to preview first** — test with real mainnet behavior (`--signed-permit` required)
+1. **Deploy to preview first** — test with real mainnet behavior
 2. **Verify on preview** — check functionality, transactions, UI
 3. **Deploy to production** — when preview looks good
 4. **Deploy to mobile** (optional) — requires `--platform`, `--app-name`, and `--app-icon-url`
