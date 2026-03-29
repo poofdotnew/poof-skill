@@ -97,7 +97,7 @@ poof task get <taskId> -p <projectId>
 
 ## Static Frontend Deploy
 
-If you're building your frontend outside of Poof (e.g. with `generationMode: 'backend,policy'` or `'policy'`) and want to deploy it to your Poof project, use the static deploy API. This uploads a pre-built `tar.gz` of your dist folder and hosts it on Poof alongside your backend.
+If you're building your frontend outside of Poof (e.g. with `--mode backend,policy` or `--mode policy`) and want to deploy it to your Poof project, use `poof deploy static`. This uploads a pre-built `tar.gz` of your dist folder and hosts it on Poof alongside your backend.
 
 ```bash
 poof deploy static -p <id> --archive dist.tar.gz

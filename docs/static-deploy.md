@@ -4,13 +4,13 @@ Deploy a self-built static frontend to a Poof project. Use this when you build t
 
 ## When to Use This
 
-Use `deploy-static` when:
+Use `poof deploy static` when:
 - You're building your own frontend outside of Poof (e.g. a custom React/Vue/Svelte app)
-- You used `generationMode: 'policy'` or `'backend,policy'` and want to deploy your local UI
+- You used `--mode policy` or `--mode backend,policy` and want to deploy your local UI
 - You have a pre-built `dist/` or `build/` folder ready to upload
 
 Don't use this when:
-- You're using Poof's AI to generate the UI (`generationMode: 'full'` or `'ui,policy'`) — Poof handles deployment automatically
+- You're using Poof's AI to generate the UI (`--mode full` or `--mode ui,policy`) — Poof handles deployment automatically
 - You only need the backend — use `poof ship` instead
 
 ## Prerequisites
