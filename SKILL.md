@@ -111,6 +111,7 @@ Read these for deeper context — especially **how-poof-works** if you're orches
 | [**Testing**](docs/testing.md) | Lifecycle actions, test files, bootstrap scripts, UI functional tests, expression syntax, testing strategy by layer. |
 | [**CLI Command Reference**](docs/api-reference.md) | All CLI commands, flags, output formats, and error codes. |
 | [**Troubleshooting**](docs/troubleshooting.md) | Common errors, recovery patterns, stuck build handling, credit exhaustion. |
+| [**On-Chain Capabilities**](docs/onchain-capabilities/README.md) | Pre-built central policy for common Solana operations — token transfers, pump.fun launches, Meteora pools, NFTs, swaps, price feeds, and more. Includes the app ID and all collection/query references. |
 
 ## Post-Build Verification
 

@@ -1,0 +1,98 @@
+# NFTs
+
+Create collections, transfer, and burn NFTs on Solana. Buy and list NFTs on Tensor marketplace.
+
+## Core Operations
+
+### NftCreateCollection
+
+Create a new NFT collection. Individual NFTs can be verified against this collection. The `collectionId` derives the collection mint address deterministically.
+
+**Collection:** `NftCreateCollection/$id`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `collectionId` | `String!` | Unique ID to derive the collection mint address |
+| `name` | `String!` | Collection name |
+| `metadataUri` | `String!` | URI pointing to JSON with image and attributes |
+
+**Rules:** Anyone can create a collection.
+
+**Hook:** `@NFTPlugin.createCollection(collectionId, name, metadataUri)`
+
+### NftTransfer
+
+Transfer a compressed or uncompressed NFT. Handles both Metaplex and Token-2022 standards.
+
+**Collection:** `NftTransfer/$id`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source` | `Address!` | Sender wallet (must match signer) |
+| `destination` | `Address!` | Recipient wallet |
+| `mint` | `Address!` | NFT mint address |
+| `collectionAddress` | `Address?` | Collection address (recommended for collection-verified NFTs) |
+
+**Hook:** `@NFTPlugin.transfer(source, destination, mint, collectionAddress)`
+
+### NftBurn
+
+Permanently burn an NFT. Irrecoverable. Reclaims rent from token and metadata accounts.
+
+**Collection:** `NftBurn/$id`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source` | `Address!` | NFT owner wallet (must match signer) |
+| `mint` | `Address!` | NFT mint address |
+| `collectionAddress` | `Address?` | Collection address (may be required for collection-verified NFTs) |
+
+**Hook:** `@NFTPlugin.burn(source, mint, collectionAddress)`
+
+---
+
+## Tensor Marketplace
+
+### TensorBuyNft
+
+Buy an NFT listed on Tensor. The transaction fails if the listing price exceeds your `maxAmount`.
+
+**Collection:** `TensorBuyNft/$id`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `assetAddress` | `Address!` | NFT mint address |
+| `maxAmount` | `UInt!` | Maximum price in lamports |
+
+**Rules:** Anyone can buy.
+
+**Hook:** `@TensorPlugin.buyNft(assetAddress, maxAmount)`
+
+### TensorListNft
+
+List an NFT for sale on Tensor. The NFT remains in your wallet until sold.
+
+**Collection:** `TensorListNft/$id`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `assetAddress` | `Address!` | NFT mint address |
+| `amount` | `UInt?` | Price in lamports |
+| `expireInSec` | `UInt?` | Listing duration in seconds |
+| `currency` | `String?` | Currency (defaults to SOL) |
+| `privateTaker` | `Address?` | Restrict purchase to a specific buyer (OTC deals) |
+| `makerBroker` | `Address?` | Broker for fee routing |
+
+**Rules:** Signer must own the NFT.
+
+**Hook:** `@TensorPlugin.listNft(assetAddress, amount, expireInSec, currency, privateTaker, makerBroker)`
+
+---
+
+## Related Queries
+
+See [queries.md](queries.md):
+
+- `getNftBalance` — NFT balance for an address
+- `getNftMintAddress` — Derived NFT mint address
+- `getCollectionMintAddress` — Derived collection mint address
