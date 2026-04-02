@@ -39,6 +39,13 @@ Create a new Meteora DLMM or dynamic liquidity pool. Supports extensive configur
 
 **Hook:** `@DeFiPlugin.createPool(source, tokenMintA, tokenMintB, tokenAAmount, tokenBAmount, {config...})`
 
+**CLI Example:**
+```bash
+poof onchain set MeteoraCreatePool/pool-001 \
+  --data '{"creator":"<your-wallet>","tokenMintA":"<mint-a>","tokenMintB":"<mint-b>","binStep":1,"activeId":0}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### MeteoraSwap
 
 Swap tokens on Meteora. Default slippage is 500 bps (5%) if not specified.
@@ -54,6 +61,13 @@ Swap tokens on Meteora. Default slippage is 500 bps (5%) if not specified.
 | `slippageBps` | `UInt?` | Slippage tolerance (default: 500 = 5%) |
 
 **Hook:** `@DeFiPlugin.swap(source, tokenMintA, tokenMintB, tokenAAmount, slippageBps)`
+
+**CLI Example:**
+```bash
+poof onchain set MeteoraSwap/swap-001 \
+  --data '{"user":"<your-wallet>","tokenMintIn":"<input-mint>","tokenMintOut":"<output-mint>","amountIn":1000000}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 
@@ -87,6 +101,13 @@ Create a bonding curve configuration template.
 
 **Hook:** `@DeFiPlugin.createMeteoraConfig(configId, feeAccount, ...fees, initialMarketCap, migrationMarketCap, totalTokenSupply, tokenBaseDecimal)`
 
+**CLI Example:**
+```bash
+poof onchain set MeteoraCreateConfig/config-001 \
+  --data '{"creator":"<your-wallet>","feeBps":100,"migrationFeePercentage":10}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### MeteoraCreateVirtualPool
 
 Create a virtual pool (bonding curve) for a new token. Token is tradeable immediately.
@@ -106,6 +127,13 @@ Create a virtual pool (bonding curve) for a new token. Token is tradeable immedi
 
 **Hook:** `@DeFiPlugin.createMeteoraVirtualPool(configId, tokenId, name, symbol, uri, initialSolBuyAmount)`
 
+**CLI Example:**
+```bash
+poof onchain set MeteoraCreateVirtualPool/vpool-001 \
+  --data '{"creator":"<your-wallet>","configId":"<config-id>","tokenId":"my-launch-token","name":"My Token","symbol":"MTK","uri":"https://arweave.net/..."}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### MeteoraSwapInVirtualPool
 
 Buy or sell tokens on a bonding curve before graduation.
@@ -120,6 +148,13 @@ Buy or sell tokens on a bonding curve before graduation.
 | `amount` | `String!` | Swap amount |
 
 **Hook:** `@DeFiPlugin.swapInMeteoraVirtualPool(source, poolTokenMint, tokenMint, amount)`
+
+**CLI Example:**
+```bash
+poof onchain set MeteoraSwapInVirtualPool/vswap-001 \
+  --data '{"user":"<your-wallet>","configAddress":"<config>","tokenMintAddress":"<token-mint>","tokenToSwapInMintAddress":"solana","tokenAmount":100000000}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 
@@ -138,6 +173,13 @@ Claim accumulated trading fees from a Meteora virtual pool.
 
 **Hook:** `@DeFiPlugin.claimMeteoraPoolFees(source, poolAddress)`
 
+**CLI Example:**
+```bash
+poof onchain set MeteoraClaimPoolFees/claim-001 \
+  --data '{"user":"<your-wallet>","configAddress":"<config>","tokenMintAddress":"<token-mint>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### MeteoraClaimDammV2PoolFees
 
 Claim trading fees from a graduated DAMM v2 pool.
@@ -151,6 +193,13 @@ Claim trading fees from a graduated DAMM v2 pool.
 | `positionMintAddress` | `Address?` | Specific position NFT (optional) |
 
 **Hook:** `@DeFiPlugin.claimDammV2PoolFees(source, poolAddress, positionMintAddress)`
+
+**CLI Example:**
+```bash
+poof onchain set MeteoraClaimDammV2PoolFees/claim-v2-001 \
+  --data '{"user":"<your-wallet>","tokenMintAddress":"<token-mint>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 
@@ -174,6 +223,13 @@ Create a new liquidity position (mints a position NFT).
 
 **Hook:** `@DeFiPlugin.createCpAmmPosition(owner, poolAddress, positionId)`
 
+**CLI Example:**
+```bash
+poof onchain set MeteoraCreateCpAmmPosition/pos-001 \
+  --data '{"owner":"<your-wallet>","poolAddress":"<pool-address>","positionId":"my-position"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### MeteoraAddCpAmmLiquidity
 
 Add liquidity to an existing position.
@@ -191,6 +247,13 @@ Add liquidity to an existing position.
 
 **Hook:** `@DeFiPlugin.addCpAmmLiquidity(source, poolAddress, positionMintAddress, tokenAAmount, tokenBAmount, slippageBps)`
 
+**CLI Example:**
+```bash
+poof onchain set MeteoraAddCpAmmLiquidity/add-liq-001 \
+  --data '{"owner":"<your-wallet>","poolAddress":"<pool-address>","positionId":"my-position","tokenAAmount":1000000,"tokenBAmount":1000000}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### MeteoraRemoveCpAmmLiquidity
 
 Remove liquidity from a position. Specify amounts for one or both tokens.
@@ -207,6 +270,13 @@ Remove liquidity from a position. Specify amounts for one or both tokens.
 | `slippageBps` | `UInt?` | Price tolerance |
 
 **Hook:** `@DeFiPlugin.removeCpAmmLiquidity(source, poolAddress, positionMintAddress, tokenAAmount, tokenBAmount, slippageBps)`
+
+**CLI Example:**
+```bash
+poof onchain set MeteoraRemoveCpAmmLiquidity/rm-liq-001 \
+  --data '{"owner":"<your-wallet>","poolAddress":"<pool-address>","positionId":"my-position","lpAmount":500000}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ### MeteoraLockCpAmmPosition
 
@@ -227,6 +297,13 @@ Lock liquidity with a vesting schedule. Locked liquidity cannot be withdrawn unt
 
 **Hook:** `@DeFiPlugin.lockCpAmmPosition(source, poolAddress, positionMintAddress, periodFrequency, cliffUnlockLiquidity, liquidityPerPeriod, numberOfPeriod, cliffPoint)`
 
+**CLI Example:**
+```bash
+poof onchain set MeteoraLockCpAmmPosition/lock-001 \
+  --data '{"owner":"<your-wallet>","poolAddress":"<pool-address>","positionId":"my-position","vestingDuration":86400}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### MeteoraCloseCpAmmPosition
 
 Close an empty position and reclaim rent. Position must have zero remaining liquidity.
@@ -240,6 +317,13 @@ Close an empty position and reclaim rent. Position must have zero remaining liqu
 | `positionMintAddress` | `Address!` | Position NFT mint |
 
 **Hook:** `@DeFiPlugin.closeCpAmmPosition(source, poolAddress, positionMintAddress)`
+
+**CLI Example:**
+```bash
+poof onchain set MeteoraCloseCpAmmPosition/close-001 \
+  --data '{"owner":"<your-wallet>","poolAddress":"<pool-address>","positionId":"my-position"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 

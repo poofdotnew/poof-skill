@@ -211,33 +211,62 @@ See [docs/how-poof-works.md](docs/how-poof-works.md) for the architecture knowle
 
 ## On-Chain Data Operations (Direct CLI)
 
-The `poof onchain` commands let agents read, write, and query the Tarobase data layer directly — without building a frontend or backend.
+The `poof onchain` commands let agents read, write, and query the Tarobase data layer directly — without building a frontend or backend. For on-chain collections, the CLI auto-signs transactions with the wallet's private key.
 
-### Reading Data
-```bash
-poof onchain get <path> -p <project-id>           # read document or collection
-poof onchain get tipRecords -p <id>                # list all documents
-poof onchain get tipRecords/doc1 -p <id>           # get specific document
-```
+### Commands
 
-### Writing Data (Triggers On-Chain Hooks)
-```bash
-poof onchain set <path> --data '{...}' -p <id>     # write a document
-```
-For on-chain collections, the CLI auto-signs the transaction with the wallet's private key.
+| Command | Purpose |
+|---------|---------|
+| `poof onchain get <path>` | Read a document or list a collection |
+| `poof onchain set <path> --data '{...}'` | Write a document (triggers on-chain hooks) |
+| `poof onchain query <path> <queryName> --args '{...}'` | Run a read-only query |
+| `poof onchain delete <path>` | Delete a document |
 
-### Running Queries
-```bash
-poof onchain query <collection/docId> <queryName> --args '{...}' -p <id>
-```
+### App Resolution
 
-### Using the Central Policy App
-The central policy app (`69bcffc78d4b88997d0ed01a`) has pre-built collections for common operations. Use `--app` to target it directly:
+- **`--app <tarobase-app-id>`** — target a specific Tarobase app directly (required for central policy)
+- **`-p <project-id>`** — uses the project's draft Tarobase app (default when no `--app`)
+- Central policy app ID: `69bcffc78d4b88997d0ed01a`
+
+### Examples
+
 ```bash
+# Read a collection from your project
+poof onchain get tipRecords -p <project-id>
+
+# Read a specific document
+poof onchain get tipRecords/doc1 -p <project-id>
+
+# Check SOL balance via central policy
 poof onchain query queries/getSolBalance getSolBalance \
   --args '{"address":"<wallet>"}' --app 69bcffc78d4b88997d0ed01a
+
+# Transfer tokens via central policy
+poof onchain set TokenTransferWholeTokens/tx-001 \
+  --data '{"source":"<your-wallet>","destination":"<recipient>","mint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","amount":100}' \
+  --app 69bcffc78d4b88997d0ed01a
+
+# Get a swap quote
+poof onchain query queries/getSwapQuote getSwapQuote \
+  --args '{"inputMint":"solana","outputMint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","amount":"1000000000"}' \
+  --app 69bcffc78d4b88997d0ed01a
+
+# Delete a document
+poof onchain delete tipRecords/old-record -p <project-id>
+
+# Pipe data from stdin
+echo '{"amt":1000000,"tipper":"<wallet>"}' | poof onchain set tips/my-tip --stdin -p <project-id>
 ```
-See `docs/onchain-capabilities/` for the full collection reference.
+
+### JSON Output
+
+All commands support `--json` for structured output:
+```bash
+poof onchain query queries/getSolBalance getSolBalance \
+  --args '{"address":"<wallet>"}' --app 69bcffc78d4b88997d0ed01a --json
+```
+
+See `docs/onchain-capabilities/` for the full collection and query reference.
 
 ## Best Practices
 

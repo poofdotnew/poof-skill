@@ -20,6 +20,13 @@ Create a new NFT collection. Individual NFTs can be verified against this collec
 
 **Hook:** `@NFTPlugin.createCollection(collectionId, name, metadataUri)`
 
+**CLI Example:**
+```bash
+poof onchain set NftCreateCollection/my-collection \
+  --data '{"collectionId":"my-nft-collection","name":"My NFTs","symbol":"MNFT","uri":"https://arweave.net/..."}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### NftTransfer
 
 Transfer a compressed or uncompressed NFT. Handles both Metaplex and Token-2022 standards.
@@ -35,6 +42,13 @@ Transfer a compressed or uncompressed NFT. Handles both Metaplex and Token-2022 
 
 **Hook:** `@NFTPlugin.transfer(source, destination, mint, collectionAddress)`
 
+**CLI Example:**
+```bash
+poof onchain set NftTransfer/transfer-001 \
+  --data '{"owner":"<your-wallet>","destination":"<recipient>","mint":"<nft-mint-address>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### NftBurn
 
 Permanently burn an NFT. Irrecoverable. Reclaims rent from token and metadata accounts.
@@ -48,6 +62,13 @@ Permanently burn an NFT. Irrecoverable. Reclaims rent from token and metadata ac
 | `collectionAddress` | `Address?` | Collection address (may be required for collection-verified NFTs) |
 
 **Hook:** `@NFTPlugin.burn(source, mint, collectionAddress)`
+
+**CLI Example:**
+```bash
+poof onchain set NftBurn/burn-001 \
+  --data '{"owner":"<your-wallet>","mint":"<nft-mint-address>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 
@@ -68,6 +89,13 @@ Buy an NFT listed on Tensor. The transaction fails if the listing price exceeds 
 
 **Hook:** `@TensorPlugin.buyNft(assetAddress, maxAmount)`
 
+**CLI Example:**
+```bash
+poof onchain set TensorBuyNft/buy-001 \
+  --data '{"buyer":"<your-wallet>","mint":"<nft-mint>","maxPrice":1000000000,"owner":"<seller-wallet>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### TensorListNft
 
 List an NFT for sale on Tensor. The NFT remains in your wallet until sold.
@@ -86,6 +114,13 @@ List an NFT for sale on Tensor. The NFT remains in your wallet until sold.
 **Rules:** Signer must own the NFT.
 
 **Hook:** `@TensorPlugin.listNft(assetAddress, amount, expireInSec, currency, privateTaker, makerBroker)`
+
+**CLI Example:**
+```bash
+poof onchain set TensorListNft/list-001 \
+  --data '{"owner":"<your-wallet>","mint":"<nft-mint>","price":2000000000}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 

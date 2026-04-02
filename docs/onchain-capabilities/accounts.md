@@ -18,6 +18,19 @@ Create on-chain PDA (Program Derived Address) accounts. Each account is derived 
 
 The `accountId` determines the derived address deterministically — the same ID always produces the same PDA.
 
+**CLI Example:**
+```bash
+poof onchain set AccountCreate/vault-001 \
+  --data '{"accountId":"my-vault"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
+Query the derived PDA address:
+```bash
+poof onchain query queries/getAccountAddress getAccountAddress \
+  --args '{"accountId":"my-vault"}' --app 69bcffc78d4b88997d0ed01a
+```
+
 ### Example
 
 ```json

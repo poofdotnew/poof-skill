@@ -18,6 +18,13 @@ Open a prediction market order through DFlow's escrowed swap mechanism. Escrows 
 
 **Hook:** `@DflowPlugin.openPredictionMarketOrder(source, inputMint, outputMint, amount, slippageBps)`
 
+**CLI Example:**
+```bash
+poof onchain set DflowOpenPredictionMarketOrder/order-001 \
+  --data '{"user":"<your-wallet>","marketAddress":"<market>","side":"buy","amount":1000000}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ---
 
 ## Related Queries

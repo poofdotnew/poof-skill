@@ -2,6 +2,16 @@
 
 Read-only, permissionless queries against the `queries/$queryId` collection. No transaction signing required. All queries are public.
 
+## CLI Usage
+
+All queries use the same CLI pattern:
+
+```bash
+poof onchain query queries/<queryName> <queryName> --args '{...}' --app 69bcffc78d4b88997d0ed01a
+```
+
+The first argument is the query path (`queries/<queryName>`), the second is the query name, and `--args` passes the query parameters as JSON.
+
 ## Token & Balance Queries
 
 | Query | Returns | Description |
@@ -14,11 +24,29 @@ Read-only, permissionless queries against the `queries/$queryId` collection. No 
 | `getTokenMintAddress` | `String` | Derived mint address for a token ID |
 | `getWithdrawWithheldAuthority` | `String` | Withdraw authority for a Token-2022 mint |
 
+**CLI Examples:**
+```bash
+poof onchain query queries/getSolBalance getSolBalance \
+  --args '{"address":"<wallet>"}' --app 69bcffc78d4b88997d0ed01a
+
+poof onchain query queries/getTokenBalance getTokenBalance \
+  --args '{"address":"<wallet>","mint":"<token-mint>"}' --app 69bcffc78d4b88997d0ed01a
+
+poof onchain query queries/getTokenMintAddress getTokenMintAddress \
+  --args '{"tokenId":"my-token"}' --app 69bcffc78d4b88997d0ed01a
+```
+
 ## Account Queries
 
 | Query | Returns | Description |
 |-------|---------|-------------|
 | `getAccountAddress` | `String` | PDA address for a given account ID |
+
+**CLI Example:**
+```bash
+poof onchain query queries/getAccountAddress getAccountAddress \
+  --args '{"accountId":"my-vault"}' --app 69bcffc78d4b88997d0ed01a
+```
 
 ## Price Feeds
 
@@ -32,12 +60,30 @@ Real-time prices via Pyth oracles.
 | `getUsdcPriceInUSD` | `UInt` | Current USDC price in USD |
 | `getPriceFeed` | `UInt` | Price for any supported Pyth feed |
 
+**CLI Examples:**
+```bash
+poof onchain query queries/getSolPriceInUSD getSolPriceInUSD \
+  --app 69bcffc78d4b88997d0ed01a
+
+poof onchain query queries/getPriceFeed getPriceFeed \
+  --args '{"feedId":"<pyth-feed-id>"}' --app 69bcffc78d4b88997d0ed01a
+```
+
 ## Pump.fun Queries
 
 | Query | Returns | Description |
 |-------|---------|-------------|
 | `getBondingCurveProgress` | `UInt` | How far along the bonding curve a token is |
 | `getPumpCreatorFee` | `UInt` | Accumulated creator fee for a token |
+
+**CLI Examples:**
+```bash
+poof onchain query queries/getBondingCurveProgress getBondingCurveProgress \
+  --args '{"tokenMint":"<token-mint>"}' --app 69bcffc78d4b88997d0ed01a
+
+poof onchain query queries/getPumpCreatorFee getPumpCreatorFee \
+  --args '{"tokenMint":"<token-mint>"}' --app 69bcffc78d4b88997d0ed01a
+```
 
 ## Meteora & DeFi Queries
 
@@ -52,6 +98,17 @@ Real-time prices via Pyth oracles.
 | `getCpAmmPoolAddress` | `String` | CP-AMM pool address for a token pair |
 | `getClaimableCpAmmPositionFee` | `UInt` | Unclaimed fees from a CP-AMM position |
 
+**CLI Examples:**
+```bash
+poof onchain query queries/getSwapQuote getSwapQuote \
+  --args '{"inputMint":"solana","outputMint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","amount":"1000000000"}' \
+  --app 69bcffc78d4b88997d0ed01a
+
+poof onchain query queries/getMeteoraSwapQuote getMeteoraSwapQuote \
+  --args '{"tokenMintAddress":"<token-mint>","tokenToSwapInMintAddress":"solana","tokenAmount":"100000000"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ## NFT Queries
 
 | Query | Returns | Description |
@@ -59,6 +116,12 @@ Real-time prices via Pyth oracles.
 | `getNftBalance` | `UInt` | NFT balance for an address |
 | `getNftMintAddress` | `String` | Derived NFT mint address |
 | `getCollectionMintAddress` | `String` | Derived collection mint address |
+
+**CLI Example:**
+```bash
+poof onchain query queries/getNftBalance getNftBalance \
+  --args '{"address":"<wallet>","collectionId":"my-collection"}' --app 69bcffc78d4b88997d0ed01a
+```
 
 ## Oracle & VRF
 

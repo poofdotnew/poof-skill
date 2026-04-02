@@ -21,6 +21,13 @@ Launch a standard SPL token on pump.fun with an automatic bonding curve. The tok
 
 **Hook:** `@PumpFunPlugin.createToken(tokenId, name, symbol, uri, creator, {seedMode})`
 
+**CLI Example:**
+```bash
+poof onchain set PumpLaunch/launch-001 \
+  --data '{"tokenId":"my-token","name":"My Token","symbol":"MTK","uri":"https://arweave.net/...","creator":"<your-wallet>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### PumpLaunchV2
 
 Launch a Token-2022 token on pump.fun. Supports mayhem mode for experimental token mechanics.
@@ -38,6 +45,13 @@ Launch a Token-2022 token on pump.fun. Supports mayhem mode for experimental tok
 | `seedMode` | `String?` | Set to `"idOnly"` for deterministic mint address |
 
 **Hook:** `@PumpFunPlugin.createTokenV2(tokenId, name, symbol, uri, creator, isMayhemMode, {seedMode})`
+
+**CLI Example:**
+```bash
+poof onchain set PumpLaunchV2/launch-v2-001 \
+  --data '{"tokenId":"my-token-v2","name":"My Token V2","symbol":"MTV2","uri":"https://arweave.net/...","creator":"<your-wallet>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 
@@ -58,6 +72,13 @@ Buy tokens on pump.fun by specifying exact SOL amount to spend. The bonding curv
 
 **Hook:** `@PumpFunPlugin.buyExactSolIn(source, mint, solAmount, slippageBps)`
 
+**CLI Example:**
+```bash
+poof onchain set PumpBuy/buy-001 \
+  --data '{"buyer":"<your-wallet>","tokenMint":"<token-mint>","solAmount":100000000}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ---
 
 ## Creator Fees
@@ -75,6 +96,13 @@ Collect accumulated creator trading fees from a pump.fun token.
 
 **Hook:** `@PumpFunPlugin.collectCreatorFee(creator, mint)`
 
+**CLI Example:**
+```bash
+poof onchain set PumpCollectCreatorFee/collect-001 \
+  --data '{"creator":"<your-wallet>","tokenMint":"<token-mint>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### PumpTransferCreatorFeesToPump
 
 Transfer accumulated AMM trading fees from a graduated token back to the pump creator vault. Only needed for tokens that graduated from the bonding curve to a full AMM.
@@ -88,6 +116,13 @@ Transfer accumulated AMM trading fees from a graduated token back to the pump cr
 **Rules:** Permissionless — anyone can trigger this.
 
 **Hook:** `@PumpFunPlugin.transferCreatorFeesToPump(mint)`
+
+**CLI Example:**
+```bash
+poof onchain set PumpTransferCreatorFeesToPump/transfer-001 \
+  --data '{"creator":"<your-wallet>","tokenMint":"<token-mint>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 
@@ -112,6 +147,13 @@ Initialize the fee sharing configuration for a token. Must be called first befor
 
 **Hook:** `@PumpFunPlugin.createFeeSharingConfig(source, mint)`
 
+**CLI Example:**
+```bash
+poof onchain set PumpCreateFeeSharingConfig/config-001 \
+  --data '{"creator":"<your-wallet>","tokenMint":"<token-mint>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### PumpUpdateShareholders
 
 Set or replace all shareholders atomically. Total basis points must equal 10000 (100%).
@@ -126,6 +168,13 @@ Set or replace all shareholders atomically. Total basis points must equal 10000 
 
 **Hook:** `@PumpFunPlugin.updateShareholders(source, mint, shareholders)`
 
+**CLI Example:**
+```bash
+poof onchain set PumpUpdateShareholders/update-001 \
+  --data '{"creator":"<your-wallet>","tokenMint":"<token-mint>","shareholders":["<addr1>","<addr2>"],"sharesBps":[5000,5000]}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### PumpDistributeCreatorFees
 
 Distribute accumulated fees to all configured shareholders.
@@ -139,6 +188,13 @@ Distribute accumulated fees to all configured shareholders.
 **Rules:** Permissionless — anyone can trigger distribution.
 
 **Hook:** `@PumpFunPlugin.distributeCreatorFees(mint)`
+
+**CLI Example:**
+```bash
+poof onchain set PumpDistributeCreatorFees/distribute-001 \
+  --data '{"tokenMint":"<token-mint>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 
@@ -160,6 +216,13 @@ Deposit liquidity into a PumpSwap AMM pool. Receive LP tokens representing your 
 
 **Hook:** `@PumpFunPlugin.pumpswapDeposit(source, mint, lpTokenAmountOut, maxBaseAmountIn, maxQuoteAmountIn)`
 
+**CLI Example:**
+```bash
+poof onchain set PumpswapDeposit/deposit-001 \
+  --data '{"depositor":"<your-wallet>","tokenMint":"<token-mint>","tokenAmount":1000000,"solAmount":100000000}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ### PumpswapWithdraw
 
 Withdraw liquidity from a PumpSwap pool by burning LP tokens.
@@ -175,6 +238,13 @@ Withdraw liquidity from a PumpSwap pool by burning LP tokens.
 | `minQuoteAmountOut` | `String!` | Minimum quote tokens to receive |
 
 **Hook:** `@PumpFunPlugin.pumpswapWithdraw(source, mint, lpTokenAmountIn, minBaseAmountOut, minQuoteAmountOut)`
+
+**CLI Example:**
+```bash
+poof onchain set PumpswapWithdraw/withdraw-001 \
+  --data '{"withdrawer":"<your-wallet>","tokenMint":"<token-mint>","lpTokenAmount":500000}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 

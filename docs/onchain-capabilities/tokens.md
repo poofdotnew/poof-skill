@@ -19,6 +19,13 @@ Transfer SPL tokens between two Solana addresses. Amount is in the smallest unit
 
 **Hook:** `@TokenPlugin.transfer(source, destination, mint, amount)`
 
+**CLI Example:**
+```bash
+poof onchain set TokenTransfer/tx-001 \
+  --data '{"source":"<your-wallet>","destination":"<recipient>","mint":"<token-mint>","amount":1000000}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ---
 
 ## TokenTransferWholeTokens
@@ -37,6 +44,13 @@ Same as TokenTransfer but accepts human-readable whole token amounts. The plugin
 **Rules:** Source wallet must match the transaction signer.
 
 **Hook:** `@TokenPlugin.transferWholeTokens(source, destination, mint, amount)`
+
+**CLI Example:**
+```bash
+poof onchain set TokenTransferWholeTokens/tx-001 \
+  --data '{"source":"<your-wallet>","destination":"<recipient>","mint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","amount":100}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 
@@ -57,6 +71,13 @@ Create a new standard SPL token with metadata.
 **Rules:** Anyone can create a token. The `tokenId` must be unique.
 
 **Hook:** `@TokenPlugin.createToken(tokenId, name, symbol, uri, decimals)`
+
+**CLI Example:**
+```bash
+poof onchain set TokenCreate/my-token \
+  --data '{"tokenId":"my-token-v1","name":"My Token","symbol":"MTK","uri":"https://arweave.net/...","decimals":6}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 
@@ -86,6 +107,13 @@ Create a Token-2022 (Token Extensions) token with advanced features. Only includ
 
 **Hook:** `@TokenPlugin.createToken2022(tokenId, name, symbol, uri, decimals, {extensions...})`
 
+**CLI Example:**
+```bash
+poof onchain set TokenCreate2022/my-token-2022 \
+  --data '{"tokenId":"my-2022-token","name":"Fee Token","symbol":"FEE","uri":"https://arweave.net/...","decimals":6,"feeBasisPoints":100,"maxFee":1000000,"transferFeeAuthority":"<your-wallet>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ---
 
 ## TokenBurn
@@ -103,6 +131,13 @@ Permanently destroy SPL tokens, reducing total supply. Irreversible.
 **Rules:** Source wallet must match the transaction signer.
 
 **Hook:** `@TokenPlugin.burn(source, mint, amount)`
+
+**CLI Example:**
+```bash
+poof onchain set TokenBurn/burn-001 \
+  --data '{"source":"<your-wallet>","mint":"<token-mint>","amount":500000}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
 
 ---
 
@@ -123,6 +158,13 @@ Withdraw accumulated transfer fees from a Token-2022 mint with transfer fee exte
 
 **Hook:** `@TokenPlugin.withdrawWithheldTokens(mint, withdrawAuthority, feeReceiverOwner, sourceOwner)`
 
+**CLI Example:**
+```bash
+poof onchain set TokenWithdrawWithheldTokens/withdraw-001 \
+  --data '{"mint":"<token-2022-mint>","withdrawAuthority":"<your-wallet>","feeReceiverOwner":"<your-wallet>","sourceOwner":"<source-wallet>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+```
+
 ---
 
 ## Related Queries
@@ -136,3 +178,15 @@ See [queries.md](queries.md) for read-only token data:
 - `getTokenSupply` — Total token supply
 - `getTokenMintAddress` — Derived mint address for a token ID
 - `getWithdrawWithheldAuthority` — Withdraw authority for a Token-2022 mint
+
+**CLI Query Examples:**
+```bash
+poof onchain query queries/getTokenBalance getTokenBalance \
+  --args '{"address":"<wallet>","mint":"<token-mint>"}' --app 69bcffc78d4b88997d0ed01a
+
+poof onchain query queries/getSolBalance getSolBalance \
+  --args '{"address":"<wallet>"}' --app 69bcffc78d4b88997d0ed01a
+
+poof onchain query queries/getTokenMintAddress getTokenMintAddress \
+  --args '{"tokenId":"my-token-v1"}' --app 69bcffc78d4b88997d0ed01a
+```
