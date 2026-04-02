@@ -41,23 +41,24 @@ To execute an operation, write a document to the appropriate collection path. Th
 ## Quick Examples
 
 ```bash
-# Check SOL balance of an address
-# (uses the queries collection — see queries.md)
+# Check SOL balance
+poof onchain query queries/getSolBalance getSolBalance \
+  --args '{"address":"<wallet>"}' --app 69bcffc78d4b88997d0ed01a
 
-# Transfer 100 USDC (whole tokens) from your wallet
-# Write to TokenTransferWholeTokens/<unique-id> with:
-#   source: <your-wallet>
-#   destination: <recipient>
-#   mint: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
-#   amount: 100
+# Transfer 100 USDC (whole tokens)
+poof onchain set TokenTransferWholeTokens/tx-001 \
+  --data '{"source":"<your-wallet>","destination":"<recipient>","mint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","amount":100}' \
+  --app 69bcffc78d4b88997d0ed01a
 
 # Launch a token on pump.fun
-# Write to PumpLaunch/<unique-id> with:
-#   tokenId: "my-token"
-#   name: "My Token"
-#   symbol: "MTK"
-#   uri: "<metadata-uri>"
-#   creator: <your-wallet>
+poof onchain set PumpLaunch/my-launch \
+  --data '{"tokenId":"my-token","name":"My Token","symbol":"MTK","uri":"<metadata-uri>","creator":"<your-wallet>"}' \
+  --app 69bcffc78d4b88997d0ed01a
+
+# Get a swap quote
+poof onchain query queries/getSwapQuote getSwapQuote \
+  --args '{"inputMint":"solana","outputMint":"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","amount":"1000000000"}' \
+  --app 69bcffc78d4b88997d0ed01a
 ```
 
 ## Field Type Reference

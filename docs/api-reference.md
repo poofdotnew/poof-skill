@@ -101,6 +101,15 @@ These composite commands handle multi-step operations automatically (polling, se
 |---------|-------------|
 | `poof logs -p <id> [--environment ENV] [--limit N] [--offset N]` | Get runtime logs. Environment: `development`, `mainnet-preview`, `production`. Limit range: 1-50, default 50. |
 
+### On-Chain Data Operations
+
+| Command | Description |
+|---------|-------------|
+| `poof onchain get <path> [--app ID]` | Read a document or list a collection from the Tarobase data layer. |
+| `poof onchain set <path> --data '{...}' [--app ID] [--stdin]` | Write a document. Triggers on-chain hooks for onchain collections. Auto-signs transactions. |
+| `poof onchain query <collection/docId> <queryName> [--args '{...}'] [--app ID]` | Run a named read-only query (balances, prices, swap quotes). |
+| `poof onchain delete <path> [--app ID]` | Delete a document by setting it to null. |
+
 ### Credits & Payments
 
 | Command | Description |
@@ -156,6 +165,9 @@ When using `--json`, commands return structured JSON. Key shapes:
 | `poof iterate` | `{ results: [{id, fileName, testName, status, counts: {steps, expects, failed}, lastError, duration, startedAt}], summary: {total, passed, failed, errors, running}, hasMore }` (If no tests exist, may return a success message with no structured test data.) |
 | `poof task test-results` | `{ results: [{id, fileName, testName, status, counts: {steps, expects, failed}, lastError, duration, startedAt}], summary: {total, passed, failed, errors, running}, hasMore }` |
 | `poof files get` | `{ files: { [path]: content } }` |
+| `poof onchain get` | Document: `{...fields}` or `null`. Collection: `[{...}, ...]` |
+| `poof onchain query` | `{ queries: [{ path, queryName, queryArgs, result }] }` |
+| `poof onchain set` | `{ success: true }` or transaction result |
 
 ## Error Handling
 

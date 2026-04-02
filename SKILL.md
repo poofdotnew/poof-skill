@@ -209,6 +209,36 @@ The message you pass to `poof build -m "..."` determines what the Poof AI builds
 
 See [docs/how-poof-works.md](docs/how-poof-works.md) for the architecture knowledge that makes prompts effective, and [docs/building-and-chat.md](docs/building-and-chat.md#writing-effective-prompts) for good vs weak prompt examples.
 
+## On-Chain Data Operations (Direct CLI)
+
+The `poof onchain` commands let agents read, write, and query the Tarobase data layer directly — without building a frontend or backend.
+
+### Reading Data
+```bash
+poof onchain get <path> -p <project-id>           # read document or collection
+poof onchain get tipRecords -p <id>                # list all documents
+poof onchain get tipRecords/doc1 -p <id>           # get specific document
+```
+
+### Writing Data (Triggers On-Chain Hooks)
+```bash
+poof onchain set <path> --data '{...}' -p <id>     # write a document
+```
+For on-chain collections, the CLI auto-signs the transaction with the wallet's private key.
+
+### Running Queries
+```bash
+poof onchain query <collection/docId> <queryName> --args '{...}' -p <id>
+```
+
+### Using the Central Policy App
+The central policy app (`69bcffc78d4b88997d0ed01a`) has pre-built collections for common operations. Use `--app` to target it directly:
+```bash
+poof onchain query queries/getSolBalance getSolBalance \
+  --args '{"address":"<wallet>"}' --app 69bcffc78d4b88997d0ed01a
+```
+See `docs/onchain-capabilities/` for the full collection reference.
+
 ## Best Practices
 
 - **Check credits** — `poof credits balance` is free. A full build + test + polish cycle costs 3-5 credits. If credits run out mid-build, the AI stops responding
