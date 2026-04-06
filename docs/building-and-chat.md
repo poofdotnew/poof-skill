@@ -53,7 +53,7 @@ Exception: policies where all write rules are `true` (fully public access) don't
 
 ### 2. Wait for the AI to Finish
 
-`poof build` and `poof iterate` wait automatically with built-in timeout and exponential backoff.
+`poof build` and `poof iterate` wait automatically with built-in timeout and exponential backoff. This polling can take **5–10+ minutes** — see the timeout table in [SKILL.md](../SKILL.md) for recommended shell timeout values per command. In Claude Code, use `run_in_background: true` for `poof build`, `poof iterate`, and `poof ship` to avoid hitting the 10-minute Bash tool limit.
 
 If using the lower-level `poof project create` or `poof chat send` commands, check status manually:
 

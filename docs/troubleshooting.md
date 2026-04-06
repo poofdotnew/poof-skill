@@ -8,6 +8,7 @@ Common errors, causes, and CLI recovery patterns.
 - [Deployment Errors](#deployment-errors)
 - [x402 Payment Errors](#x402-payment-errors)
 - [Credit Errors](#credit-errors)
+- [Timeout Errors](#timeout-errors)
 - [Agent Recovery Patterns](#agent-recovery-patterns)
 
 ## Authentication Errors
@@ -22,6 +23,7 @@ Common errors, causes, and CLI recovery patterns.
 
 | Error | Cause | Fix |
 |-------|-------|-----|
+| Command killed / no output / timeout | Shell timeout too short for a polling command | `poof build`, `poof iterate`, and `poof ship` can take 5–10+ minutes. Set timeout to 600000ms (10 min) or use `run_in_background: true`. See the timeout table in SKILL.md |
 | Build stuck for >10 minutes | AI is stuck or in a loop | Run `poof chat cancel -p <id>`, then start a new iteration with clearer instructions |
 | Build finishes immediately | AI server may be unreachable | Check the exit status — a non-zero code means the server is down. Retry after a short delay, or run `poof project status -p <id>` for the latest task status |
 | Build fails after starting | Session expired mid-build | Run `poof auth login` and retry |
@@ -50,6 +52,35 @@ The CLI handles x402 payments internally. If `poof credits topup` fails, ensure 
 | AI stops responding mid-build | Credits exhausted during execution | Run `poof credits balance`. If zero, top up and run `poof iterate -p <id>` to continue |
 | Build silently does nothing | Insufficient credits to start | Always run `poof credits balance` before starting a workflow. A full build + test + polish cycle costs 3-5 credits |
 | Can't deploy after buying credits | Payment may not have completed | Verify the payment actually completed — run `poof credits balance` and check for add-on records |
+
+## Timeout Errors
+
+The most common agent issue: the shell kills `poof build`, `poof iterate`, or `poof ship` before it finishes because the default timeout is too short.
+
+**Symptoms:**
+- Command produces no output or partial output
+- Agent retries the same command and it fails again
+- "Command timed out" or similar harness error
+- Agent reports the command "hung" or "didn't respond"
+
+**Root cause:** These commands poll until the Poof AI finishes, which can take 5-10+ minutes. Most tool harnesses default to 2-minute timeouts.
+
+**Fix:** Set an extended timeout or run in background. See the timeout table in [SKILL.md](../SKILL.md) for recommended values per command.
+
+| Command type | Recommended approach |
+|-------------|---------------------|
+| `poof build`, `poof iterate`, `poof ship` | `run_in_background: true` (preferred) or `timeout: 600000` |
+| `poof security scan`, `poof deploy *` | `timeout: 600000` |
+| All other commands | `timeout: 120000` (default is fine) |
+
+**Example (Claude Code):**
+```
+# Background — best for build/iterate/ship (may exceed 10 min)
+Bash tool: command="poof build -m '...'", run_in_background=true
+
+# Extended timeout — for security scan, deploy
+Bash tool: command="poof security scan -p <id>", timeout=600000
+```
 
 ## Agent Recovery Patterns
 

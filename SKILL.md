@@ -15,6 +15,33 @@ The `poof` CLI wraps authentication, API calls, and polling into simple commands
 Your Agent ──► poof CLI (auth + API + polling built in) ──► poof.new
 ```
 
+## Timeouts for Long-Running Commands
+
+**Critical:** `poof build`, `poof iterate`, and `poof ship` poll until the Poof AI finishes, which can take **5–10+ minutes**. You **must** set an extended timeout or run these commands in the background, or they will be killed mid-execution.
+
+| Command | Typical duration | Recommended timeout |
+|---------|-----------------|-------------------|
+| `poof build` | 3–10 min | 1200000 (20 min) |
+| `poof iterate` | 2–8 min | 1200000 (20 min) |
+| `poof ship` | 1–5 min | 1200000 (20 min) |
+| `poof security scan` | 1–3 min | 600000 (10 min) |
+| `poof deploy preview/production/mobile` | 1–3 min | 600000 (10 min) |
+| `poof deploy static` | 30s–2 min | 600000 (10 min) |
+| `poof credits topup` | 30–90 sec | 120000 (2 min) |
+| `poof files get` | 10–60 sec | 120000 (2 min) |
+| All other commands | < 30 sec | 120000 (2 min) |
+
+In Claude Code, set the `timeout` parameter on the Bash tool call (max supported is 600000ms / 10 min). For commands needing longer than 10 minutes (`poof build`, `poof iterate`, `poof ship`), use `run_in_background: true` instead — you'll be notified when the command completes. In other harnesses, use whatever mechanism your tool runner provides to extend the execution timeout or run commands asynchronously.
+
+**Claude Code example:**
+```
+# For commands ≤10 min: set timeout
+Bash tool: command="poof security scan -p <id>", timeout=600000
+
+# For commands that may exceed 10 min: run in background
+Bash tool: command="poof build -m '...'", run_in_background=true
+```
+
 ## Authentication
 
 ### Keypair Setup
