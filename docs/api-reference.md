@@ -13,7 +13,7 @@ These composite commands handle multi-step operations automatically (polling, se
 | Command | What it does |
 |---------|-------------|
 | `poof build -m "..." [--mode MODE] [--public] [--stdin]` | Create a project, wait for AI to finish. Returns project ID and URLs. Mode: `full` (default), `policy`, `ui,policy`, `backend,policy`. Bare values `ui` and `backend` are also accepted (policy is auto-included). |
-| `poof iterate -p <id> -m "..." [--stdin]` | Send a chat message, wait for AI to finish, show test results. |
+| `poof iterate -p <id> -m "..." [--stdin] [--file img.png]` | Send a chat message, wait for AI to finish, show test results. Attach images with `--file`. |
 | `poof ship -p <id> [-t TARGET] [--dry-run] [--yes]` | Run security scan, check eligibility, deploy. Targets: `preview` (default), `production`, `mobile`. Passes through all target-specific flags (e.g., `--allowed-addresses`, `--constants-overrides`, `--config` for preview/production; `--platform`, `--app-name`, `--app-icon-url`, `--app-description`, `--theme-color`, `--draft`, `--target-environment` for mobile). |
 
 ## All Commands
@@ -42,7 +42,7 @@ These composite commands handle multi-step operations automatically (polling, se
 
 | Command | Description |
 |---------|-------------|
-| `poof chat send -p <id> -m "..." [--stdin]` | Send a message (does NOT wait). Use `poof iterate` instead for wait + results. |
+| `poof chat send -p <id> -m "..." [--stdin] [--file img.png]` | Send a message (does NOT wait). Use `poof iterate` instead for wait + results. Attach images with `--file`. |
 | `poof chat active -p <id>` | Check if AI is currently processing. |
 | `poof chat cancel -p <id>` | Cancel in-progress AI execution. |
 | `poof chat steer -p <id> -m "..." [--stdin]` | Redirect AI mid-execution without cancelling. |
@@ -54,6 +54,7 @@ These composite commands handle multi-step operations automatically (polling, se
 | `poof files get -p <id>` | Get all source files. **Requires a credit purchase.** |
 | `poof files update -p <id> --file PATH --content "..."` | Update a single file. |
 | `poof files update -p <id> --from-json FILE` | Update multiple files from a JSON map. |
+| `poof files upload -p <id> --file <path>` | Upload an image to project storage. Returns CDN URL. Supported: PNG, JPEG, GIF, WebP (max 3.4MB). |
 
 ### Tasks & Testing
 

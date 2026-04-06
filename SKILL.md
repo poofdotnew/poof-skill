@@ -73,7 +73,11 @@ poof chat cancel -p <project-id>
 poof files get -p <project-id>
 poof files update -p <project-id> --file src/config.ts --content 'export const MAX = 100;'
 
-# 7. Deploy (runs security scan + eligibility check + publish)
+# 7. Send a message with an image (e.g., UI screenshot for reference)
+poof iterate -p <project-id> -m "Build a UI that looks like this" --file screenshot.png
+poof files upload -p <project-id> --file logo.png   # standalone upload, returns CDN URL
+
+# 8. Deploy (runs security scan + eligibility check + publish)
 poof ship -p <project-id>
 ```
 
