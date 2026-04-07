@@ -56,6 +56,8 @@ Exception: policies where all write rules are `true` (fully public access) don't
 
 `poof build` and `poof iterate` wait automatically with built-in timeout and exponential backoff. This polling can take **5–10+ minutes** — see the timeout table in [SKILL.md](../SKILL.md) for recommended shell timeout values per command. In Claude Code, use `run_in_background: true` for `poof build`, `poof iterate`, and `poof ship` to avoid hitting the 10-minute Bash tool limit.
 
+For long prompts with quotes, JSON, or multiple paragraphs, prefer `--stdin` or a quoted temp file instead of one huge inline `-m "..."` string. If you need the exit code afterward in zsh, use `rc=$?`, not `status=$?`.
+
 If using the lower-level `poof project create` or `poof chat send` commands, check status manually:
 
 ```bash
@@ -109,6 +111,11 @@ Send follow-up messages to refine the project:
 
 ```bash
 poof iterate -p <project-id> -m "Add a leaderboard page showing top contributors by USDC spent"
+
+cat <<'EOF' | poof iterate -p <project-id> --stdin
+Add a gated chat flow with explicit eligible, grace, and revoked states.
+Generate and run lifecycle plus UI tests after the implementation step.
+EOF
 ```
 
 `poof iterate` sends the message, waits for the AI to finish, and shows test results.

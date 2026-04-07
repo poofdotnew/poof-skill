@@ -40,6 +40,8 @@ In Claude Code, the Bash tool's max `timeout` is 600000ms (10 min). For commands
 
 **Important:** `poof iterate` and `poof build` exit with code 0 even when tests fail. Always check `poof task test-results --json` after these commands to verify results programmatically.
 
+**Shell safety:** For long or multi-line prompts, prefer `--stdin` or a quoted temp file over one giant inline `-m "..."` command. If you capture an exit code in zsh after `poof build` / `poof iterate`, use `rc=$?`, not `status=$?`.
+
 **Claude Code example:**
 
 ```
@@ -97,6 +99,12 @@ poof build -m "Build a token-gated voting app" --mode full
 
 # 3. Iterate (sends chat, waits for AI, shows test results)
 poof iterate -p <project-id> -m "Add a leaderboard page"
+
+# Safer pattern for a long prompt
+cat <<'EOF' | poof iterate -p <project-id> --stdin
+Add wallet auth, gated posting, and lifecycle/UI tests.
+Keep the prompt text shell-safe by streaming it via stdin.
+EOF
 
 # 4. Steer mid-execution (optional)
 poof chat steer -p <project-id> -m "Focus on the backend first"
