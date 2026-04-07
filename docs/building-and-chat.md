@@ -183,9 +183,18 @@ echo "Project: $PROJECT_ID"
 # 4. Generate and run lifecycle tests
 poof iterate -p "$PROJECT_ID" -m "Generate and run lifecycle action tests for all policies. Cover both allowed and denied operations."
 
-# 5. Check test results
+# 5. Check test results — verify tests ran AND passed
+TOTAL=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.total')
 FAILED=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.failed')
 ERRORS_COUNT=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.errors')
+
+if [ "$TOTAL" -eq 0 ]; then
+  echo "Warning: no tests were generated. Retrying..."
+  poof iterate -p "$PROJECT_ID" -m "No test results found. Please generate and run lifecycle action tests for all policies."
+  TOTAL=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.total')
+  FAILED=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.failed')
+  ERRORS_COUNT=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.errors')
+fi
 
 if [ "$FAILED" -gt 0 ] || [ "$ERRORS_COUNT" -gt 0 ]; then
   ERRORS=$(poof task test-results -p "$PROJECT_ID" --json | jq -r '[.results[] | select(.status=="failed" or .status=="error") | "- \(.fileName): \(.lastError // .status)"] | join("\n")')

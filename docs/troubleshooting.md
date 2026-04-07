@@ -26,7 +26,7 @@ Common errors, causes, and CLI recovery patterns.
 | Command killed / no output / timeout | Shell timeout too short for a polling command | `poof build`, `poof iterate`, and `poof ship` can take 5–10+ minutes. Set timeout to 600000ms (10 min) or use `run_in_background: true`. See the timeout table in SKILL.md |
 | Build stuck for >10 minutes | AI is stuck or in a loop | Run `poof chat cancel -p <id>`, then start a new iteration with clearer instructions |
 | `poof chat active` stays `true` but `task list`/`test-results` never change | Stale active-chat state after the AI stopped making progress | Run `poof task list -p <id> --json`, `poof logs -p <id>`, and `poof task test-results -p <id> --json`. If there is no new task and no recent activity, capture that evidence, run `poof chat cancel -p <id>`, then retry once with a targeted prompt |
-| Build finishes immediately | AI server may be unreachable | Check the exit status — a non-zero code means the server is down. Retry after a short delay, or run `poof project status -p <id>` for the latest task status |
+| Build finishes immediately | Rare edge case if AI starts and finishes very quickly, or server issue | Run `poof project status -p <id>` to verify the project has tasks and content. If the project looks empty, retry with `poof iterate -p <id> -m "..."` |
 | Build fails after starting | Session expired mid-build | Run `poof auth login` and retry |
 | AI builds the wrong thing | Vague or ambiguous `-m` flag in `poof build` | Be specific about data models, access rules, token operations, and on-chain vs off-chain. See [how-poof-works.md](how-poof-works.md) |
 | `Project not found` | Wrong project ID or not the owner | Verify project ID and that you're using the same keypair that created the project |
@@ -36,7 +36,7 @@ Common errors, causes, and CLI recovery patterns.
 | Error | Cause | Fix |
 |-------|-------|-----|
 | Deploy blocked — `no_membership` | User has never purchased credits | The wallet needs at least one completed credit purchase. Run `poof credits topup` ($15 minimum). Once any purchase completes, deployment is permanently unlocked for that wallet |
-| Deploy blocked — security review | Failed security scan | Fix flagged issues and retry. `poof ship` runs the security scan automatically |
+| Deploy blocked — security scan found issues | `poof ship` prints "Security scan finished" then fails eligibility | The scan completed but found vulnerabilities. Fix the flagged issues with `poof iterate`, then retry `poof ship`. The CLI distinguishes between scan completion (neutral) and scan passing (success) |
 | Preview deploy fails | Missing or expired auth | Run `poof auth login`, then retry `poof deploy` |
 | Production deploy fails | Haven't passed eligibility check | Run `poof deploy check` first and resolve any blockers, or use `poof ship` which checks automatically |
 | `poof credits topup` returns an error | Settlement or credit award failed | Run `poof credits balance` to see if the payment was partially processed. If charged on-chain but no credits, contact support with the txId |
@@ -70,7 +70,7 @@ The most common agent issue: the shell kills `poof build`, `poof iterate`, or `p
 
 | Command type | Recommended approach |
 |-------------|---------------------|
-| `poof build`, `poof iterate`, `poof ship` | `run_in_background: true` (preferred) or `timeout: 600000` |
+| `poof build`, `poof iterate`, `poof ship` | `run_in_background: true` (required — these can exceed the 10-min max timeout) |
 | `poof security scan`, `poof deploy *` | `timeout: 600000` |
 | All other commands | `timeout: 120000` (default is fine) |
 

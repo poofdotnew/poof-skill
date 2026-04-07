@@ -19,28 +19,30 @@ Your Agent ──► poof CLI (auth + API + polling built in) ──► poof.new
 
 **Critical:** `poof build`, `poof iterate`, and `poof ship` poll until the Poof AI finishes, which can take **5–10+ minutes**. You **must** set an extended timeout or run these commands in the background, or they will be killed mid-execution.
 
-| Command                                 | Typical duration | Recommended timeout |
-| --------------------------------------- | ---------------- | ------------------- |
-| `poof build`                            | 3–10 min         | 1200000 (20 min)    |
-| `poof iterate`                          | 2–8 min          | 1200000 (20 min)    |
-| `poof ship`                             | 1–5 min          | 1200000 (20 min)    |
-| `poof security scan`                    | 1–3 min          | 600000 (10 min)     |
-| `poof deploy preview/production/mobile` | 1–3 min          | 600000 (10 min)     |
-| `poof deploy static`                    | 30s–2 min        | 600000 (10 min)     |
-| `poof credits topup`                    | 30–90 sec        | 120000 (2 min)      |
-| `poof files get`                        | 10–60 sec        | 120000 (2 min)      |
-| All other commands                      | < 30 sec         | 120000 (2 min)      |
+| Command                                 | Typical duration | Recommended approach                  |
+| --------------------------------------- | ---------------- | ------------------------------------- |
+| `poof build`                            | 3–10 min         | `run_in_background: true`             |
+| `poof iterate`                          | 2–8 min          | `run_in_background: true`             |
+| `poof ship`                             | 1–5 min          | `run_in_background: true`             |
+| `poof security scan`                    | 1–3 min          | `timeout: 600000`                     |
+| `poof deploy preview/production/mobile` | 1–3 min          | `timeout: 600000`                     |
+| `poof deploy static`                    | 30s–2 min        | `timeout: 600000`                     |
+| `poof credits topup`                    | 30–90 sec        | `timeout: 120000` (default)           |
+| `poof files get`                        | 10–60 sec        | `timeout: 120000` (default)           |
+| All other commands                      | < 30 sec         | `timeout: 120000` (default)           |
 
-In Claude Code, set the `timeout` parameter on the Bash tool call (max supported is 600000ms / 10 min). For commands needing longer than 10 minutes (`poof build`, `poof iterate`, `poof ship`), use `run_in_background: true` instead — you'll be notified when the command completes. In other harnesses, use whatever mechanism your tool runner provides to extend the execution timeout or run commands asynchronously.
+In Claude Code, the Bash tool's max `timeout` is 600000ms (10 min). For commands that can exceed 10 minutes (`poof build`, `poof iterate`, `poof ship`), **always use `run_in_background: true`** — you'll be notified when the command completes. For shorter commands, set `timeout` directly. In other harnesses, use whatever mechanism your tool runner provides to extend the execution timeout or run commands asynchronously.
+
+**Important:** `poof iterate` and `poof build` exit with code 0 even when tests fail. Always check `poof task test-results --json` after these commands to verify results programmatically.
 
 **Claude Code example:**
 
 ```
-# For commands ≤10 min: set timeout
-Bash tool: command="poof security scan -p <id>", timeout=600000
-
 # For commands that may exceed 10 min: run in background
 Bash tool: command="poof build -m '...'", run_in_background=true
+
+# For commands ≤10 min: set timeout
+Bash tool: command="poof security scan -p <id>", timeout=600000
 ```
 
 ## Authentication
@@ -120,7 +122,7 @@ Copy this checklist and track your progress:
 - [ ] Build: poof build -m "..." [--mode full|policy|backend,policy|ui,policy]
 - [ ] Verify: poof project status -p <id>
 - [ ] Test: poof iterate -p <id> -m "Generate and run lifecycle action tests..."
-- [ ] Evaluate: poof task test-results -p <id> --json → check summary.failed === 0
+- [ ] Evaluate: poof task test-results -p <id> --json → check summary.total > 0 AND summary.failed === 0 AND summary.errors === 0
 - [ ] Fix: poof iterate -p <id> -m "Fix: <error details>"
 - [ ] UI Test: poof iterate -p <id> -m "Generate and run UI functional tests..."
 - [ ] Deploy: poof ship -p <id>
@@ -206,10 +208,19 @@ PROJECT_ID=$(poof build -m "Build a ..." --mode full --quiet)
 poof iterate -p "$PROJECT_ID" -m "Generate and run lifecycle action tests for all policies. Cover both allowed and denied operations."
 
 # 3. Check structured test results
+TOTAL=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.total')
 FAILED=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.failed')
 ERRORS=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.errors')
 
-# 4. If tests failed, send a targeted fix
+# 4. Verify tests actually ran, then check for failures
+if [ "$TOTAL" -eq 0 ]; then
+  echo "Warning: no tests were generated. Retrying..."
+  poof iterate -p "$PROJECT_ID" -m "No test results found. Please generate and run lifecycle action tests for all policies."
+  TOTAL=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.total')
+  FAILED=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.failed')
+  ERRORS=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.errors')
+fi
+
 if [ "$FAILED" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
   FAILURES=$(poof task test-results -p "$PROJECT_ID" --json | jq -r '.results[] | select(.status == "failed" or .status == "error") | "- \(.fileName): \(.lastError // .status)"')
   poof iterate -p "$PROJECT_ID" -m "The following tests failed:

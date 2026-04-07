@@ -39,7 +39,7 @@ Draft is always available — no deployment needed. Preview and production requi
 
 ### Security Scan
 
-`poof ship` initiates a security scan automatically before deploying and waits for it to complete before proceeding to the eligibility check and deployment. If the scan finds critical issues, the eligibility check will block deployment. To run a scan manually:
+`poof ship` initiates a security scan automatically before deploying and waits for it to complete before proceeding to the eligibility check and deployment. The CLI prints "Security scan finished" when the scan completes (neutral — it ran to completion), then checks eligibility. If the scan found critical issues, the CLI prints a warning and the eligibility check blocks deployment with a clear error. If both pass, it prints "Security scan passed. Eligible for deployment." To run a scan manually:
 
 ```bash
 poof security scan -p <projectId>
