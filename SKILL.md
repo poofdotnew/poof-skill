@@ -245,7 +245,7 @@ See [docs/how-poof-works.md](docs/how-poof-works.md) for the architecture knowle
 ## Best Practices
 
 - **Check credits** — `poof credits balance` is free. A full build + test + polish cycle costs 3-5 credits. If credits run out mid-build, the AI stops responding
-- **One message at a time** — `poof iterate` handles waiting automatically; if using `poof chat send`, check with `poof chat active -p <id>` before sending the next message
+- **One message at a time** — `poof iterate` handles waiting automatically; if using `poof chat send`, wait for `poof chat active -p <id>` to return `state: "idle"` before sending the next message
 - **Any credit purchase unlocks deployment** — mainnet deployment requires that the wallet has completed at least one credit purchase. An x402 top-up ($15 minimum) is the agent-friendly way to unlock both AI credits and deployment access. Once paid, paid features are permanently unlocked
 - **Always verify after building** — generate lifecycle tests and run them before deploying
 - **Deploy to preview first** — test before production

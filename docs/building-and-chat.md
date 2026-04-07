@@ -60,7 +60,7 @@ If using the lower-level `poof project create` or `poof chat send` commands, che
 
 ```bash
 poof chat active -p <project-id>
-# Returns: { active: boolean, status: "ok" | "error" }
+# Returns: { active: boolean, state: "running" | "queued" | "idle", status: "ok" | "error" }
 ```
 
 ### 3. Check Project Status & Get URLs
@@ -72,7 +72,7 @@ poof project status -p <project-id>
 poof project status -p <project-id> --json | jq '.urls'
 ```
 
-The draft URL runs on Poofnet (simulated blockchain, free). See [deployment.md](deployment.md) for details.
+The draft URL runs on Poofnet (simulated blockchain, free). Use `publishState.draft.deployed` from `poof project status --json` as the actual deploy/readiness signal; a draft URL can exist before the draft is serving traffic. See [deployment.md](deployment.md) for details.
 
 ### Execution Control
 
@@ -113,7 +113,7 @@ poof iterate -p <project-id> -m "Add a leaderboard page showing top contributors
 
 `poof iterate` sends the message, waits for the AI to finish, and shows test results.
 
-> **One message at a time.** `poof iterate` handles waiting automatically. If using the lower-level `poof chat send`, always wait for `poof chat active` to show inactive before sending the next message. Sending while AI is active queues the message (FIFO), but the AI won't have your evaluation context.
+> **One message at a time.** `poof iterate` handles waiting automatically. If using the lower-level `poof chat send`, always wait for `poof chat active` to return `state: "idle"` before sending the next message. Sending while AI is active queues the message (FIFO), but the AI won't have your evaluation context.
 >
 > If `poof chat active -p <id> --json` stays `true` but `poof task list -p <id> --json` shows no new task ids and `poof logs -p <id>` shows no recent activity, treat that as stale active-chat state rather than healthy progress. Capture the evidence, run `poof chat cancel -p <id>`, then send at most one targeted retry message.
 
