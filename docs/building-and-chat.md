@@ -114,6 +114,8 @@ poof iterate -p <project-id> -m "Add a leaderboard page showing top contributors
 `poof iterate` sends the message, waits for the AI to finish, and shows test results.
 
 > **One message at a time.** `poof iterate` handles waiting automatically. If using the lower-level `poof chat send`, always wait for `poof chat active` to show inactive before sending the next message. Sending while AI is active queues the message (FIFO), but the AI won't have your evaluation context.
+>
+> If `poof chat active -p <id> --json` stays `true` but `poof task list -p <id> --json` shows no new task ids and `poof logs -p <id>` shows no recent activity, treat that as stale active-chat state rather than healthy progress. Capture the evidence, run `poof chat cancel -p <id>`, then send at most one targeted retry message.
 
 ### 5. Get Conversation History
 

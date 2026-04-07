@@ -376,6 +376,8 @@ UI test files verify that the app's frontend works correctly — buttons functio
 
 External agents trigger UI tests the same way as policy tests: `poof iterate -p <id> -m "Generate and run UI tests..."` (handles waiting automatically), then check `poof task test-results`.
 
+If `poof task test-results` comes back with `summary.total = 0`, do not treat that as a pass. Inspect `poof task list -p <id> --json`, `poof chat active -p <id> --json`, and `poof logs -p <id>` first. When `chat active` stays `true` but no new task ids or recent logs appear, record that stale-state evidence, run `poof chat cancel -p <id>`, then do at most one targeted retry for lifecycle/UI artifact generation before escalating the gap.
+
 ### Mock Test User
 
 All UI tests run as: **`HKbZbRR7jWWR5VRN8KFjvTCHEzJQgameYxKQxh2gPoof`**

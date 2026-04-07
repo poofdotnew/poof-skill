@@ -25,6 +25,7 @@ Common errors, causes, and CLI recovery patterns.
 |-------|-------|-----|
 | Command killed / no output / timeout | Shell timeout too short for a polling command | `poof build`, `poof iterate`, and `poof ship` can take 5–10+ minutes. Set timeout to 600000ms (10 min) or use `run_in_background: true`. See the timeout table in SKILL.md |
 | Build stuck for >10 minutes | AI is stuck or in a loop | Run `poof chat cancel -p <id>`, then start a new iteration with clearer instructions |
+| `poof chat active` stays `true` but `task list`/`test-results` never change | Stale active-chat state after the AI stopped making progress | Run `poof task list -p <id> --json`, `poof logs -p <id>`, and `poof task test-results -p <id> --json`. If there is no new task and no recent activity, capture that evidence, run `poof chat cancel -p <id>`, then retry once with a targeted prompt |
 | Build finishes immediately | AI server may be unreachable | Check the exit status — a non-zero code means the server is down. Retry after a short delay, or run `poof project status -p <id>` for the latest task status |
 | Build fails after starting | Session expired mid-build | Run `poof auth login` and retry |
 | AI builds the wrong thing | Vague or ambiguous `-m` flag in `poof build` | Be specific about data models, access rules, token operations, and on-chain vs off-chain. See [how-poof-works.md](how-poof-works.md) |
