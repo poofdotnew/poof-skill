@@ -1,6 +1,11 @@
 ---
 name: poof
-description: Use when building AI agents that interact with Poof (poof.new), creating or managing Solana dApps programmatically, using the poof CLI, or connecting a local frontend to a Poof backend. Triggers: 'poof project', 'deploy dApp', 'create poof app', 'poof.new', 'poof CLI', 'poof build', 'poof-cli', 'Solana agent', 'blockchain app builder', '@pooflabs/web'.
+description: >-
+  Use when building AI agents that interact with Poof (poof.new), creating or
+  managing Solana dApps programmatically, using the poof CLI, or connecting a
+  local frontend to a Poof backend. Triggers: "poof project", "deploy dApp",
+  "create poof app", "poof.new", "poof CLI", "poof build", "poof-cli",
+  "Solana agent", "blockchain app builder", "@pooflabs/web".
 ---
 
 # Poof CLI
