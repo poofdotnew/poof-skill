@@ -723,6 +723,8 @@ The response includes:
 
 This is more reliable than parsing chat output — it reads from the structured policy test records plus normalized UI test execution records.
 
+If `summary.total = 0` but you expected tests to run, inspect `poof project messages -p <id> --limit 100 --json` before assuming nothing happened. Tool-call messages can reveal whether Poof wrote test files, ran `run_all_lifecycle_tests`, or stopped before `run_all_ui_tests`.
+
 ## Asking Poof to Generate Tests
 
 You can ask the Poof AI via `poof iterate` to generate all three types of test files:
@@ -738,5 +740,9 @@ You can ask the Poof AI via `poof iterate` to generate all three types of test f
 **UI functional tests:**
 
 > "Generate UI functional tests for the app. Test creating a post, navigating to the details page, and deleting a post. Fund the mock test user if the app has onchain features."
+
+**Policy + UI together:**
+
+> "Generate and run lifecycle action tests plus UI functional tests for this project. Run both the policy test runner and the UI test runner, then report both results separately."
 
 The AI knows the policy schema and will generate appropriate test files for each layer.
