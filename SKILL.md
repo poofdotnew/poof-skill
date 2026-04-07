@@ -19,21 +19,22 @@ Your Agent ──► poof CLI (auth + API + polling built in) ──► poof.new
 
 **Critical:** `poof build`, `poof iterate`, and `poof ship` poll until the Poof AI finishes, which can take **5–10+ minutes**. You **must** set an extended timeout or run these commands in the background, or they will be killed mid-execution.
 
-| Command | Typical duration | Recommended timeout |
-|---------|-----------------|-------------------|
-| `poof build` | 3–10 min | 1200000 (20 min) |
-| `poof iterate` | 2–8 min | 1200000 (20 min) |
-| `poof ship` | 1–5 min | 1200000 (20 min) |
-| `poof security scan` | 1–3 min | 600000 (10 min) |
-| `poof deploy preview/production/mobile` | 1–3 min | 600000 (10 min) |
-| `poof deploy static` | 30s–2 min | 600000 (10 min) |
-| `poof credits topup` | 30–90 sec | 120000 (2 min) |
-| `poof files get` | 10–60 sec | 120000 (2 min) |
-| All other commands | < 30 sec | 120000 (2 min) |
+| Command                                 | Typical duration | Recommended timeout |
+| --------------------------------------- | ---------------- | ------------------- |
+| `poof build`                            | 3–10 min         | 1200000 (20 min)    |
+| `poof iterate`                          | 2–8 min          | 1200000 (20 min)    |
+| `poof ship`                             | 1–5 min          | 1200000 (20 min)    |
+| `poof security scan`                    | 1–3 min          | 600000 (10 min)     |
+| `poof deploy preview/production/mobile` | 1–3 min          | 600000 (10 min)     |
+| `poof deploy static`                    | 30s–2 min        | 600000 (10 min)     |
+| `poof credits topup`                    | 30–90 sec        | 120000 (2 min)      |
+| `poof files get`                        | 10–60 sec        | 120000 (2 min)      |
+| All other commands                      | < 30 sec         | 120000 (2 min)      |
 
 In Claude Code, set the `timeout` parameter on the Bash tool call (max supported is 600000ms / 10 min). For commands needing longer than 10 minutes (`poof build`, `poof iterate`, `poof ship`), use `run_in_background: true` instead — you'll be notified when the command completes. In other harnesses, use whatever mechanism your tool runner provides to extend the execution timeout or run commands asynchronously.
 
 **Claude Code example:**
+
 ```
 # For commands ≤10 min: set timeout
 Bash tool: command="poof security scan -p <id>", timeout=600000
@@ -65,11 +66,11 @@ poof auth login
 
 > Generate a fresh keypair for each agent. Only use an existing keypair if the user explicitly provides one.
 
-| Variable | Purpose | Required |
-|----------|---------|----------|
-| `SOLANA_PRIVATE_KEY` | Solana private key (base58) | Yes |
-| `SOLANA_WALLET_ADDRESS` | Your Solana wallet public address | Yes |
-| `POOF_ENV` | Target environment: `production` (default), `staging`, or `local` | No |
+| Variable                | Purpose                                                           | Required |
+| ----------------------- | ----------------------------------------------------------------- | -------- |
+| `SOLANA_PRIVATE_KEY`    | Solana private key (base58)                                       | Yes      |
+| `SOLANA_WALLET_ADDRESS` | Your Solana wallet public address                                 | Yes      |
+| `POOF_ENV`              | Target environment: `production` (default), `staging`, or `local` | No       |
 
 To target staging: `poof --env staging` or set `POOF_ENV=staging` in `.env`.
 
@@ -129,19 +130,19 @@ Copy this checklist and track your progress:
 
 Read these for deeper context — especially **how-poof-works** if you're orchestrating what the Poof AI should build.
 
-| Doc | What it covers |
-|-----|----------------|
-| [**How Poof Works**](docs/how-poof-works.md) | Architecture, policy system, plugins, on-chain vs off-chain, what Poof can/can't do. **Read this to write effective prompts.** |
-| [**Building & Chat**](docs/building-and-chat.md) | Project creation, chat workflow, follow-up patterns, generation modes. |
-| [**Backend-Only Mode**](docs/backend-only.md) | Using `backend,policy` generation mode with a local frontend — connection info, `@pooflabs/web` setup, PartyServer integration. |
+| Doc                                                      | What it covers                                                                                                                                           |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [**How Poof Works**](docs/how-poof-works.md)             | Architecture, policy system, plugins, on-chain vs off-chain, what Poof can/can't do. **Read this to write effective prompts.**                           |
+| [**Building & Chat**](docs/building-and-chat.md)         | Project creation, chat workflow, follow-up patterns, generation modes.                                                                                   |
+| [**Backend-Only Mode**](docs/backend-only.md)            | Using `backend,policy` generation mode with a local frontend — connection info, `@pooflabs/web` setup, PartyServer integration.                          |
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | Building a frontend that connects to a Poof backend — SDK init, wallet auth, database access, API routes, real-time subscriptions, React hooks, gotchas. |
-| [**Database SDK**](docs/database-sdk.md) | The generated db-client + collections pattern — typed functions, read/write, frontend vs backend, how to extract and use. |
-| [**Deployment**](docs/deployment.md) | Environments (draft/preview/production/mobile), publishing, code downloads, custom domains. |
-| [**Static Frontend Deploy**](docs/static-deploy.md) | Deploy a self-built static frontend to Poof — tar.gz upload via CLI. |
-| [**Credits & Payments**](docs/credits-and-payments.md) | Credit system, paid features, x402 USDC top-up flow. |
-| [**Testing**](docs/testing.md) | Lifecycle actions, test files, bootstrap scripts, UI functional tests, expression syntax, testing strategy by layer. |
-| [**CLI Command Reference**](docs/api-reference.md) | All CLI commands, flags, output formats, and error codes. |
-| [**Troubleshooting**](docs/troubleshooting.md) | Common errors, recovery patterns, stuck build handling, credit exhaustion. |
+| [**Database SDK**](docs/database-sdk.md)                 | The generated db-client + collections pattern — typed functions, read/write, frontend vs backend, how to extract and use.                                |
+| [**Deployment**](docs/deployment.md)                     | Environments (draft/preview/production/mobile), publishing, code downloads, custom domains.                                                              |
+| [**Static Frontend Deploy**](docs/static-deploy.md)      | Deploy a self-built static frontend to Poof — tar.gz upload via CLI.                                                                                     |
+| [**Credits & Payments**](docs/credits-and-payments.md)   | Credit system, paid features, x402 USDC top-up flow.                                                                                                     |
+| [**Testing**](docs/testing.md)                           | Lifecycle actions, test files, bootstrap scripts, UI functional tests, expression syntax, testing strategy by layer.                                     |
+| [**CLI Command Reference**](docs/api-reference.md)       | All CLI commands, flags, output formats, and error codes.                                                                                                |
+| [**Troubleshooting**](docs/troubleshooting.md)           | Common errors, recovery patterns, stuck build handling, credit exhaustion.                                                                               |
 
 ## Post-Build Verification
 
@@ -156,6 +157,7 @@ poof iterate -p <project-id> -m "Generate lifecycle action tests for all the pol
 ```
 
 The Poof AI will:
+
 - Generate `lifecycle-actions/test-*.json` files that validate your policies
 - Execute them against ephemeral test environments
 - Report pass/fail results
@@ -169,10 +171,11 @@ poof iterate -p <project-id> -m "Generate and run UI functional tests for the fe
 ```
 
 The Poof AI will:
+
 - Generate `lifecycle-actions/ui-test-*.json` files with browser-based tests
 - Fund the mock test user if the app has onchain features
 - Execute tests using browser automation against the draft app
-- Report results via `poof task test-results`
+- Report results via `poof task test-results` (policy + UI results are aggregated there)
 
 ### 2. Check Project Status & Get URLs
 

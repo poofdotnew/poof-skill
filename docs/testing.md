@@ -3,6 +3,7 @@
 Poof uses **lifecycle actions** — declarative JSON files — to test database policies, validate backend logic, and verify UI behavior. No test code needed.
 
 ## Contents
+
 - [Why This Matters for Agents](#why-this-matters-for-agents)
 - [Three Test Modes](#three-test-modes)
 - [Core Operations](#core-operations)
@@ -46,7 +47,12 @@ Test files run server-side with mock actors in ephemeral apps. They verify that 
     { "op": "expect", "expr": "get(/messages/m1).message == 'Hello'" },
 
     { "op": "as", "who": "Bob" },
-    { "op": "set", "path": "messages/m1", "data": { "message": "Hacked" }, "shouldFail": true }
+    {
+      "op": "set",
+      "path": "messages/m1",
+      "data": { "message": "Hacked" },
+      "shouldFail": true
+    }
   ]
 }
 ```
@@ -68,7 +74,11 @@ Bootstraps set up required state (configs, counters, default data). They run cli
   "description": "Initialize app configuration",
   "steps": [
     { "op": "ensure", "expr": "get(/config/app) == null" },
-    { "op": "set", "path": "config/app", "data": { "version": 1, "enabled": true } }
+    {
+      "op": "set",
+      "path": "config/app",
+      "data": { "version": 1, "enabled": true }
+    }
   ]
 }
 ```
@@ -114,24 +124,25 @@ See the full [UI Functional Tests](#ui-functional-tests) section below for forma
 
 ## Core Operations
 
-| Op | Purpose | Mode |
-|----|---------|------|
-| `as` | Switch actor | Tests only |
-| `set` | Create/update document | Both |
-| `setMany` | Atomic multi-doc write | Both |
-| `delete` / `deleteMany` | Delete documents | Both |
-| `expect` | Assert conditions (3 forms) | Tests only |
-| `ensure` | Conditional execution (idempotency) | Both |
-| `mock` | Mock plugin calls (on-chain hooks) | Tests only |
-| `fund` | Give SOL/tokens to test accounts | Tests only |
-| `applyBootstrap` | Load another bootstrap file | Both |
-| `setTime` / `advanceTime` | Control test clock | Tests only |
+| Op                        | Purpose                             | Mode       |
+| ------------------------- | ----------------------------------- | ---------- |
+| `as`                      | Switch actor                        | Tests only |
+| `set`                     | Create/update document              | Both       |
+| `setMany`                 | Atomic multi-doc write              | Both       |
+| `delete` / `deleteMany`   | Delete documents                    | Both       |
+| `expect`                  | Assert conditions (3 forms)         | Tests only |
+| `ensure`                  | Conditional execution (idempotency) | Both       |
+| `mock`                    | Mock plugin calls (on-chain hooks)  | Tests only |
+| `fund`                    | Give SOL/tokens to test accounts    | Tests only |
+| `applyBootstrap`          | Load another bootstrap file         | Both       |
+| `setTime` / `advanceTime` | Control test clock                  | Tests only |
 
 ### Operation Details
 
 **`as`** — Switch the current actor. All subsequent steps run as that actor until the next `as`. Does NOT have a `do` field — place operations as separate steps after it. **Tests only; never in client-side bootstraps.**
 
 **`expect`** — Three forms:
+
 ```json
 { "op": "expect", "expr": "get(/messages/m1) != null" }
 { "op": "expect", "left": "get(/messages/m1).message", "right": "Hello" }
@@ -139,16 +150,24 @@ See the full [UI Functional Tests](#ui-functional-tests) section below for forma
 ```
 
 **`set` with `shouldFail`** — Test that an operation is denied by policy:
+
 ```json
-{ "op": "set", "path": "posts/p1", "data": { "title": "Hijacked" }, "shouldFail": true }
+{
+  "op": "set",
+  "path": "posts/p1",
+  "data": { "title": "Hijacked" },
+  "shouldFail": true
+}
 ```
 
 **`mock`** — Mock a plugin call. Field is `returns` (not `return`). Must be placed BEFORE the operation that triggers the hook:
+
 ```json
 { "op": "mock", "pluginCall": "@TokenPlugin.transfer", "returns": true }
 ```
 
 **`fund`** — Airdrop SOL or tokens. Works on ephemeral/offchain test environments only:
+
 ```json
 { "op": "fund", "account": "$Alice", "amount": 1.0 }
 { "op": "fund", "account": "$Alice", "amount": 100, "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" }
@@ -160,21 +179,21 @@ Lifecycle action expressions use a DSL for data access and logic. Used in `expec
 
 ### Built-in Variables
 
-| Variable | Description |
-|----------|-------------|
-| `@user.address` | Current actor's wallet address |
-| `@time.now` | Current logical time (Unix seconds) |
+| Variable                         | Description                                            |
+| -------------------------------- | ------------------------------------------------------ |
+| `@user.address`                  | Current actor's wallet address                         |
+| `@time.now`                      | Current logical time (Unix seconds)                    |
 | `@constants.COLLECTION.CONSTANT` | Policy constants (e.g., `@constants.messages.MAX_LEN`) |
-| `$ActorName` | Actor address placeholder (e.g., `$Alice`) |
+| `$ActorName`                     | Actor address placeholder (e.g., `$Alice`)             |
 
 ### Data Access
 
-| Function | Description |
-|----------|-------------|
-| `get(/collection/docId)` | Retrieve document (before operation) |
+| Function                      | Description                                             |
+| ----------------------------- | ------------------------------------------------------- |
+| `get(/collection/docId)`      | Retrieve document (before operation)                    |
 | `getAfter(/collection/docId)` | Retrieve document (after operation, for atomic updates) |
-| `get(/path).field` | Access a specific field |
-| `get(/path/$Alice)` | Path with actor variable |
+| `get(/path).field`            | Access a specific field                                 |
+| `get(/path/$Alice)`           | Path with actor variable                                |
 
 ### Operators
 
@@ -186,11 +205,11 @@ Lifecycle action expressions use a DSL for data access and logic. Used in `expec
 
 ### Utility Functions
 
-| Function | Description |
-|----------|-------------|
-| `@StringUtils.length(str)` | Get string length |
-| `@MathUtils.max(a, b)` | Maximum of two values |
-| `@MathUtils.min(a, b)` | Minimum of two values |
+| Function                   | Description           |
+| -------------------------- | --------------------- |
+| `@StringUtils.length(str)` | Get string length     |
+| `@MathUtils.max(a, b)`     | Maximum of two values |
+| `@MathUtils.min(a, b)`     | Minimum of two values |
 
 ### Expression Examples
 
@@ -206,11 +225,13 @@ Lifecycle action expressions use a DSL for data access and logic. Used in `expec
 Actor variables (`$Alice`, `$Bob`, etc.) are replaced with addresses BEFORE expression evaluation. This creates a critical quoting rule:
 
 **In paths** — use `$Alice` directly (no quotes):
+
 ```json
 { "op": "set", "path": "items/$Alice", "data": { "owner": "$Alice" } }
 ```
 
 **In string comparisons within expressions** — MUST quote with single quotes:
+
 ```json
 { "op": "expect", "expr": "get(/items/i1).owner == '$Alice'" }
 ```
@@ -220,6 +241,7 @@ Without quotes, the expression compares the field value against the raw address 
 ## Key Patterns
 
 ### Test Both Success and Failure
+
 ```json
 { "op": "set", "path": "posts/p1", "data": { "title": "My Post" } },
 { "op": "expect", "expr": "get(/posts/p1).title == 'My Post'" },
@@ -229,6 +251,7 @@ Without quotes, the expression compares the field value against the raw address 
 ```
 
 ### Mock On-Chain Hooks in Tests
+
 ```json
 { "op": "mock", "pluginCall": "@TokenPlugin.transfer", "returns": true }
 ```
@@ -236,6 +259,7 @@ Without quotes, the expression compares the field value against the raw address 
 Always mock plugin calls in tests — they run in ephemeral environments without real blockchain access.
 
 ### Make Bootstraps Idempotent
+
 ```json
 { "op": "ensure", "expr": "get(/config/app) == null" },
 { "op": "set", "path": "config/app", "data": { "version": 1 } }
@@ -244,6 +268,7 @@ Always mock plugin calls in tests — they run in ephemeral environments without
 Use `ensure` so bootstraps are safe to run multiple times.
 
 ### Fund Test Accounts
+
 ```json
 { "op": "fund", "account": "$Alice", "amount": 1.0 },
 { "op": "fund", "account": "$Alice", "amount": 100, "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" }
@@ -252,6 +277,7 @@ Use `ensure` so bootstraps are safe to run multiple times.
 Place `fund` steps at the start, before data operations that require balances.
 
 ### Testing with Bootstrap
+
 ```json
 {
   "version": "1",
@@ -268,6 +294,7 @@ Place `fund` steps at the start, before data operations that require balances.
 Use `applyBootstrap` to load shared setup data before running test assertions.
 
 ### Policy Constants in Tests
+
 ```json
 {
   "version": "1",
@@ -278,8 +305,15 @@ Use `applyBootstrap` to load shared setup data before running test assertions.
   },
   "steps": [
     { "op": "as", "who": "Alice" },
-    { "op": "set", "path": "messages/m1", "data": { "message": "Hello World!!!" } },
-    { "op": "expect", "expr": "@StringUtils.length(get(/messages/m1).message) <= @constants.messages.MAX_LEN" }
+    {
+      "op": "set",
+      "path": "messages/m1",
+      "data": { "message": "Hello World!!!" }
+    },
+    {
+      "op": "expect",
+      "expr": "@StringUtils.length(get(/messages/m1).message) <= @constants.messages.MAX_LEN"
+    }
   ]
 }
 ```
@@ -287,6 +321,7 @@ Use `applyBootstrap` to load shared setup data before running test assertions.
 Override policy constants in tests to validate constraint logic without modifying the actual policy.
 
 ### Time-Dependent Testing
+
 ```json
 { "op": "setTime", "epoch": 1700000000 },
 { "op": "as", "who": "Alice" },
@@ -300,6 +335,7 @@ Override policy constants in tests to validate constraint logic without modifyin
 Use `setTime` and `advanceTime` to test lock periods, cooldowns, and time-gated features.
 
 ### Funding Accounts with Specific Tokens
+
 ```json
 {
   "version": "1",
@@ -307,10 +343,19 @@ Use `setTime` and `advanceTime` to test lock periods, cooldowns, and time-gated 
   "actors": { "Buyer": "TestAddr..." },
   "steps": [
     { "op": "fund", "account": "$Buyer", "amount": 0.1 },
-    { "op": "fund", "account": "$Buyer", "amount": 100, "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" },
+    {
+      "op": "fund",
+      "account": "$Buyer",
+      "amount": 100,
+      "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+    },
     { "op": "mock", "pluginCall": "@TokenPlugin.transfer", "returns": true },
     { "op": "as", "who": "Buyer" },
-    { "op": "set", "path": "purchases/p1", "data": { "buyer": "$Buyer", "amount": 50, "currency": "USDC" } },
+    {
+      "op": "set",
+      "path": "purchases/p1",
+      "data": { "buyer": "$Buyer", "amount": 50, "currency": "USDC" }
+    },
     { "op": "expect", "expr": "get(/purchases/p1).buyer == '$Buyer'" }
   ]
 }
@@ -327,7 +372,7 @@ UI test files verify that the app's frontend works correctly — buttons functio
 1. The Poof AI generates `ui-test-*.json` files when you ask via `poof iterate`
 2. The test runner opens your draft app in a real browser with mock authentication
 3. Each step executes a natural language `act` instruction, then runs a structured `verify` assertion
-4. Results are available via `poof task test-results` alongside policy test results
+4. Results are aggregated into `poof task test-results` alongside policy test results
 
 External agents trigger UI tests the same way as policy tests: `poof iterate -p <id> -m "Generate and run UI tests..."` (handles waiting automatically), then check `poof task test-results`.
 
@@ -336,6 +381,7 @@ External agents trigger UI tests the same way as policy tests: `poof iterate -p 
 All UI tests run as: **`HKbZbRR7jWWR5VRN8KFjvTCHEzJQgameYxKQxh2gPoof`**
 
 The test runner automatically:
+
 1. Opens the app with `?mockAuth=true` (no real wallet needed)
 2. Seeds `sessionStorage` with the mock address for SDK auto-login
 3. Clicks "Connect Wallet" as a fallback if auto-login doesn't trigger
@@ -399,6 +445,7 @@ If the app has onchain features (staking, transfers, swaps), the mock user needs
 ### Common UI Test Patterns
 
 **Form submission:**
+
 ```json
 {
   "act": "Type 'Buy groceries' in the task name input and click 'Add Task'",
@@ -411,6 +458,7 @@ If the app has onchain features (staking, transfers, swaps), the mock user needs
 ```
 
 **Navigation:**
+
 ```json
 {
   "act": "Click the 'Settings' link in the navigation menu",
@@ -423,6 +471,7 @@ If the app has onchain features (staking, transfers, swaps), the mock user needs
 ```
 
 **Toggle:**
+
 ```json
 {
   "act": "Click the toggle switch next to 'Enable notifications'",
@@ -435,6 +484,7 @@ If the app has onchain features (staking, transfers, swaps), the mock user needs
 ```
 
 **Delete:**
+
 ```json
 {
   "act": "Click the delete button on the first item in the list and confirm the deletion",
@@ -447,6 +497,7 @@ If the app has onchain features (staking, transfers, swaps), the mock user needs
 ```
 
 **Error handling:**
+
 ```json
 {
   "act": "Click the 'Submit' button without filling in any fields",
@@ -459,6 +510,7 @@ If the app has onchain features (staking, transfers, swaps), the mock user needs
 ```
 
 **Onchain operation (fund first):**
+
 ```json
 {
   "act": "Enter '1' in the stake amount field and click 'Stake SOL'",
@@ -475,19 +527,19 @@ If the app has onchain features (staking, transfers, swaps), the mock user needs
 1. **Check if app has onchain features** — look at the policy for `onchain: true` collections
 2. **Fund the mock test user if needed** — ask the Poof AI via `poof iterate` to fund the test user before running UI tests
 3. **Ask the Poof AI to generate and run UI tests** — use `poof iterate -p <id> -m "..."` (handles waiting automatically)
-4. **Check results** — `poof task test-results` includes UI test results alongside policy test results
+4. **Check results** — `poof task test-results` aggregates UI test results alongside policy test results
 5. Tests run sequentially (they may modify shared app state)
 6. Each test gets its own browser session
 7. Screenshots are captured after every step for debugging
 
 ## Bootstrap Configuration
 
-| Field | Values | Default |
-|-------|--------|---------|
-| `executionTarget` | `"client"` or `"server"` | — (always specify) |
-| `targetEnvironments` | `["mock"]`, `["mock", "preview", "live"]`, etc. | `["preview"]` |
-| `bootstrapType` | `"seed-data"`, `"deployment-idempotent"`, `"manual-execution"` | `"manual-execution"` |
-| `clearFirst` | `true` / `false` | `false` (only works with `["mock"]`) |
+| Field                | Values                                                         | Default                              |
+| -------------------- | -------------------------------------------------------------- | ------------------------------------ |
+| `executionTarget`    | `"client"` or `"server"`                                       | — (always specify)                   |
+| `targetEnvironments` | `["mock"]`, `["mock", "preview", "live"]`, etc.                | `["preview"]`                        |
+| `bootstrapType`      | `"seed-data"`, `"deployment-idempotent"`, `"manual-execution"` | `"manual-execution"`                 |
+| `clearFirst`         | `true` / `false`                                               | `false` (only works with `["mock"]`) |
 
 ### Bootstrap Types
 
@@ -522,10 +574,13 @@ Set `clearFirst: true` to wipe all offchain data before executing bootstrap step
   "clearFirst": true,
   "description": "Clear and reseed sample users in mock environment",
   "steps": [
-    { "op": "setMany", "writes": [
-      { "path": "users/user1", "data": { "name": "Alice" } },
-      { "path": "users/user2", "data": { "name": "Bob" } }
-    ]}
+    {
+      "op": "setMany",
+      "writes": [
+        { "path": "users/user1", "data": { "name": "Alice" } },
+        { "path": "users/user2", "data": { "name": "Bob" } }
+      ]
+    }
   ]
 }
 ```
@@ -535,6 +590,7 @@ Set `clearFirst: true` to wipe all offchain data before executing bootstrap step
 ### Policy Tests (`test-*.json`)
 
 Validate access control and data integrity rules:
+
 - **CRUD permissions per role**: Test owner, admin, public, and unauthorized actors for each collection
 - **Ownership validation**: Verify `@newData.owner == @user.address` checks work
 - **Field constraints**: Test validation rules (max length, required fields, readonly after creation)
@@ -549,6 +605,7 @@ Example: test-admin-actions.json → Admin can delete posts, regular users can't
 ### Backend Tests (`test-*.json` targeting hooks/plugins)
 
 Validate data operations that trigger on-chain hooks:
+
 - **Hook execution**: Test that writing to a collection with hooks processes correctly
 - **Mock all plugins**: Always mock `@TokenPlugin`, `@DeFiPlugin`, `@BondingCurvePlugin`, etc.
 - **Time-dependent logic**: Use `setTime`/`advanceTime` for lock periods, cooldowns, expiry
@@ -562,6 +619,7 @@ Example: test-lock-period.json → Set time, stake, try early unstake (shouldFai
 ### UI Tests (`ui-test-*.json`)
 
 Validate the full stack through browser interaction:
+
 - **Form submission**: Create, edit, and submit forms
 - **Navigation**: Verify routing between pages
 - **CRUD through UI**: Create, read, update, delete via the interface
@@ -582,48 +640,55 @@ Example: ui-test-staking.json → Fund user, enter amount, stake, verify confirm
 ## Testing Best Practices
 
 ### Split Tests Into Separate Files
+
 - **ONE test file per logical concern** — don't create one huge file with all test cases
 - Create files like `test-user-create.json`, `test-user-permissions.json`, `test-admin-actions.json`
 - Aim for 5-15 steps per file; start with 1-2 files, expand incrementally
 - Easier to debug, faster to run, more maintainable
 
 ### Use Meaningful Names
+
 - Test files: `test-user-permissions.json`, `test-token-transfers.json`, `test-lock-period.json`
 - Bootstrap files: `bootstrap-owner.json`, `bootstrap-seed-users.json`
 - UI test files: `ui-test-create-post.json`, `ui-test-staking.json`
 - Document IDs: Simple identifiers like `app`, `m1`, `s1` (not kebab-case like `gaming-mouse`)
 
 ### Organize Test Steps
+
 1. **Setup**: `applyBootstrap`, `fund`, `setTime`, `mock`
 2. **Action**: `set`, `setMany`, `delete`
 3. **Validation**: `expect`
 
 ### Test Both Success AND Failure
+
 For every permission boundary, test that authorized operations succeed AND unauthorized operations fail (`shouldFail: true`).
 
 ### Distinguish Test vs Production Bootstraps
+
 - **Test bootstraps** (`executionTarget: "server"`): Loaded by tests via `applyBootstrap`, run on ephemeral apps, CAN use mocks
 - **Production bootstraps** (`executionTarget: "client"`): Run in user's browser, execute real transactions, NEVER use mocks
 
 ### Mock All Plugin Calls in Tests
+
 Always mock `@TokenPlugin.transfer`, `@BondingCurvePlugin.calculatePrice`, etc. in test files. Ephemeral test environments don't have real blockchain access.
 
 ### Fund Before Operations
+
 Place `fund` steps at the beginning, before any data operations that require balances. Fund with native SOL (omit `mint`) and specific tokens (pass `mint`).
 
 ## Testing Troubleshooting
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `ruleDenied` | Policy rule denied the operation | Check the actor has the right address, required fields are present, data meets validation constraints |
-| Bootstrap not executing | Wrong `executionTarget` or `ensure` condition blocking | Verify `executionTarget` is set; check that `ensure` expressions aren't always false |
-| Mock not working | Mock placed after the operation that triggers it | Place `mock` step BEFORE the `set` that triggers the hook |
-| Fund operation failing | Invalid account or wrong environment | Ensure account is a valid actor variable (`$Alice`) or address; fund only works in test environments |
-| Insufficient balance | Actor not funded before on-chain operation | Add `fund` step for the actor before the operation that requires a balance |
-| Expression evaluation error | Syntax issue in `expect` or `ensure` | Check: actor variables quoted in strings (`'$Alice'`), operators correct (`==` not `===`, `//` not `/`), paths start with `/` |
-| `as` in bootstrap | Used `as` in a client-side bootstrap | Remove `as` — client-side bootstraps run as the authenticated admin only |
-| UI test timeout | `act` instruction too vague or element not found | Make instructions more specific; verify the draft app is built and accessible |
-| UI test verify fails | Extracted value doesn't match expected | Check schema type matches actual data; loosen expect matcher if appropriate (use `gte` instead of exact) |
+| Error                       | Cause                                                  | Fix                                                                                                                           |
+| --------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `ruleDenied`                | Policy rule denied the operation                       | Check the actor has the right address, required fields are present, data meets validation constraints                         |
+| Bootstrap not executing     | Wrong `executionTarget` or `ensure` condition blocking | Verify `executionTarget` is set; check that `ensure` expressions aren't always false                                          |
+| Mock not working            | Mock placed after the operation that triggers it       | Place `mock` step BEFORE the `set` that triggers the hook                                                                     |
+| Fund operation failing      | Invalid account or wrong environment                   | Ensure account is a valid actor variable (`$Alice`) or address; fund only works in test environments                          |
+| Insufficient balance        | Actor not funded before on-chain operation             | Add `fund` step for the actor before the operation that requires a balance                                                    |
+| Expression evaluation error | Syntax issue in `expect` or `ensure`                   | Check: actor variables quoted in strings (`'$Alice'`), operators correct (`==` not `===`, `//` not `/`), paths start with `/` |
+| `as` in bootstrap           | Used `as` in a client-side bootstrap                   | Remove `as` — client-side bootstraps run as the authenticated admin only                                                      |
+| UI test timeout             | `act` instruction too vague or element not found       | Make instructions more specific; verify the draft app is built and accessible                                                 |
+| UI test verify fails        | Extracted value doesn't match expected                 | Check schema type matches actual data; loosen expect matcher if appropriate (use `gte` instead of exact)                      |
 
 ## Rules
 
@@ -640,7 +705,7 @@ Generating and running tests goes through `poof iterate` (or `poof chat send`), 
 
 ## Checking Test Results Programmatically
 
-Use `poof task test-results` to evaluate test outcomes with structured data instead of parsing chat messages. This returns results for **both policy tests and UI tests**.
+Use `poof task test-results` to evaluate test outcomes with structured data instead of parsing chat messages. This returns aggregated results for **both policy tests and normalized UI tests**.
 
 ```bash
 # Get test results for the current project
@@ -650,22 +715,26 @@ poof task test-results -p <project-id>
 ```
 
 The response includes:
-- `results` — array of individual test executions with `status`, `counts`, `lastError`, `duration`
+
+- `results` — array of individual test executions with `source`, `status`, `counts`, `lastError`, `duration`
 - `summary` — aggregate counts: `total`, `passed`, `failed`, `errors`, `running`
 
-This is more reliable than parsing chat output — it reads directly from the structured `lifecycleExecutions` database.
+This is more reliable than parsing chat output — it reads from the structured policy test records plus normalized UI test execution records.
 
 ## Asking Poof to Generate Tests
 
 You can ask the Poof AI via `poof iterate` to generate all three types of test files:
 
 **Policy tests:**
+
 > "Generate lifecycle action tests for the staking policy — test that users can stake, can't double-stake, and can unstake after the lock period."
 
 **Backend tests with hooks:**
+
 > "Generate lifecycle action tests for the token transfer hooks — mock the plugin calls and verify the transfer records are created correctly."
 
 **UI functional tests:**
+
 > "Generate UI functional tests for the app. Test creating a post, navigating to the details page, and deleting a post. Fund the mock test user if the app has onchain features."
 
 The AI knows the policy schema and will generate appropriate test files for each layer.

@@ -3,6 +3,7 @@
 The `poof iterate` command is the primary way your agent interacts with Poof projects. It sends a chat message to the Poof AI, waits for it to finish, and shows test results.
 
 ## Contents
+
 - [Project Lifecycle](#project-lifecycle)
 - [Writing Effective Prompts](#writing-effective-prompts)
 - [Updating Project Settings](#updating-project-settings)
@@ -29,12 +30,12 @@ The `-m` message is the initial prompt that tells the Poof AI what to build. Be 
 
 Control what the AI generates with `--mode`:
 
-| Mode | What gets generated |
-|------|-------------------|
-| `full` (default) | Everything — UI, backend, policies, lifecycle actions |
-| `policy` | Database policies only (schema, rules, hooks, queries) + lifecycle actions |
-| `ui,policy` | Frontend UI + policies (no backend API routes) |
-| `backend,policy` | Backend API routes + policies (no frontend UI) |
+| Mode             | What gets generated                                                        |
+| ---------------- | -------------------------------------------------------------------------- |
+| `full` (default) | Everything — UI, backend, policies, lifecycle actions                      |
+| `policy`         | Database policies only (schema, rules, hooks, queries) + lifecycle actions |
+| `ui,policy`      | Frontend UI + policies (no backend API routes)                             |
+| `backend,policy` | Backend API routes + policies (no frontend UI)                             |
 
 > **Note:** Bare values `ui` and `backend` are also accepted and automatically include policy (e.g., `--mode backend` is equivalent to `--mode backend,policy`).
 
