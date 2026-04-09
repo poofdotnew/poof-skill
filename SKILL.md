@@ -40,6 +40,8 @@ In Claude Code, the Bash tool's max `timeout` is 600000ms (10 min). For commands
 
 **Important:** `poof iterate` and `poof build` exit with code 0 even when tests fail. Always check `poof task test-results --json` after these commands to verify results programmatically.
 
+**Important:** `poof build` success text is not the same as a healthy draft deploy. After build, run `poof project status -p <id> --json` and confirm the canonical project plus `publishState.draft.deployed`. If you need draft UI evidence, probe the advertised draft URL and treat HTTP `404` as missing deploy evidence, not a working app.
+
 **Shell safety:** For long or multi-line prompts, prefer `--stdin` or a quoted temp file over one giant inline `-m "..."` command. If you capture an exit code in zsh after `poof build` / `poof iterate`, use `rc=$?`, not `status=$?`.
 
 **Claude Code example:**
@@ -124,7 +126,7 @@ poof files upload -p <project-id> --file logo.png   # standalone upload, returns
 poof ship -p <project-id>
 ```
 
-**Environment note:** After `poof build`, the app runs on **Draft (Poofnet)** — a simulated blockchain with fake tokens. This is free and great for testing. To test with real mainnet tokens, deploy to **Preview** using `poof ship -p <id> --target preview`. See [docs/deployment.md](docs/deployment.md) for the full environment breakdown.
+**Environment note:** After `poof build`, the intended runtime target is **Draft (Poofnet)** — a simulated blockchain with fake tokens. Do not assume the draft app is already reachable until `poof project status -p <id> --json` shows draft deploy state consistent with a live endpoint, or a direct draft URL probe returns non-`404`. To test with real mainnet tokens, deploy to **Preview** using `poof ship -p <id> --target preview`. See [docs/deployment.md](docs/deployment.md) for the full environment breakdown.
 
 ### Agent Workflow Checklist
 
@@ -140,6 +142,15 @@ Copy this checklist and track your progress:
 - [ ] UI Test: poof iterate -p <id> -m "Generate and run UI functional tests..."
 - [ ] Deploy: poof ship -p <id>
 ```
+
+### Reality Checks
+
+- If `poof project list --json` shows multiple similarly named projects and you do not already have a canonical project id from the user or repo artifacts, do not guess by title. Create or explicitly reconcile the canonical project first, then write that id into your artifact store before more `iterate` or deploy work.
+- After `poof build`, always run `poof project status -p <id> --json`. Record the project id, URLs, and deploy state before you start retries or testing so later wakes do not guess which project is canonical.
+- If `poof task test-results -p <id> --json` reports `summary.total == 0`, inspect `poof task list -p <id> --json`, `poof chat active -p <id> --json`, and `poof logs -p <id>` before you assume tests passed or failed.
+- If `poof chat active -p <id> --json` stays `true` while task list shows no new work and logs show no recent activity, cancel that stale chat once with `poof chat cancel -p <id>` before the single allowed targeted retry.
+- If the retry still ends with `summary.total == 0` or the CLI prints `Done. (no test results)`, treat that as missing-artifact failure and block or escalate instead of calling the build verified.
+- If `poof ship --target preview` fails because security review is required, capture that as an external unblock gate. `ship` is not equivalent to a successful deploy, and a security-review stop should be treated as a real blocker rather than retried blindly.
 
 ## Documentation
 
