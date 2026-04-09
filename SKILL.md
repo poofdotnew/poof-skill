@@ -40,7 +40,7 @@ In Claude Code, the Bash tool's max `timeout` is 600000ms (10 min). For commands
 
 **Important:** `poof iterate` and `poof build` exit with code 0 even when tests fail. Always check `poof task test-results --json` after these commands to verify results programmatically.
 
-**Important:** `poof build` success text is not the same as a healthy draft deploy. After build, run `poof project status -p <id> --json` and confirm the canonical project plus `publishState.draft.deployed`. If you need draft UI evidence, probe the advertised draft URL and treat HTTP `404` as missing deploy evidence, not a working app.
+**Important:** `poof build` success text is not the same as a healthy draft deploy. After build, run `poof project status -p <id> --json` and confirm the canonical project plus `publishState.draft.deployed`. If you need draft UI evidence, probe the advertised draft URL too. Treat HTTP `404` as missing deploy evidence, and treat `publishState.draft.deployed=false` plus a non-`404`/`200` smoke probe as inconsistent evidence that still needs explicit logging and follow-up before you call the build QA-ready.
 
 **Shell safety:** For long or multi-line prompts, prefer `--stdin` or a quoted temp file over one giant inline `-m "..."` command. If you capture an exit code in zsh after `poof build` / `poof iterate`, use `rc=$?`, not `status=$?`.
 

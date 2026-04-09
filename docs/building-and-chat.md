@@ -74,7 +74,7 @@ poof project status -p <project-id>
 poof project status -p <project-id> --json | jq '.urls'
 ```
 
-The draft URL runs on Poofnet (simulated blockchain, free). Use `publishState.draft.deployed` from `poof project status --json` as the actual deploy/readiness signal; a draft URL can exist before the draft is serving traffic. See [deployment.md](deployment.md) for details.
+The draft URL runs on Poofnet (simulated blockchain, free). Use `publishState.draft.deployed` from `poof project status --json` as the primary deploy/readiness signal, but also record a direct smoke probe of the advertised draft URL. A draft URL can exist before the draft is serving traffic, and in some runs the URL can respond even while `publishState.draft.deployed` still says `false`. Treat that mismatch as inconsistent evidence to log, not as enough by itself to claim QA readiness. See [deployment.md](deployment.md) for details.
 
 ### Execution Control
 
