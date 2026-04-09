@@ -42,7 +42,7 @@ In Claude Code, the Bash tool's max `timeout` is 600000ms (10 min). For commands
 
 **Important:** `poof build` success text is not the same as a healthy draft deploy. After build, run `poof project status -p <id> --json` and confirm the canonical project plus `publishState.draft.deployed`. If you need draft UI evidence, probe the advertised draft URL too. Treat HTTP `404` as missing deploy evidence, and treat `publishState.draft.deployed=false` plus a non-`404`/`200` smoke probe as inconsistent evidence that still needs explicit logging and follow-up before you call the build QA-ready.
 
-**Shell safety:** For long or multi-line prompts, prefer `--stdin` or a quoted temp file over one giant inline `-m "..."` command. If you capture an exit code in zsh after `poof build` / `poof iterate`, use `rc=$?`, not `status=$?`.
+**Shell safety:** For long or multi-line prompts, prefer a quoted temp file over one giant inline `-m "..."` command. In Paperclip/Codex heartbeat runners and other non-interactive tool environments, avoid `poof build` / `poof iterate --stdin` unless the runner is known to keep stdin open for the full command; otherwise the Poof CLI can sit with no streamed output and appear hung. In those environments, use a temp-file-backed prompt or a compact shell-safe `-m` string instead. If you capture an exit code in zsh after `poof build` / `poof iterate`, use `rc=$?`, not `status=$?`.
 
 **Claude Code example:**
 
@@ -102,11 +102,15 @@ poof build -m "Build a token-gated voting app" --mode full
 # 3. Iterate (sends chat, waits for AI, shows test results)
 poof iterate -p <project-id> -m "Add a leaderboard page"
 
-# Safer pattern for a long prompt
-cat <<'EOF' | poof iterate -p <project-id> --stdin
+# Safer pattern for a long prompt in heartbeat/non-interactive runners
+PROMPT_FILE="$(mktemp)"
+cat >"$PROMPT_FILE" <<'EOF'
 Add wallet auth, gated posting, and lifecycle/UI tests.
-Keep the prompt text shell-safe by streaming it via stdin.
+Keep the prompt text shell-safe by storing it in a temp file first.
 EOF
+PROMPT="$(cat "$PROMPT_FILE")"
+poof iterate -p <project-id> -m "$PROMPT"
+rm -f "$PROMPT_FILE"
 
 # 4. Steer mid-execution (optional)
 poof chat steer -p <project-id> -m "Focus on the backend first"
