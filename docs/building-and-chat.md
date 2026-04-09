@@ -123,6 +123,8 @@ EOF
 > **One message at a time.** `poof iterate` handles waiting automatically. If using the lower-level `poof chat send`, always wait for `poof chat active` to return `state: "idle"` before sending the next message. Sending while AI is active queues the message (FIFO), but the AI won't have your evaluation context.
 >
 > If `poof chat active -p <id> --json` stays `true` but `poof task list -p <id> --json` shows no new task ids and `poof logs -p <id>` shows no recent activity, treat that as stale active-chat state rather than healthy progress. Capture the evidence, run `poof chat cancel -p <id>`, then send at most one targeted retry message.
+>
+> If `poof task test-results -p <id> --json` is still zero afterward, inspect `poof project messages -p <id> --limit 100 --json` too. When the only remaining tasks are bootstrap/constants work and the retry still returns an empty summary, treat that as a platform execution incident and stop stacking retries.
 
 ### 5. Get Conversation History
 
