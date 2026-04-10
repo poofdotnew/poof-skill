@@ -139,13 +139,18 @@ Copy this checklist and track your progress:
 ```
 - [ ] Setup: poof keygen >> .env && poof auth login
 - [ ] Build: poof build -m "..." [--mode full|policy|backend,policy|ui,policy]
-- [ ] Verify: poof project status -p <id>
-- [ ] Test: poof iterate -p <id> -m "Generate and run lifecycle action tests..."
-- [ ] Evaluate: poof task test-results -p <id> --json → check summary.total > 0 AND summary.failed === 0 AND summary.errors === 0
-- [ ] Fix: poof iterate -p <id> -m "Fix: <error details>"
-- [ ] UI Test: poof iterate -p <id> -m "Generate and run UI functional tests..."
+- [ ] Status: poof project status -p <id> --json   # confirm canonical id + draft deploy
+- [ ] Verify: poof verify -p <id>                  # canonical strict policy + UI test gate
+- [ ] Diagnose: poof doctor -p <id>                # only if verify fails — points at the next step
+- [ ] Fix: poof iterate -p <id> -m "Fix: <error details>" && poof verify -p <id>
 - [ ] Deploy: poof ship -p <id>
 ```
+
+`poof verify` is the only test command an agent should rely on for pass/fail. It snapshots
+existing test result IDs, sends the canonical lifecycle + UI verification prompt, then only
+counts results created during that run. It exits non-zero if no fresh results appear or if
+any fresh result failed, so a successful exit code is real evidence that tests ran and passed.
+`poof iterate` is still a general chat command — only fall back to it for free-form fixes.
 
 ### Reality Checks
 
