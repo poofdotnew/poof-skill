@@ -23,8 +23,9 @@ Common errors, causes, and CLI recovery patterns.
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| Command killed / no output / timeout | Shell timeout too short for a polling command | `poof build`, `poof iterate`, and `poof ship` can take 5–10+ minutes. Set timeout to 600000ms (10 min) or use `run_in_background: true`. See the timeout table in SKILL.md |
-| Build stuck for >10 minutes | AI is stuck or in a loop | Run `poof chat cancel -p <id>`, then start a new iteration with clearer instructions |
+| Command killed / no output / timeout | Shell timeout too short for a polling command | `poof build`, `poof iterate`, `poof verify`, and `poof ship` can take 5–15+ minutes. Use `run_in_background: true` in Claude Code or set `timeout: 600000`. See the timeout table in SKILL.md |
+| `verify timed out or failed: timed out after 10m0s` | Pre-CLI-fix verify deadline | Rebuild the CLI — current versions enforce a 30-minute internal poll deadline on build/iterate/verify |
+| Build stuck for >15 minutes | AI is stuck or in a loop | Run `poof chat cancel -p <id>`, then start a new iteration with clearer instructions |
 | `poof chat active` stays `true` but `task list`/`test-results` never change | Stale active-chat state after the AI stopped making progress | Run `poof task list -p <id> --json`, `poof logs -p <id>`, and `poof task test-results -p <id> --json`. If there is no new task and no recent activity, capture that evidence, run `poof chat cancel -p <id>`, then retry once with a targeted prompt |
 | Build finishes immediately | Rare edge case if AI starts and finishes very quickly, or server issue | Run `poof project status -p <id>` to verify the project has tasks and content. If the project looks empty, retry with `poof iterate -p <id> -m "..."` |
 | Build fails after starting | Session expired mid-build | Run `poof auth login` and retry |
@@ -64,13 +65,13 @@ The most common agent issue: the shell kills `poof build`, `poof iterate`, or `p
 - "Command timed out" or similar harness error
 - Agent reports the command "hung" or "didn't respond"
 
-**Root cause:** These commands poll until the Poof AI finishes, which can take 5-10+ minutes. Most tool harnesses default to 2-minute timeouts.
+**Root cause:** These commands poll until the Poof AI finishes, which can take 5-15+ minutes. Most tool harnesses default to 2-minute timeouts. The CLI itself enforces an internal 30-minute poll deadline on build/iterate/verify, so if your shell can hold the process open long enough, the CLI will wait for the AI to finish.
 
 **Fix:** Set an extended timeout or run in background. See the timeout table in [SKILL.md](../SKILL.md) for recommended values per command.
 
 | Command type | Recommended approach |
 |-------------|---------------------|
-| `poof build`, `poof iterate`, `poof ship` | `run_in_background: true` (required — these can exceed the 10-min max timeout) |
+| `poof build`, `poof iterate`, `poof verify`, `poof ship` | `run_in_background: true` (required — these can exceed the 10-min max timeout) |
 | `poof security scan`, `poof deploy *` | `timeout: 600000` |
 | All other commands | `timeout: 120000` (default is fine) |
 
