@@ -38,11 +38,11 @@ Your Agent ──► poof CLI (auth + API + polling built in) ──► poof.new
 
 In Claude Code, the Bash tool's max `timeout` is 600000ms (10 min). For commands that can exceed 10 minutes (`poof build`, `poof iterate`, `poof ship`), **always use `run_in_background: true`** — you'll be notified when the command completes. For shorter commands, set `timeout` directly. In other harnesses, use whatever mechanism your tool runner provides to extend the execution timeout or run commands asynchronously.
 
-**Important:** `poof iterate` and `poof build` exit with code 0 even when tests fail. Always check `poof task test-results --json` after these commands to verify results programmatically.
+**Important:** `poof build` now waits for the initial AI turn plus draft deploy health, but it still does **not** prove lifecycle or UI tests passed. Use `poof verify -p <id>` for the canonical post-build verification flow. `poof iterate` is still a general chat command, so test-generation prompts should be followed by `poof verify` or `poof task test-results --json` if you need strict programmatic pass/fail behavior.
 
 **Important:** `poof build` success text is not the same as a healthy draft deploy. After build, run `poof project status -p <id> --json` and confirm the canonical project plus `publishState.draft.deployed`. If you need draft UI evidence, probe the advertised draft URL too. Treat HTTP `404` as missing deploy evidence, and treat `publishState.draft.deployed=false` plus a non-`404`/`200` smoke probe as inconsistent evidence that still needs explicit logging and follow-up before you call the build QA-ready.
 
-**Shell safety:** For long or multi-line prompts, prefer a quoted temp file over one giant inline `-m "..."` command. In Paperclip/Codex heartbeat runners and other non-interactive tool environments, avoid `poof build` / `poof iterate --stdin` unless the runner is known to keep stdin open for the full command; otherwise the Poof CLI can sit with no streamed output and appear hung. In those environments, use a temp-file-backed prompt or a compact shell-safe `-m` string instead. If you capture an exit code in zsh after `poof build` / `poof iterate`, use `rc=$?`, not `status=$?`.
+**Shell safety:** For long or multi-line prompts, prefer a quoted temp file over one giant inline `-m "..."` command. `--stdin` is now strict, so only use it with a real pipe such as `cat prompt.txt | poof iterate --stdin`. In Paperclip/Codex heartbeat runners and other non-interactive tool environments, prefer a temp-file-backed prompt or a compact shell-safe `-m` string instead of assuming stdin will stay open. If you capture an exit code in zsh after `poof build` / `poof iterate`, use `rc=$?`, not `status=$?`.
 
 **Claude Code example:**
 
@@ -177,9 +177,17 @@ Read these for deeper context — especially **how-poof-works** if you're orches
 
 ## Post-Build Verification
 
-After the Poof AI finishes building, **don't assume it works correctly**. Always verify by running lifecycle actions and checking project status.
+After the Poof AI finishes building, **don't assume it works correctly**. Always verify the project and then check overall health.
 
-### 1. Run Lifecycle Tests
+### 1. Run The Canonical Verification Command
+
+```bash
+poof verify -p <project-id>
+```
+
+This runs the standard policy and UI verification prompts, waits on the same runtime signals the web app uses, and fails if no fresh structured test results appear or if any new results fail.
+
+### 1a. Run Lifecycle Tests Manually (Optional)
 
 Ask the Poof AI to generate and run tests for the features it just built:
 
@@ -193,7 +201,7 @@ The Poof AI will:
 - Execute them against ephemeral test environments
 - Report pass/fail results
 
-### 1b. Run UI Functional Tests
+### 1b. Run UI Functional Tests Manually (Optional)
 
 After policy tests pass, generate browser-based tests to verify the full stack:
 
@@ -212,6 +220,7 @@ The Poof AI will:
 
 ```bash
 poof project status -p <project-id>
+poof doctor -p <project-id>
 ```
 
 ### 3. Request Bootstrap Scripts (If Needed)
@@ -233,36 +242,13 @@ set -euo pipefail
 # 1. Build the project
 PROJECT_ID=$(poof build -m "Build a ..." --mode full --quiet)
 
-# 2. Generate and run lifecycle tests
-poof iterate -p "$PROJECT_ID" -m "Generate and run lifecycle action tests for all policies. Cover both allowed and denied operations."
+# 2. Run the canonical verification flow
+poof verify -p "$PROJECT_ID"
 
-# 3. Check structured test results
-TOTAL=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.total')
-FAILED=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.failed')
-ERRORS=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.errors')
+# 3. Check overall runtime + deploy + test health
+poof doctor -p "$PROJECT_ID"
 
-# 4. Verify tests actually ran, then check for failures
-if [ "$TOTAL" -eq 0 ]; then
-  echo "Warning: no tests were generated. Retrying..."
-  poof iterate -p "$PROJECT_ID" -m "No test results found. Please generate and run lifecycle action tests for all policies."
-  TOTAL=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.total')
-  FAILED=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.failed')
-  ERRORS=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.errors')
-fi
-
-if [ "$FAILED" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
-  FAILURES=$(poof task test-results -p "$PROJECT_ID" --json | jq -r '.results[] | select(.status == "failed" or .status == "error") | "- \(.fileName): \(.lastError // .status)"')
-  poof iterate -p "$PROJECT_ID" -m "The following tests failed:
-
-$FAILURES
-
-Please fix the failing tests and re-run them."
-fi
-
-# 5. Generate and run UI functional tests
-poof iterate -p "$PROJECT_ID" -m "Generate and run UI functional tests. Test form submissions, navigation, CRUD operations, and any onchain interactions. Fund the mock test user if needed."
-
-# 6. Deploy
+# 4. Deploy
 poof ship -p "$PROJECT_ID"
 ```
 
