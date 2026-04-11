@@ -163,7 +163,8 @@ any fresh result failed, so a successful exit code is real evidence that tests r
 - `poof task test-results`, `poof iterate`, `poof verify`, and `poof doctor` now collapse test results to the **latest run per test file** by default. If you need to see the full history (e.g. to debug why an earlier run failed), use `poof task test-results -p <id> --history`.
 - If `poof chat active -p <id> --json` stays `true` while task list shows no new work and logs show no recent activity, cancel that stale chat once with `poof chat cancel -p <id>` before the single allowed targeted retry.
 - If the only visible tasks are still bootstrap/constants work and the targeted retry also returns an empty test summary, treat that as a Poof execution incident rather than a prompt-quality problem. Record `poof project status`, smoke probes, and the missing test-artifact evidence, then block or escalate.
-- If the retry still ends with `summary.total == 0` or the CLI prints `Done. (no test results)`, treat that as missing-artifact failure and block or escalate instead of calling the build verified.
+- If the retry still ends with `summary.total == 0` or the CLI prints `Done, but no test results were found.`, treat that as missing-artifact failure and block or escalate instead of calling the build verified.
+- `poof iterate` distinguishes two empty-test cases: `Done, but no tests ran during this turn.` (prior suite exists, but this turn didn't touch it — expected for non-test prompts) vs `Done, but no test results were found.` (no suite exists at all). Neither counts as a pass — only `poof verify` produces canonical pass/fail evidence.
 - If `poof ship --target preview` fails because security review is required, capture that as an external unblock gate. `ship` is not equivalent to a successful deploy, and a security-review stop should be treated as a real blocker rather than retried blindly.
 
 ## Documentation

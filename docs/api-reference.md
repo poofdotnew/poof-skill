@@ -52,7 +52,7 @@ These composite commands handle multi-step operations automatically (polling, se
 
 | Command                                                 | Description                                                                                       |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `poof files get -p <id> [--list\|--stat] [--path GLOB]` | Get source files. **Requires a credit purchase.** Use `--list` to print paths only (no contents), `--stat` for paths + byte counts, or `--path` to filter by glob (e.g. `"src/**/*.tsx"`, `"HomePage.tsx"`, `"lifecycle-actions/*.json"`). Prefer these over a full dump to keep output small. |
+| `poof files get -p <id> [--list\|--stat] [--path GLOB]` | Get source files. **Requires a credit purchase.** Use `--list` to print paths only, `--stat` for paths + byte counts, or `--path` to filter by glob (e.g. `"src/**/*.tsx"`, `"HomePage.tsx"`, `"lifecycle-actions/*.json"`). With `--path` set, text mode prints the matched file contents with `==> path <==` headers; without it, text mode lists paths and hints at `--json` for a full dump. Prefer the filtered forms to keep output small. |
 | `poof files update -p <id> --file PATH --content "..."` | Update a single file.                                                                             |
 | `poof files update -p <id> --from-json FILE`            | Update multiple files from a JSON map.                                                            |
 | `poof files upload -p <id> --file <path>`               | Upload an image to project storage. Returns CDN URL. Supported: PNG, JPEG, GIF, WebP (max 3.4MB). |
