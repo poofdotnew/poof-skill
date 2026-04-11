@@ -14,7 +14,7 @@ These composite commands handle multi-step operations automatically (polling, se
 | Command                                                    | What it does                                                                                                                                                                                                                                                                                                                                                              |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `poof build -m "..." [--mode MODE] [--public] [--stdin]`   | Create a project, wait for AI to finish. Returns project ID and URLs. Mode: `full` (default), `policy`, `ui,policy`, `backend,policy`. Bare values `ui` and `backend` are also accepted (policy is auto-included).                                                                                                                                                        |
-| `poof iterate -p <id> -m "..." [--stdin] [--file img.png]` | Send a chat message, wait for AI to finish, show test results. Attach images with `--file`.                                                                                                                                                                                                                                                                               |
+| `poof iterate -p <id> -m "..." [--stdin] [--file img.png]` | Send a chat message, wait for AI to finish, show test results. Attach images with `--file`. JSON output includes both `summary` (latest per file) and `freshSummary` (results created during this turn); text output uses freshSummary and says "no tests ran during this turn" when nothing new was executed. For strict pass/fail gates use `poof verify` instead. |
 | `poof ship -p <id> [-t TARGET] [--dry-run] [--yes]`        | Run security scan, check eligibility, deploy. Targets: `preview` (default), `production`, `mobile`. Passes through all target-specific flags (e.g., `--allowed-addresses`, `--constants-overrides`, `--config` for preview/production; `--platform`, `--app-name`, `--app-icon-url`, `--app-description`, `--theme-color`, `--draft`, `--target-environment` for mobile). |
 
 ## All Commands
@@ -52,7 +52,7 @@ These composite commands handle multi-step operations automatically (polling, se
 
 | Command                                                 | Description                                                                                       |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `poof files get -p <id>`                                | Get all source files. **Requires a credit purchase.**                                             |
+| `poof files get -p <id> [--list\|--stat] [--path GLOB]` | Get source files. **Requires a credit purchase.** Use `--list` to print paths only (no contents), `--stat` for paths + byte counts, or `--path` to filter by glob (e.g. `"src/**/*.tsx"`, `"HomePage.tsx"`, `"lifecycle-actions/*.json"`). Prefer these over a full dump to keep output small. |
 | `poof files update -p <id> --file PATH --content "..."` | Update a single file.                                                                             |
 | `poof files update -p <id> --from-json FILE`            | Update multiple files from a JSON map.                                                            |
 | `poof files upload -p <id> --file <path>`               | Upload an image to project storage. Returns CDN URL. Supported: PNG, JPEG, GIF, WebP (max 3.4MB). |
@@ -81,7 +81,7 @@ These composite commands handle multi-step operations automatically (polling, se
 
 | Command                                        | Description                                                                                        |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `poof security scan -p <id> [--task <taskId>]` | Run security audit on policies, code, and config. Use `--task` to check status of a previous scan. |
+| `poof security scan -p <id> [--wait] [--task <taskId>]` | Run security audit on policies, code, and config. Returns immediately with the scan ID by default; pass `--wait` to block until the scan finishes and surface critical/high/medium/low finding counts inline. Use `--task` to target a specific previous task. |
 
 ### Secrets
 
