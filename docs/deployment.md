@@ -77,7 +77,7 @@ poof deploy mobile -p <projectId> --platform seeker --app-name "My App" --app-ic
 
 > **Note:** Mobile deploys require `--platform`, `--app-name`, and `--app-icon-url`. Platform values: `seeker`, `ios`, `android`.
 
-Deployment creates a background task. Check its progress:
+The CLI automatically waits for the deploy task to complete before returning. If you need to check task progress manually:
 
 ```bash
 # List all tasks for the project
@@ -85,7 +85,6 @@ poof task list -p <projectId>
 
 # Get status of a specific task
 poof task get <taskId> -p <projectId>
-# Poll until status is 'completed'
 ```
 
 ### Deployment Flow
