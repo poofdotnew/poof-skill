@@ -24,6 +24,16 @@ Use this guide when you're building your own UI (React, Vue, Svelte, React Nativ
 
 ## SDK Installation & Setup
 
+### Do NOT use CDN / esm.sh / unpkg / skypack shortcuts
+
+**Never try to import `@pooflabs/web` from a CDN** (e.g. `import { init } from 'https://esm.sh/@pooflabs/web'` or an unpkg/skypack URL) and never load `buffer` from a CDN either. These will appear to load, but the page will silently break because:
+
+1. `@pooflabs/web` pulls in Solana `web3.js` / wallet adapter code with CommonJS interop that needs a real bundler to resolve `globalThis`, `process`, and `Buffer` correctly. CDN ESM re-hosters can't do that.
+2. The Buffer polyfill MUST be assigned to `globalThis.Buffer` and `window.Buffer` **before** any `@pooflabs/web` module evaluates. With ES module imports, the runtime hoists all `import` statements to the top of the module, so `import { Buffer } from 'buffer'; globalThis.Buffer = Buffer; import { init } from '@pooflabs/web';` does NOT give you the ordering you want — `init` resolves before your polyfill line runs. The official fix is the `buffer` alias in `vite.config.js` below, which a real bundler can honor.
+3. Wallet auth (`login()`) uses deep wallet adapters that reach into `process.env` and other Node globals at import time. Bundlers shim these via `define: { global: 'globalThis' }` in Vite. CDNs do not.
+
+If your AI agent finds itself writing a single `index.html` with `<script type="module" src="https://esm.sh/...">` or `import ... from 'https://...'`, it is taking a shortcut that will fail. Stop and scaffold a real bundler project (Vite, Next.js, Remix, etc.).
+
 ### Install
 
 ```bash
@@ -61,21 +71,71 @@ await init({
 
 ### Vite Config
 
-If using Vite, add the Buffer polyfill alias:
+The minimal config below is what Poof's own v3-template uses and is known to work end-to-end with `@pooflabs/web` in a real Vite build. A simpler config (just `buffer` alias + `define.global`) will look like it works but will throw `ReferenceError: require is not defined` at runtime because `@pooflabs/web` pulls in CommonJS Solana/Privy code that a bundler has to pre-process.
+
+```bash
+# Install the build-time deps that make CJS interop work
+npm install --save-dev vite vite-plugin-node-stdlib-browser node-stdlib-browser
+# @pooflabs/web lists react/react-dom as peer deps and its ESM entry imports
+# react unconditionally — even a vanilla-JS project must install them
+npm install --save react react-dom
+# Solana optional-peer deps that Vite otherwise stubs out in production builds
+npm install --save @privy-io/react-auth @solana-program/system @solana-program/memo @solana-program/token @solana/kit
+```
 
 ```typescript
 // vite.config.ts
 import { defineConfig } from 'vite';
+import stdLibBrowser from 'vite-plugin-node-stdlib-browser';
 
 export default defineConfig({
+  // Pre-bundle the CJS-heavy packages so Vite rewrites their `require()` calls
+  // before they hit the browser.
+  optimizeDeps: {
+    include: [
+      '@pooflabs/web',
+      '@privy-io/react-auth',
+      '@privy-io/react-auth/solana',
+      '@solana-program/system',
+      '@solana-program/memo',
+      '@solana-program/token',
+      '@solana/kit',
+    ],
+  },
+  build: {
+    outDir: 'dist',
+    // Allow CJS deps that also contain ES module syntax to be transformed.
+    commonjsOptions: { transformMixedEsModules: true },
+    rollupOptions: {
+      // Node-only modules that Solana libs reference defensively.
+      external: ['perf_hooks', 'v8'],
+    },
+  },
+  plugins: [
+    // Browser shims for node built-ins (crypto, stream, buffer, etc.)
+    stdLibBrowser(),
+  ],
   resolve: {
     alias: { buffer: 'buffer/' },
   },
   define: {
     global: 'globalThis',
+    // Many deps probe process.env at import time — providing an empty object is enough.
+    'process.env': {},
   },
 });
 ```
+
+**Common build errors and what fixes them:**
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `ReferenceError: require is not defined` at runtime | CJS dep leaked into the ESM bundle | `optimizeDeps.include: ['@pooflabs/web', ...]` + `commonjsOptions.transformMixedEsModules: true` |
+| `Rollup failed to resolve import "react" from @pooflabs/web` | React is a hard peer dep even in vanilla projects | `npm install react react-dom` |
+| `Module "crypto" has been externalized for browser compatibility` | Missing Node stdlib shims | Add `stdLibBrowser()` plugin |
+| `Cannot find module 'node-stdlib-browser'` | `vite-plugin-node-stdlib-browser` doesn't include the shim package as a dep | `npm install --save-dev node-stdlib-browser` explicitly |
+| `peer vite@"^2.0.0 || ^3.0.0 || ^4.0.0" from vite-plugin-node-stdlib-browser` | Plugin peer range is stale | `npm install --legacy-peer-deps` (works fine with Vite 5/6) |
+| `__vite-optional-peer-dep` stubs in production | Vite couldn't resolve Solana optional peers | Add them to `optimizeDeps.include` AND install them with `--save` |
 
 ### Environment Variables (optional)
 

@@ -137,11 +137,13 @@ poof ship -p <project-id>
 
 ### Agent Workflow Checklist
 
-Copy this checklist and track your progress:
+Copy this checklist and track your progress. Pick the variant that matches your generation mode:
+
+**Full / ui,policy (Poof generates the UI):**
 
 ```
 - [ ] Setup: poof keygen >> .env && poof auth login
-- [ ] Build: poof build -m "..." [--mode full|policy|backend,policy|ui,policy]
+- [ ] Build: poof build -m "..." [--mode full|ui,policy]
 - [ ] Status: poof project status -p <id> --json   # confirm canonical id + draft deploy
 - [ ] Verify: poof verify -p <id>                  # canonical strict policy + UI test gate
 - [ ] Diagnose: poof doctor -p <id>                # only if verify fails — points at the next step
@@ -149,11 +151,49 @@ Copy this checklist and track your progress:
 - [ ] Deploy: poof ship -p <id>
 ```
 
+**Backend-only (policy or backend,policy — you build the UI locally):**
+
+```
+- [ ] Setup: poof keygen >> .env && poof auth login
+- [ ] Build: poof build -m "..." --mode backend,policy
+- [ ] Status: poof project status -p <id> --json   # capture connectionInfo (draft tarobaseAppId, backendUrl, apiUrl, authApiUrl, wsUrl)
+- [ ] Verify backend: poof verify -p <id>          # auto-detects backend-only mode and runs policy tests only — no UI tests against the placeholder
+- [ ] Build local frontend: wire @pooflabs/web init() using connectionInfo, run `npm run build`
+- [ ] Package: tar czf dist.tar.gz -C dist .
+- [ ] Deploy static: poof deploy static -p <id> --archive dist.tar.gz
+- [ ] UI smoke test (local): agent runs its own browser tests against the draft URL — see docs/backend-only.md#testing-a-static-deploy
+- [ ] Deploy to preview/prod: poof ship -p <id>
+```
+
+**Do NOT run `poof verify --ui-tests=true` against a statically-deployed frontend.** Poof's AI only has access to your minified `dist/` bundle on the server — not the source it was built from — so any `ui-test-*.json` it generates has to smoke-test generic DOM shapes that pass vacuously (heading exists, interactive elements present) against almost any page. The strict policy gate is `poof verify -p <id>` (lifecycle tests only, which Poof's AI CAN see). Real UI coverage is the agent's responsibility, run locally against the draft URL with whatever browser-automation tool the agent already has (Claude Code's `claude-in-chrome` tools, Playwright, Cypress, or equivalent). See [docs/backend-only.md](docs/backend-only.md) and [docs/testing.md](docs/testing.md) for the recipe.
+
 `poof verify` is the only test command an agent should rely on for pass/fail. It snapshots
 existing test result IDs, sends the canonical lifecycle + UI verification prompt, then only
 counts results created during that run. It exits non-zero if no fresh results appear or if
 any fresh result failed, so a successful exit code is real evidence that tests ran and passed.
 `poof iterate` is still a general chat command — only fall back to it for free-form fixes.
+
+**Backend-only and `poof verify`:** when the project's generationMode excludes `ui` (i.e. `policy` or
+`backend,policy`), the CLI auto-detects that and sends a lifecycle-only verification prompt. This
+is the correct behavior for backend-only projects for two reasons:
+
+1. **Before a static deploy**, the draft URL serves a Poof placeholder shell, so any UI test against
+   it is a vacuous pass ("heading visible, interactive elements present") that does not prove anything.
+2. **After a static deploy**, Poof's AI only has access to your minified `dist/` bundle on the server
+   — not the pre-build source. It cannot reliably author meaningful UI functional tests from minified
+   JS. Any tests it does author are again either vacuous DOM shape checks or hallucinated feature
+   assertions that happen to match generic page structure.
+
+**Do NOT use `poof verify --ui-tests=true` for backend-only projects.** The flag exists for projects
+where Poof generated the UI itself (`full` or `ui,policy` modes) — in those cases Poof's AI HAS the
+source. For backend-only projects, run UI tests on the agent side instead: the agent already has the
+frontend source locally, so it can spin up its own browser-automation tool (Claude Code's
+`claude-in-chrome` tools, Playwright, Cypress, or equivalent) against the draft URL, assert on the
+real feature contract, and only then call the flow verified. See [docs/backend-only.md](docs/backend-only.md)
+and [docs/testing.md](docs/testing.md) for the full recipe.
+
+`--ui-tests=false` is still available to force lifecycle-only in any mode (useful if you're iterating
+on a `full` project and don't want Poof to re-run UI tests on every verify).
 
 ### Reality Checks
 
@@ -213,6 +253,9 @@ The Poof AI will:
 
 ### 1b. Run UI Functional Tests Manually (Optional)
 
+**Only for `full` or `ui,policy` projects — NOT for `backend,policy` or static deploys.**
+For those, see the [backend-only UI testing recipe](docs/backend-only.md#testing-a-static-deploy).
+
 After policy tests pass, generate browser-based tests to verify the full stack:
 
 ```bash
@@ -225,6 +268,12 @@ The Poof AI will:
 - Fund the mock test user if the app has onchain features
 - Execute tests using browser automation against the draft app
 - Report results via `poof task test-results` (policy + UI results are aggregated there)
+
+**Why only for Poof-generated UIs?** Poof's AI only has access to source code it generated itself.
+For `backend,policy` projects with a static deploy, the server only has your minified `dist/` bundle
+— the AI can't read the TypeScript/JSX source behind it, so any UI test it writes is either vacuous
+DOM-shape checks or hallucinated assertions. Agent-local browser automation is the canonical path
+for static deploys; see [backend-only.md#testing-a-static-deploy](docs/backend-only.md#testing-a-static-deploy).
 
 ### 2. Check Project Status & Get URLs
 

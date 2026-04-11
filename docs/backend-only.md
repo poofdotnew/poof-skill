@@ -61,6 +61,8 @@ Each environment has a separate Tarobase app with its own data. Use `draft` for 
 
 ## Building Your Local Frontend
 
+> **Do not use CDN/esm.sh shortcuts for `@pooflabs/web`.** Always scaffold a real bundler project (Vite, Next.js, Remix, etc.) and `npm install @pooflabs/web buffer`. Loading the SDK from a CDN in a single HTML file silently breaks the Buffer polyfill ordering and Solana wallet adapter interop. See [local-frontend-guide.md#do-not-use-cdn--esmsh--unpkg--skypack-shortcuts](local-frontend-guide.md#do-not-use-cdn--esmsh--unpkg--skypack-shortcuts) for why.
+
 See **[local-frontend-guide.md](local-frontend-guide.md)** for the complete guide to building a frontend that connects to a Poof backend. It covers:
 
 - SDK installation, Buffer polyfill, and `init()` configuration
@@ -134,9 +136,132 @@ The zip contains:
 
 Extract the `db-client` and `collections` directories into your local frontend project for type-safe database access.
 
+## Verification Ordering (Important)
+
+`poof verify` auto-detects backend-only projects (`generationMode=policy` or `backend,policy`)
+and sends a lifecycle-only verification prompt. It will NOT generate UI functional tests, for
+two reasons:
+
+1. **Before a static deploy**, the draft URL serves a Poof placeholder shell (`<title>Poof Preview App</title>`).
+   Any UI test run against it passes vacuously ("heading visible, interactive elements present")
+   without actually testing your feature.
+2. **After a static deploy**, Poof's AI only has access to your minified `dist/` bundle on the
+   server — not the TypeScript/JSX source it was built from. It cannot reliably write meaningful
+   UI functional tests from minified JS. When it tries, it falls back to the same vacuous DOM
+   shape checks.
+
+**Correct order for backend-only projects:**
+
+1. `poof build --mode backend,policy` — backend + policies
+2. `poof project status -p <id> --json` — capture `connectionInfo` and the draft URL
+3. `poof verify -p <id>` — lifecycle tests only (auto-detected from generationMode)
+4. Build your local frontend wired to `connectionInfo`, `npm run build`
+5. `poof deploy static -p <id> --archive dist.tar.gz` — your UI is now live at the draft URL
+6. **UI smoke test (agent-local).** Run your own browser-automation against the draft URL — see
+   [Testing a Static Deploy](#testing-a-static-deploy) below
+7. `poof ship -p <id>` — preview / production deploy
+
+**Never** pass `poof verify --ui-tests=true` for a backend-only project — Poof's AI has no
+meaningful source context to write the tests from. UI testing of statically-deployed frontends is
+the agent's responsibility, not Poof's.
+
+## Testing a Static Deploy
+
+After `poof deploy static`, your frontend is live at the project's draft URL (from `poof project status`
+under `.urls.draft`). Testing it is the agent's job because the agent already has the real source
+code checked out locally, so it knows the feature contract, routes, and selectors. Poof's AI only
+sees your minified `dist/` bundle and can't write meaningful assertions against your features.
+
+**What to check, at minimum:**
+
+| Check | Why |
+|---|---|
+| HTTP 200 on the draft URL | Sanity: the deploy is actually serving |
+| Page title matches your HTML, not "Poof Preview App" | Confirms your build replaced the placeholder shell |
+| Your top-level heading/root element renders | Confirms the JS bundle executed without runtime errors |
+| Browser console has zero errors (no `ReferenceError`, no CORS/CSP/import failures) | Catches bundler misconfig (Buffer polyfill, CommonJS interop, missing peers) |
+| SDK initialization log ("SDK initialized (appId=...)") | Confirms `@pooflabs/web` wired up to the right Tarobase app |
+| A read-path smoke call (e.g. `get('notes')`) returns without throwing | Confirms the frontend can actually reach the backend with the right appId/endpoints |
+| Public-read collections render without wallet auth | Confirms the policy read rules are public |
+| Auth-gated write fails gracefully without a wallet session | Confirms the policy engine is actually enforcing, and your UI degrades cleanly |
+
+A wallet-signed E2E (Phantom connect, signed write, round-trip read) is usually out of scope for
+automation because mainnet wallets require human signing. Exercise the signing paths manually or
+gate them behind an "agent test mode" in your app.
+
+**Recipes by tooling:**
+
+### Claude Code with `claude-in-chrome` tools
+
+```
+1. tabs_context_mcp + tabs_create_mcp → get a fresh tab
+2. navigate tab → https://<slug>-preview.poof.new
+3. read_console_messages (pattern: ".", limit: 100) → assert no EXCEPTION entries;
+   assert a "SDK initialized" log line from your app code
+4. read_page (filter: "interactive") → assert your top-level heading + key buttons exist
+5. For a read smoke test, use javascript_tool to run a small `get('notes')` via the SDK and
+   log the result, then read_console_messages for that log line
+6. Exit non-zero and block the deploy flow if any of the above fail
+```
+
+The `claude-in-chrome` tools are available inside the Claude skill runtime; no extra install needed.
+
+### Playwright (any agent or CI)
+
+```bash
+npx playwright install chromium  # once
+npx playwright test tests/draft-smoke.spec.ts
+```
+
+```ts
+// tests/draft-smoke.spec.ts
+import { test, expect } from '@playwright/test';
+
+const DRAFT_URL = process.env.DRAFT_URL!; // from `poof project status -p <id> --json`
+
+test('draft serves the real static frontend', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+  await page.goto(DRAFT_URL);
+  await expect(page).toHaveTitle(/Wallet Auth Notes/); // NOT "Poof Preview App"
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+  // SDK init log must appear within a few seconds of page load
+  await page.waitForFunction(() =>
+    performance.getEntriesByType('resource').some((r) => r.name.includes('/assets/')),
+    { timeout: 5000 },
+  );
+
+  expect(errors, `console errors:\n${errors.join('\n')}`).toEqual([]);
+});
+```
+
+A failing browser smoke test must be treated the same as a failing `poof verify`: block the `poof ship`
+call, surface the error, fix the source, rebuild, redeploy, rerun. Do not report the flow as complete
+with pending browser-side failures.
+
+### Raw curl (minimum viable fallback)
+
+```bash
+# Smoke: HTTP 200 + title substring check
+curl -sSf -o /tmp/draft.html https://<slug>-preview.poof.new
+grep -q '<title>Wallet Auth Notes' /tmp/draft.html || { echo "title mismatch (placeholder?)"; exit 1; }
+test $(wc -c </tmp/draft.html) -gt 1000 || { echo "body too small (placeholder?)"; exit 1; }
+```
+
+This catches the "deploy silently reverted to placeholder" case but nothing else. Prefer a real
+browser runner for anything past basic sanity.
+
+> **Do not ask Poof's AI to write these tests for you** via `poof iterate -m "generate UI tests"`.
+> The AI will write `lifecycle-actions/ui-test-*.json` specs against minified asset hashes that
+> break on every rebuild, OR it will write vacuous DOM shape assertions that pass against almost
+> any deployed page. UI testing of static deploys lives on the agent side.
+
 ## End-to-End Example
 
-Complete workflow: create backend, get connection info, set up local frontend.
+Complete workflow: create backend, verify policies, build local frontend, deploy static, (optional) UI tests, ship.
 
 ```bash
 #!/usr/bin/env bash
@@ -150,21 +275,26 @@ PROJECT_ID=$(poof build \
   --json | jq -r '.projectId')
 echo "Project: $PROJECT_ID"
 
-# 3. Iterate — generate and run tests
-poof iterate -p "$PROJECT_ID" \
-  -m "Generate and run lifecycle action tests for all policies."
+# 2. Capture connection info for your local frontend
+poof project status -p "$PROJECT_ID" --json | jq '.connectionInfo' > connection-info.json
+cat connection-info.json
 
-# 4. Get connection info for your local frontend
-poof project status -p "$PROJECT_ID" --json | jq '.connectionInfo'
+# 3. Verify the backend (auto-detected as backend-only → lifecycle tests only)
+poof verify -p "$PROJECT_ID"
 
-echo ""
-echo "--- Local Frontend Setup ---"
-echo "1. npm install @pooflabs/web buffer"
-echo "2. In your app entry point:"
-echo "   import { init, login, get, set } from '@pooflabs/web';"
-echo "   init({ appId: '<tarobaseAppId from above>', ... });"
-echo "3. Call login() before any authenticated operations"
-echo "4. Backend API routes available at: <backendUrl from above>/api/..."
+# 4. Build your local frontend — wire @pooflabs/web using connectionInfo
+#    (see local-frontend-guide.md for init() setup)
+cd ./my-frontend && npm run build && cd ..
+tar czf dist.tar.gz -C ./my-frontend/dist .
+
+# 5. Deploy the static frontend to the draft URL
+poof deploy static -p "$PROJECT_ID" --archive dist.tar.gz --title "initial static deploy"
+
+# 6. (Optional) Now that a real UI is live, run UI functional tests
+poof verify -p "$PROJECT_ID" --ui-tests=true
+
+# 7. Ship to preview / production
+poof ship -p "$PROJECT_ID"
 ```
 
-After the script runs, wire up your local frontend with the `@pooflabs/web` SDK using the connection info printed in step 4. See [Setting Up Your Local Frontend](#building-your-local-frontend) for the full setup.
+See [Setting Up Your Local Frontend](#building-your-local-frontend) for the full SDK setup.
