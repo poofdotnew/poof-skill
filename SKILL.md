@@ -29,7 +29,7 @@ Your Agent ──► poof CLI (auth + API + polling built in) ──► poof.new
 | `poof build`                            | 3–10 min         | `run_in_background: true`             |
 | `poof iterate`                          | 2–10 min         | `run_in_background: true`             |
 | `poof verify`                           | 5–15 min         | `run_in_background: true`             |
-| `poof ship`                             | 1–5 min          | `run_in_background: true`             |
+| `poof ship`                             | 2–12 min         | `run_in_background: true`             |
 | `poof security scan`                    | 1–3 min          | `timeout: 600000`                     |
 | `poof deploy preview/production/mobile` | 1–3 min          | `timeout: 600000`                     |
 | `poof deploy static`                    | 30s–2 min        | `timeout: 600000`                     |
@@ -39,7 +39,7 @@ Your Agent ──► poof CLI (auth + API + polling built in) ──► poof.new
 
 In Claude Code, the Bash tool's max `timeout` is 600000ms (10 min). For commands that can exceed 10 minutes (`poof build`, `poof iterate`, `poof verify`, `poof ship`), **always use `run_in_background: true`** — you'll be notified when the command completes. For shorter commands, set `timeout` directly. In other harnesses, use whatever mechanism your tool runner provides to extend the execution timeout or run commands asynchronously.
 
-**Internal poll deadline:** The CLI itself enforces a 30-minute poll deadline on build/iterate/verify, so a legitimate verify run that generates tests, fixes failures, and reruns is no longer cut off at 10 minutes.
+**Internal poll deadline:** The CLI itself enforces a 30-minute poll deadline on build/iterate/verify, so a legitimate verify run that generates tests, fixes failures, and reruns is no longer cut off at 10 minutes. If the 30-minute deadline is hit, the CLI **automatically cancels the AI session** so subsequent commands (e.g. `poof ship`) aren't blocked by a stale active session. `poof ship` has its own tighter polling: up to 10 minutes for the security scan, then 2 minutes waiting for the AI session to wind down, then another 10-minute deploy task wait — total internal ceiling ~22 minutes.
 
 **Important:** `poof build` now waits for the initial AI turn plus draft deploy health, but it still does **not** prove lifecycle or UI tests passed. Use `poof verify -p <id>` for the canonical post-build verification flow. `poof iterate` is still a general chat command, so test-generation prompts should be followed by `poof verify` or `poof task test-results --json` if you need strict programmatic pass/fail behavior. `iterate` now reports **fresh** test counts (results created during this turn) and will say "no tests ran during this turn" instead of falsely claiming an older suite passed — but the strict gate is still `verify`.
 
@@ -125,8 +125,9 @@ poof chat cancel -p <project-id>
 poof files get -p <project-id>
 poof files update -p <project-id> --file src/config.ts --content 'export const MAX = 100;'
 
-# 7. Send a message with an image (e.g., UI screenshot for reference)
+# 7. Send a message with image(s) (e.g., UI screenshots for reference)
 poof iterate -p <project-id> -m "Build a UI that looks like this" --file screenshot.png
+poof iterate -p <project-id> -m "Match both of these designs" --file page1.png --file page2.png
 poof files upload -p <project-id> --file logo.png   # standalone upload, returns CDN URL
 
 # 8. Deploy (runs security scan + eligibility check + publish)
@@ -200,7 +201,7 @@ on a `full` project and don't want Poof to re-run UI tests on every verify).
 - If `poof project list --json` shows multiple similarly named projects and you do not already have a canonical project id from the user or repo artifacts, do not guess by title. Create or explicitly reconcile the canonical project first, then write that id into your artifact store before more `iterate` or deploy work.
 - After `poof build`, always run `poof project status -p <id> --json`. Record the project id, URLs, and deploy state before you start retries or testing so later wakes do not guess which project is canonical.
 - If `poof task test-results -p <id> --json` reports `summary.total == 0`, inspect `poof task list -p <id> --json`, `poof chat active -p <id> --json`, `poof logs -p <id>`, and `poof project messages -p <id> --limit 100 --json` before you assume tests passed or failed.
-- `poof task test-results`, `poof iterate`, `poof verify`, and `poof doctor` now collapse test results to the **latest run per test file** by default. If you need to see the full history (e.g. to debug why an earlier run failed), use `poof task test-results -p <id> --history`.
+- `poof task test-results`, `poof iterate`, `poof verify`, and `poof doctor` now collapse test results to the **latest run per test file** by default (collapse key is `source|fileName`, not per-testName — so if the AI renames a test inside a file between runs, only the latest file state wins). If you need to see the full history (e.g. to debug why an earlier run failed), use `poof task test-results -p <id> --history`.
 - If `poof chat active -p <id> --json` stays `true` while task list shows no new work and logs show no recent activity, cancel that stale chat once with `poof chat cancel -p <id>` before the single allowed targeted retry.
 - If the only visible tasks are still bootstrap/constants work and the targeted retry also returns an empty test summary, treat that as a Poof execution incident rather than a prompt-quality problem. Record `poof project status`, smoke probes, and the missing test-artifact evidence, then block or escalate.
 - If the retry still ends with `summary.total == 0` or the CLI prints `Done, but no test results were found.`, treat that as missing-artifact failure and block or escalate instead of calling the build verified.
