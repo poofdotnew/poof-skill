@@ -3,6 +3,7 @@
 The `poof iterate` command is the primary way your agent interacts with Poof projects. It sends a chat message to the Poof AI, waits for it to finish, and shows test results.
 
 ## Contents
+
 - [Project Lifecycle](#project-lifecycle)
 - [Writing Effective Prompts](#writing-effective-prompts)
 - [Updating Project Settings](#updating-project-settings)
@@ -29,12 +30,12 @@ The `-m` message is the initial prompt that tells the Poof AI what to build. Be 
 
 Control what the AI generates with `--mode`:
 
-| Mode | What gets generated |
-|------|-------------------|
-| `full` (default) | Everything — UI, backend, policies, lifecycle actions |
-| `policy` | Database policies only (schema, rules, hooks, queries) + lifecycle actions |
-| `ui,policy` | Frontend UI + policies (no backend API routes) |
-| `backend,policy` | Backend API routes + policies (no frontend UI) |
+| Mode             | What gets generated                                                        |
+| ---------------- | -------------------------------------------------------------------------- |
+| `full` (default) | Everything — UI, backend, policies, lifecycle actions                      |
+| `policy`         | Database policies only (schema, rules, hooks, queries) + lifecycle actions |
+| `ui,policy`      | Frontend UI + policies (no backend API routes)                             |
+| `backend,policy` | Backend API routes + policies (no frontend UI)                             |
 
 > **Note:** Bare values `ui` and `backend` are also accepted and automatically include policy (e.g., `--mode backend` is equivalent to `--mode backend,policy`).
 
@@ -53,13 +54,15 @@ Exception: policies where all write rules are `true` (fully public access) don't
 
 ### 2. Wait for the AI to Finish
 
-`poof build` and `poof iterate` wait automatically with built-in timeout and exponential backoff.
+`poof build` and `poof iterate` wait automatically with built-in timeout and exponential backoff. This polling can take **5–10+ minutes** — see the timeout table in [SKILL.md](../SKILL.md) for recommended shell timeout values per command. In Claude Code, use `run_in_background: true` for `poof build`, `poof iterate`, and `poof ship` to avoid hitting the 10-minute Bash tool limit.
+
+For long prompts with quotes, JSON, or multiple paragraphs, prefer `--stdin` or a quoted temp file instead of one huge inline `-m "..."` string. If you need the exit code afterward in zsh, use `rc=$?`, not `status=$?`.
 
 If using the lower-level `poof project create` or `poof chat send` commands, check status manually:
 
 ```bash
 poof chat active -p <project-id>
-# Returns: { active: boolean, status: "ok" | "error" }
+# Returns: { active: boolean, state: "running" | "queued" | "idle", status: "ok" | "error" }
 ```
 
 ### 3. Check Project Status & Get URLs
@@ -71,7 +74,7 @@ poof project status -p <project-id>
 poof project status -p <project-id> --json | jq '.urls'
 ```
 
-The draft URL runs on Poofnet (simulated blockchain, free). See [deployment.md](deployment.md) for details.
+The draft URL runs on Poofnet (simulated blockchain, free). Use `publishState.draft.deployed` from `poof project status --json` as the primary deploy/readiness signal, but also record a direct smoke probe of the advertised draft URL. A draft URL can exist before the draft is serving traffic, and in some runs the URL can respond even while `publishState.draft.deployed` still says `false`. Treat that mismatch as inconsistent evidence to log, not as enough by itself to claim QA readiness. See [deployment.md](deployment.md) for details.
 
 ### Execution Control
 
@@ -108,11 +111,20 @@ Send follow-up messages to refine the project:
 
 ```bash
 poof iterate -p <project-id> -m "Add a leaderboard page showing top contributors by USDC spent"
+
+cat <<'EOF' | poof iterate -p <project-id> --stdin
+Add a gated chat flow with explicit eligible, grace, and revoked states.
+Generate and run lifecycle plus UI tests after the implementation step.
+EOF
 ```
 
 `poof iterate` sends the message, waits for the AI to finish, and shows test results.
 
-> **One message at a time.** `poof iterate` handles waiting automatically. If using the lower-level `poof chat send`, always wait for `poof chat active` to show inactive before sending the next message. Sending while AI is active queues the message (FIFO), but the AI won't have your evaluation context.
+> **One message at a time.** `poof iterate` handles waiting automatically. If using the lower-level `poof chat send`, always wait for `poof chat active` to return `state: "idle"` before sending the next message. Sending while AI is active queues the message (FIFO), but the AI won't have your evaluation context.
+>
+> If `poof chat active -p <id> --json` stays `true` but `poof task list -p <id> --json` shows no new task ids and `poof logs -p <id>` shows no recent activity, treat that as stale active-chat state rather than healthy progress. Capture the evidence, run `poof chat cancel -p <id>`, then send at most one targeted retry message.
+>
+> If `poof task test-results -p <id> --json` is still zero afterward, inspect `poof project messages -p <id> --limit 100 --json` too. When the only remaining tasks are bootstrap/constants work and the retry still returns an empty summary, treat that as a platform execution incident and stop stacking retries.
 
 ### 5. Get Conversation History
 
@@ -180,9 +192,18 @@ echo "Project: $PROJECT_ID"
 # 4. Generate and run lifecycle tests
 poof iterate -p "$PROJECT_ID" -m "Generate and run lifecycle action tests for all policies. Cover both allowed and denied operations."
 
-# 5. Check test results
+# 5. Check test results — verify tests ran AND passed
+TOTAL=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.total')
 FAILED=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.failed')
 ERRORS_COUNT=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.errors')
+
+if [ "$TOTAL" -eq 0 ]; then
+  echo "Warning: no tests were generated. Retrying..."
+  poof iterate -p "$PROJECT_ID" -m "No test results found. Please generate and run lifecycle action tests for all policies."
+  TOTAL=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.total')
+  FAILED=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.failed')
+  ERRORS_COUNT=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.errors')
+fi
 
 if [ "$FAILED" -gt 0 ] || [ "$ERRORS_COUNT" -gt 0 ]; then
   ERRORS=$(poof task test-results -p "$PROJECT_ID" --json | jq -r '[.results[] | select(.status=="failed" or .status=="error") | "- \(.fileName): \(.lastError // .status)"] | join("\n")')

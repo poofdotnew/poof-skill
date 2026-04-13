@@ -46,13 +46,32 @@ poof deploy static -p $PROJECT_ID --archive dist.tar.gz --title "v2.0 release"
 # 1. Create project with backend-only mode
 PROJECT_ID=$(poof build -m "Build a token staking backend with..." --mode backend,policy --quiet)
 
-# 2. Build frontend locally
+# 2. Verify the backend (lifecycle tests only — auto-detected for backend-only)
+poof verify -p $PROJECT_ID
+
+# 3. Build frontend locally using connectionInfo from `poof project status`
 cd ./my-frontend && npm run build && cd ..
 tar czf dist.tar.gz -C ./my-frontend/dist .
 
-# 3. Deploy static frontend
+# 4. Deploy static frontend — your UI now lives at the draft URL
 poof deploy static -p $PROJECT_ID --archive dist.tar.gz --title "Initial frontend deploy"
+
+# 5. Run UI smoke tests LOCALLY against the draft URL
+#    (your agent already has the real source — Poof's AI only sees the minified dist)
+#    See docs/backend-only.md#testing-a-static-deploy for ready-made recipes
+#    (claude-in-chrome tools, Playwright, or raw curl).
 ```
+
+**Do not pass `poof verify --ui-tests=true` for statically-deployed frontends.** Poof's AI
+cannot write meaningful UI tests against a minified `dist/` bundle it didn't build. For static
+deploys, `poof verify` remains lifecycle-only (auto-detected from `generationMode`) and UI
+coverage lives on the agent side.
+
+**Ordering matters.** Run `poof verify` BEFORE the static deploy to gate the backend policies
+(it auto-detects `backend,policy` mode and skips UI tests). Run your own browser smoke tests
+AFTER the static deploy so they hit your real frontend instead of Poof's placeholder shell.
+Treat a failing smoke test the same as a failing `poof verify` — block `poof ship` until the
+source is fixed, rebuilt, and redeployed.
 
 ## How It Works
 

@@ -39,7 +39,7 @@ Draft is always available — no deployment needed. Preview and production requi
 
 ### Security Scan
 
-`poof ship` initiates a security scan automatically before deploying and waits for it to complete before proceeding to the eligibility check and deployment. If the scan finds critical issues, the eligibility check will block deployment. To run a scan manually:
+`poof ship` initiates a security scan automatically before deploying and waits for it to complete before proceeding to the eligibility check and deployment. The CLI prints "Security scan finished" when the scan completes (neutral — it ran to completion), then checks eligibility. If the scan found critical issues, the CLI prints a warning and the eligibility check blocks deployment with a clear error. If both pass, it prints "Security scan passed. Eligible for deployment." To run a scan manually:
 
 ```bash
 poof security scan -p <projectId>
@@ -77,7 +77,7 @@ poof deploy mobile -p <projectId> --platform seeker --app-name "My App" --app-ic
 
 > **Note:** Mobile deploys require `--platform`, `--app-name`, and `--app-icon-url`. Platform values: `seeker`, `ios`, `android`.
 
-Deployment creates a background task. Check its progress:
+The CLI automatically waits for the deploy task to complete before returning. If you need to check task progress manually:
 
 ```bash
 # List all tasks for the project
@@ -85,7 +85,6 @@ poof task list -p <projectId>
 
 # Get status of a specific task
 poof task get <taskId> -p <projectId>
-# Poll until status is 'completed'
 ```
 
 ### Deployment Flow

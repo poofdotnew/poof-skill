@@ -1,6 +1,11 @@
 ---
 name: poof
-description: Use when building AI agents that interact with Poof (poof.new), creating or managing Solana dApps programmatically, using the poof CLI, or connecting a local frontend to a Poof backend. Triggers: 'poof project', 'deploy dApp', 'create poof app', 'poof.new', 'poof CLI', 'poof build', 'poof-cli', 'Solana agent', 'blockchain app builder', '@pooflabs/web'.
+description: >-
+  Use when building AI agents that interact with Poof (poof.new), creating or
+  managing Solana dApps programmatically, using the poof CLI, or connecting a
+  local frontend to a Poof backend. Triggers: "poof project", "deploy dApp",
+  "create poof app", "poof.new", "poof CLI", "poof build", "poof-cli",
+  "Solana agent", "blockchain app builder", "@pooflabs/web".
 ---
 
 # Poof CLI
@@ -13,6 +18,43 @@ The `poof` CLI wraps authentication, API calls, and polling into simple commands
 
 ```
 Your Agent ──► poof CLI (auth + API + polling built in) ──► poof.new
+```
+
+## Timeouts for Long-Running Commands
+
+**Critical:** `poof build`, `poof iterate`, `poof verify`, and `poof ship` poll until the Poof AI finishes, which can take **5–15+ minutes**. You **must** set an extended timeout or run these commands in the background, or they will be killed mid-execution.
+
+| Command                                 | Typical duration | Recommended approach                  |
+| --------------------------------------- | ---------------- | ------------------------------------- |
+| `poof build`                            | 3–10 min         | `run_in_background: true`             |
+| `poof iterate`                          | 2–10 min         | `run_in_background: true`             |
+| `poof verify`                           | 5–15 min         | `run_in_background: true`             |
+| `poof ship`                             | 2–12 min         | `run_in_background: true`             |
+| `poof security scan`                    | 1–3 min          | `timeout: 600000`                     |
+| `poof deploy preview/production/mobile` | 1–3 min          | `timeout: 600000`                     |
+| `poof deploy static`                    | 30s–2 min        | `timeout: 600000`                     |
+| `poof credits topup`                    | 30–90 sec        | `timeout: 120000` (default)           |
+| `poof files get`                        | 10–60 sec        | `timeout: 120000` (default)           |
+| All other commands                      | < 30 sec         | `timeout: 120000` (default)           |
+
+In Claude Code, the Bash tool's max `timeout` is 600000ms (10 min). For commands that can exceed 10 minutes (`poof build`, `poof iterate`, `poof verify`, `poof ship`), **always use `run_in_background: true`** — you'll be notified when the command completes. For shorter commands, set `timeout` directly. In other harnesses, use whatever mechanism your tool runner provides to extend the execution timeout or run commands asynchronously.
+
+**Internal poll deadline:** The CLI itself enforces a 30-minute poll deadline on build/iterate/verify, so a legitimate verify run that generates tests, fixes failures, and reruns is no longer cut off at 10 minutes. If the 30-minute deadline is hit, the CLI **automatically cancels the AI session** so subsequent commands (e.g. `poof ship`) aren't blocked by a stale active session. `poof ship` has its own tighter polling: up to 10 minutes for the security scan, then 2 minutes waiting for the AI session to wind down, then another 10-minute deploy task wait — total internal ceiling ~22 minutes.
+
+**Important:** `poof build` now waits for the initial AI turn plus draft deploy health, but it still does **not** prove lifecycle or UI tests passed. Use `poof verify -p <id>` for the canonical post-build verification flow. `poof iterate` is still a general chat command, so test-generation prompts should be followed by `poof verify` or `poof task test-results --json` if you need strict programmatic pass/fail behavior. `iterate` now reports **fresh** test counts (results created during this turn) and will say "no tests ran during this turn" instead of falsely claiming an older suite passed — but the strict gate is still `verify`.
+
+**Important:** `poof build` success text is not the same as a healthy draft deploy. After build, run `poof project status -p <id> --json` and confirm the canonical project plus `publishState.draft.deployed`. If you need draft UI evidence, probe the advertised draft URL too. Treat HTTP `404` as missing deploy evidence, and treat `publishState.draft.deployed=false` plus a non-`404`/`200` smoke probe as inconsistent evidence that still needs explicit logging and follow-up before you call the build QA-ready.
+
+**Shell safety:** For long or multi-line prompts, prefer a quoted temp file over one giant inline `-m "..."` command. `--stdin` is now strict, so only use it with a real pipe such as `cat prompt.txt | poof iterate --stdin`. In Paperclip/Codex heartbeat runners and other non-interactive tool environments, prefer a temp-file-backed prompt or a compact shell-safe `-m` string instead of assuming stdin will stay open. If you capture an exit code in zsh after `poof build` / `poof iterate`, use `rc=$?`, not `status=$?`.
+
+**Claude Code example:**
+
+```
+# For commands that may exceed 10 min: run in background
+Bash tool: command="poof build -m '...'", run_in_background=true
+
+# For commands ≤10 min: set timeout
+Bash tool: command="poof security scan -p <id>", timeout=600000
 ```
 
 ## Authentication
@@ -38,11 +80,11 @@ poof auth login
 
 > Generate a fresh keypair for each agent. Only use an existing keypair if the user explicitly provides one.
 
-| Variable | Purpose | Required |
-|----------|---------|----------|
-| `SOLANA_PRIVATE_KEY` | Solana private key (base58) | Yes |
-| `SOLANA_WALLET_ADDRESS` | Your Solana wallet public address | Yes |
-| `POOF_ENV` | Target environment: `production` (default), `staging`, or `local` | No |
+| Variable                | Purpose                                                           | Required |
+| ----------------------- | ----------------------------------------------------------------- | -------- |
+| `SOLANA_PRIVATE_KEY`    | Solana private key (base58)                                       | Yes      |
+| `SOLANA_WALLET_ADDRESS` | Your Solana wallet public address                                 | Yes      |
+| `POOF_ENV`              | Target environment: `production` (default), `staging`, or `local` | No       |
 
 To target staging: `poof --env staging` or set `POOF_ENV=staging` in `.env`.
 
@@ -63,6 +105,16 @@ poof build -m "Build a token-gated voting app" --mode full
 # 3. Iterate (sends chat, waits for AI, shows test results)
 poof iterate -p <project-id> -m "Add a leaderboard page"
 
+# Safer pattern for a long prompt in heartbeat/non-interactive runners
+PROMPT_FILE="$(mktemp)"
+cat >"$PROMPT_FILE" <<'EOF'
+Add wallet auth, gated posting, and lifecycle/UI tests.
+Keep the prompt text shell-safe by storing it in a temp file first.
+EOF
+PROMPT="$(cat "$PROMPT_FILE")"
+poof iterate -p <project-id> -m "$PROMPT"
+rm -f "$PROMPT_FILE"
+
 # 4. Steer mid-execution (optional)
 poof chat steer -p <project-id> -m "Focus on the backend first"
 
@@ -73,51 +125,121 @@ poof chat cancel -p <project-id>
 poof files get -p <project-id>
 poof files update -p <project-id> --file src/config.ts --content 'export const MAX = 100;'
 
-# 7. Deploy (runs security scan + eligibility check + publish)
+# 7. Send a message with image(s) (e.g., UI screenshots for reference)
+poof iterate -p <project-id> -m "Build a UI that looks like this" --file screenshot.png
+poof iterate -p <project-id> -m "Match both of these designs" --file page1.png --file page2.png
+poof files upload -p <project-id> --file logo.png   # standalone upload, returns CDN URL
+
+# 8. Deploy (runs security scan + eligibility check + publish)
 poof ship -p <project-id>
 ```
 
-**Environment note:** After `poof build`, the app runs on **Draft (Poofnet)** — a simulated blockchain with fake tokens. This is free and great for testing. To test with real mainnet tokens, deploy to **Preview** using `poof ship -p <id> --target preview`. See [docs/deployment.md](docs/deployment.md) for the full environment breakdown.
+**Environment note:** After `poof build`, the intended runtime target is **Draft (Poofnet)** — a simulated blockchain with fake tokens. Do not assume the draft app is already reachable until `poof project status -p <id> --json` shows draft deploy state consistent with a live endpoint, or a direct draft URL probe returns non-`404`. To test with real mainnet tokens, deploy to **Preview** using `poof ship -p <id> --target preview`. See [docs/deployment.md](docs/deployment.md) for the full environment breakdown.
 
 ### Agent Workflow Checklist
 
-Copy this checklist and track your progress:
+Copy this checklist and track your progress. Pick the variant that matches your generation mode:
+
+**Full / ui,policy (Poof generates the UI):**
 
 ```
 - [ ] Setup: poof keygen >> .env && poof auth login
-- [ ] Build: poof build -m "..." [--mode full|policy|backend,policy|ui,policy]
-- [ ] Verify: poof project status -p <id>
-- [ ] Test: poof iterate -p <id> -m "Generate and run lifecycle action tests..."
-- [ ] Evaluate: poof task test-results -p <id> --json → check summary.failed === 0
-- [ ] Fix: poof iterate -p <id> -m "Fix: <error details>"
-- [ ] UI Test: poof iterate -p <id> -m "Generate and run UI functional tests..."
+- [ ] Build: poof build -m "..." [--mode full|ui,policy]
+- [ ] Status: poof project status -p <id> --json   # confirm canonical id + draft deploy
+- [ ] Verify: poof verify -p <id>                  # canonical strict policy + UI test gate
+- [ ] Diagnose: poof doctor -p <id>                # only if verify fails — points at the next step
+- [ ] Fix: poof iterate -p <id> -m "Fix: <error details>" && poof verify -p <id>
 - [ ] Deploy: poof ship -p <id>
 ```
+
+**Backend-only (policy or backend,policy — you build the UI locally):**
+
+```
+- [ ] Setup: poof keygen >> .env && poof auth login
+- [ ] Build: poof build -m "..." --mode backend,policy
+- [ ] Status: poof project status -p <id> --json   # capture connectionInfo (draft tarobaseAppId, backendUrl, apiUrl, authApiUrl, wsUrl)
+- [ ] Verify backend: poof verify -p <id>          # auto-detects backend-only mode and runs policy tests only — no UI tests against the placeholder
+- [ ] Build local frontend: wire @pooflabs/web init() using connectionInfo, run `npm run build`
+- [ ] Package: tar czf dist.tar.gz -C dist .
+- [ ] Deploy static: poof deploy static -p <id> --archive dist.tar.gz
+- [ ] UI smoke test (local): agent runs its own browser tests against the draft URL — see docs/backend-only.md#testing-a-static-deploy
+- [ ] Deploy to preview/prod: poof ship -p <id>
+```
+
+**Do NOT run `poof verify --ui-tests=true` against a statically-deployed frontend.** Poof's AI only has access to your minified `dist/` bundle on the server — not the source it was built from — so any `ui-test-*.json` it generates has to smoke-test generic DOM shapes that pass vacuously (heading exists, interactive elements present) against almost any page. The strict policy gate is `poof verify -p <id>` (lifecycle tests only, which Poof's AI CAN see). Real UI coverage is the agent's responsibility, run locally against the draft URL with whatever browser-automation tool the agent already has (Claude Code's `claude-in-chrome` tools, Playwright, Cypress, or equivalent). See [docs/backend-only.md](docs/backend-only.md) and [docs/testing.md](docs/testing.md) for the recipe.
+
+`poof verify` is the only test command an agent should rely on for pass/fail. It snapshots
+existing test result IDs, sends the canonical lifecycle + UI verification prompt, then only
+counts results created during that run. It exits non-zero if no fresh results appear or if
+any fresh result failed, so a successful exit code is real evidence that tests ran and passed.
+`poof iterate` is still a general chat command — only fall back to it for free-form fixes.
+
+**Backend-only and `poof verify`:** when the project's generationMode excludes `ui` (i.e. `policy` or
+`backend,policy`), the CLI auto-detects that and sends a lifecycle-only verification prompt. This
+is the correct behavior for backend-only projects for two reasons:
+
+1. **Before a static deploy**, the draft URL serves a Poof placeholder shell, so any UI test against
+   it is a vacuous pass ("heading visible, interactive elements present") that does not prove anything.
+2. **After a static deploy**, Poof's AI only has access to your minified `dist/` bundle on the server
+   — not the pre-build source. It cannot reliably author meaningful UI functional tests from minified
+   JS. Any tests it does author are again either vacuous DOM shape checks or hallucinated feature
+   assertions that happen to match generic page structure.
+
+**Do NOT use `poof verify --ui-tests=true` for backend-only projects.** The flag exists for projects
+where Poof generated the UI itself (`full` or `ui,policy` modes) — in those cases Poof's AI HAS the
+source. For backend-only projects, run UI tests on the agent side instead: the agent already has the
+frontend source locally, so it can spin up its own browser-automation tool (Claude Code's
+`claude-in-chrome` tools, Playwright, Cypress, or equivalent) against the draft URL, assert on the
+real feature contract, and only then call the flow verified. See [docs/backend-only.md](docs/backend-only.md)
+and [docs/testing.md](docs/testing.md) for the full recipe.
+
+`--ui-tests=false` is still available to force lifecycle-only in any mode (useful if you're iterating
+on a `full` project and don't want Poof to re-run UI tests on every verify).
+
+### Reality Checks
+
+- If `poof project list --json` shows multiple similarly named projects and you do not already have a canonical project id from the user or repo artifacts, do not guess by title. Create or explicitly reconcile the canonical project first, then write that id into your artifact store before more `iterate` or deploy work.
+- After `poof build`, always run `poof project status -p <id> --json`. Record the project id, URLs, and deploy state before you start retries or testing so later wakes do not guess which project is canonical.
+- If `poof task test-results -p <id> --json` reports `summary.total == 0`, inspect `poof task list -p <id> --json`, `poof chat active -p <id> --json`, `poof logs -p <id>`, and `poof project messages -p <id> --limit 100 --json` before you assume tests passed or failed.
+- `poof task test-results`, `poof iterate`, `poof verify`, and `poof doctor` now collapse test results to the **latest run per test file** by default (collapse key is `source|fileName`, not per-testName — so if the AI renames a test inside a file between runs, only the latest file state wins). If you need to see the full history (e.g. to debug why an earlier run failed), use `poof task test-results -p <id> --history`.
+- If `poof chat active -p <id> --json` stays `true` while task list shows no new work and logs show no recent activity, cancel that stale chat once with `poof chat cancel -p <id>` before the single allowed targeted retry.
+- If the only visible tasks are still bootstrap/constants work and the targeted retry also returns an empty test summary, treat that as a Poof execution incident rather than a prompt-quality problem. Record `poof project status`, smoke probes, and the missing test-artifact evidence, then block or escalate.
+- If the retry still ends with `summary.total == 0` or the CLI prints `Done, but no test results were found.`, treat that as missing-artifact failure and block or escalate instead of calling the build verified.
+- `poof iterate` distinguishes two empty-test cases: `Done, but no tests ran during this turn.` (prior suite exists, but this turn didn't touch it — expected for non-test prompts) vs `Done, but no test results were found.` (no suite exists at all). Neither counts as a pass — only `poof verify` produces canonical pass/fail evidence.
+- If `poof ship --target preview` fails because security review is required, capture that as an external unblock gate. `ship` is not equivalent to a successful deploy, and a security-review stop should be treated as a real blocker rather than retried blindly.
 
 ## Documentation
 
 Read these for deeper context — especially **how-poof-works** if you're orchestrating what the Poof AI should build.
 
-| Doc | What it covers |
-|-----|----------------|
-| [**How Poof Works**](docs/how-poof-works.md) | Architecture, policy system, plugins, on-chain vs off-chain, what Poof can/can't do. **Read this to write effective prompts.** |
-| [**Building & Chat**](docs/building-and-chat.md) | Project creation, chat workflow, follow-up patterns, generation modes. |
-| [**Backend-Only Mode**](docs/backend-only.md) | Using `backend,policy` generation mode with a local frontend — connection info, `@pooflabs/web` setup, PartyServer integration. |
+| Doc                                                      | What it covers                                                                                                                                           |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [**How Poof Works**](docs/how-poof-works.md)             | Architecture, policy system, plugins, on-chain vs off-chain, what Poof can/can't do. **Read this to write effective prompts.**                           |
+| [**Building & Chat**](docs/building-and-chat.md)         | Project creation, chat workflow, follow-up patterns, generation modes.                                                                                   |
+| [**Backend-Only Mode**](docs/backend-only.md)            | Using `backend,policy` generation mode with a local frontend — connection info, `@pooflabs/web` setup, PartyServer integration.                          |
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | Building a frontend that connects to a Poof backend — SDK init, wallet auth, database access, API routes, real-time subscriptions, React hooks, gotchas. |
-| [**Database SDK**](docs/database-sdk.md) | The generated db-client + collections pattern — typed functions, read/write, frontend vs backend, how to extract and use. |
-| [**Deployment**](docs/deployment.md) | Environments (draft/preview/production/mobile), publishing, code downloads, custom domains. |
-| [**Static Frontend Deploy**](docs/static-deploy.md) | Deploy a self-built static frontend to Poof — tar.gz upload via CLI. |
-| [**Credits & Payments**](docs/credits-and-payments.md) | Credit system, paid features, x402 USDC top-up flow. |
-| [**Testing**](docs/testing.md) | Lifecycle actions, test files, bootstrap scripts, UI functional tests, expression syntax, testing strategy by layer. |
-| [**CLI Command Reference**](docs/api-reference.md) | All CLI commands, flags, output formats, and error codes. |
-| [**Troubleshooting**](docs/troubleshooting.md) | Common errors, recovery patterns, stuck build handling, credit exhaustion. |
+| [**Database SDK**](docs/database-sdk.md)                         | The generated db-client + collections pattern — typed functions, read/write, frontend vs backend, how to extract and use.                                                                               |
+| [**Deployment**](docs/deployment.md)                             | Environments (draft/preview/production/mobile), publishing, code downloads, custom domains.                                                                                                             |
+| [**Static Frontend Deploy**](docs/static-deploy.md)              | Deploy a self-built static frontend to Poof — tar.gz upload via CLI.                                                                                                                                    |
+| [**Credits & Payments**](docs/credits-and-payments.md)           | Credit system, paid features, x402 USDC top-up flow.                                                                                                                                                    |
+| [**Testing**](docs/testing.md)                                   | Lifecycle actions, test files, bootstrap scripts, UI functional tests, expression syntax, testing strategy by layer.                                                                                    |
+| [**CLI Command Reference**](docs/api-reference.md)               | All CLI commands, flags, output formats, and error codes.                                                                                                                                               |
+| [**Troubleshooting**](docs/troubleshooting.md)                   | Common errors, recovery patterns, stuck build handling, credit exhaustion.                                                                                                                              |
 | [**On-Chain Capabilities**](docs/onchain-capabilities/README.md) | Pre-built central policy for common Solana operations — token transfers, pump.fun launches, Meteora pools, NFTs, swaps, price feeds, and more. Includes the app ID and all collection/query references. |
 
 ## Post-Build Verification
 
-After the Poof AI finishes building, **don't assume it works correctly**. Always verify by running lifecycle actions and checking project status.
+After the Poof AI finishes building, **don't assume it works correctly**. Always verify the project and then check overall health.
 
-### 1. Run Lifecycle Tests
+### 1. Run The Canonical Verification Command
+
+```bash
+poof verify -p <project-id>
+```
+
+This runs the standard policy and UI verification prompts, waits on the same runtime signals the web app uses, and fails if no fresh structured test results appear or if any new results fail.
+
+### 1a. Run Lifecycle Tests Manually (Optional)
 
 Ask the Poof AI to generate and run tests for the features it just built:
 
@@ -126,11 +248,15 @@ poof iterate -p <project-id> -m "Generate lifecycle action tests for all the pol
 ```
 
 The Poof AI will:
+
 - Generate `lifecycle-actions/test-*.json` files that validate your policies
 - Execute them against ephemeral test environments
 - Report pass/fail results
 
-### 1b. Run UI Functional Tests
+### 1b. Run UI Functional Tests Manually (Optional)
+
+**Only for `full` or `ui,policy` projects — NOT for `backend,policy` or static deploys.**
+For those, see the [backend-only UI testing recipe](docs/backend-only.md#testing-a-static-deploy).
 
 After policy tests pass, generate browser-based tests to verify the full stack:
 
@@ -139,15 +265,23 @@ poof iterate -p <project-id> -m "Generate and run UI functional tests for the fe
 ```
 
 The Poof AI will:
+
 - Generate `lifecycle-actions/ui-test-*.json` files with browser-based tests
 - Fund the mock test user if the app has onchain features
 - Execute tests using browser automation against the draft app
-- Report results via `poof task test-results`
+- Report results via `poof task test-results` (policy + UI results are aggregated there)
+
+**Why only for Poof-generated UIs?** Poof's AI only has access to source code it generated itself.
+For `backend,policy` projects with a static deploy, the server only has your minified `dist/` bundle
+— the AI can't read the TypeScript/JSX source behind it, so any UI test it writes is either vacuous
+DOM-shape checks or hallucinated assertions. Agent-local browser automation is the canonical path
+for static deploys; see [backend-only.md#testing-a-static-deploy](docs/backend-only.md#testing-a-static-deploy).
 
 ### 2. Check Project Status & Get URLs
 
 ```bash
 poof project status -p <project-id>
+poof doctor -p <project-id>
 ```
 
 ### 3. Request Bootstrap Scripts (If Needed)
@@ -169,27 +303,13 @@ set -euo pipefail
 # 1. Build the project
 PROJECT_ID=$(poof build -m "Build a ..." --mode full --quiet)
 
-# 2. Generate and run lifecycle tests
-poof iterate -p "$PROJECT_ID" -m "Generate and run lifecycle action tests for all policies. Cover both allowed and denied operations."
+# 2. Run the canonical verification flow
+poof verify -p "$PROJECT_ID"
 
-# 3. Check structured test results
-FAILED=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.failed')
-ERRORS=$(poof task test-results -p "$PROJECT_ID" --json | jq '.summary.errors')
+# 3. Check overall runtime + deploy + test health
+poof doctor -p "$PROJECT_ID"
 
-# 4. If tests failed, send a targeted fix
-if [ "$FAILED" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
-  FAILURES=$(poof task test-results -p "$PROJECT_ID" --json | jq -r '.results[] | select(.status == "failed" or .status == "error") | "- \(.fileName): \(.lastError // .status)"')
-  poof iterate -p "$PROJECT_ID" -m "The following tests failed:
-
-$FAILURES
-
-Please fix the failing tests and re-run them."
-fi
-
-# 5. Generate and run UI functional tests
-poof iterate -p "$PROJECT_ID" -m "Generate and run UI functional tests. Test form submissions, navigation, CRUD operations, and any onchain interactions. Fund the mock test user if needed."
-
-# 6. Deploy
+# 4. Deploy
 poof ship -p "$PROJECT_ID"
 ```
 
@@ -271,7 +391,7 @@ See `docs/onchain-capabilities/` for the full collection and query reference.
 ## Best Practices
 
 - **Check credits** — `poof credits balance` is free. A full build + test + polish cycle costs 3-5 credits. If credits run out mid-build, the AI stops responding
-- **One message at a time** — `poof iterate` handles waiting automatically; if using `poof chat send`, check with `poof chat active -p <id>` before sending the next message
+- **One message at a time** — `poof iterate` handles waiting automatically; if using `poof chat send`, wait for `poof chat active -p <id>` to return `state: "idle"` before sending the next message
 - **Any credit purchase unlocks deployment** — mainnet deployment requires that the wallet has completed at least one credit purchase. An x402 top-up ($15 minimum) is the agent-friendly way to unlock both AI credits and deployment access. Once paid, paid features are permanently unlocked
 - **Always verify after building** — generate lifecycle tests and run them before deploying
 - **Deploy to preview first** — test before production
