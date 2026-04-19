@@ -102,6 +102,12 @@ poof auth login
 # Bare values "ui" and "backend" are also accepted (policy is auto-included)
 poof build -m "Build a token-gated voting app" --mode full
 
+# 2a. Build with reference image(s) — attach UI screenshots, mockups, etc.
+# The CLI uploads each image to Poof's global storage first, then embeds the
+# URLs in the initial firstMessage so the AI sees text + images together.
+poof build -m "Build a UI that looks like this" --file screenshot.png
+poof build -m "Match both of these designs" --file page1.png --file page2.png
+
 # 3. Iterate (sends chat, waits for AI, shows test results)
 poof iterate -p <project-id> -m "Add a leaderboard page"
 

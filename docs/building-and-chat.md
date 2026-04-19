@@ -22,9 +22,15 @@ poof build -m "Create a staking vault policy with 30-day lock" --mode policy
 
 # Save project ID for later use
 PROJECT=$(poof build -m "Build a token-gated content platform" --json | jq -r '.projectId')
+
+# Attach reference images (UI screenshots, mockups, etc.)
+poof build -m "Build a UI that looks like this" --file screenshot.png
+poof build -m "Match both of these designs" --file page1.png --file page2.png
 ```
 
 The `-m` message is the initial prompt that tells the Poof AI what to build. Be specific about features, data models, and blockchain operations. The `poof build` command creates the project and **waits automatically** until the AI finishes.
+
+Pass `--file` one or more times to attach reference images (PNG, JPEG, GIF, WebP; max 3.4MB each). The CLI uploads each image to Poof's global storage before creating the project, then embeds the `<userUploadedFile>` URLs directly into the initial build prompt. The AI sees the text and the image refs as one cohesive first message.
 
 ### Generation Mode
 
