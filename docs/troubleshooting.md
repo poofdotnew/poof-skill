@@ -9,6 +9,7 @@ Common errors, causes, and CLI recovery patterns.
 - [x402 Payment Errors](#x402-payment-errors)
 - [Credit Errors](#credit-errors)
 - [Timeout Errors](#timeout-errors)
+- [CLI Version & Update Errors](#cli-version--update-errors)
 - [Agent Recovery Patterns](#agent-recovery-patterns)
 
 ## Authentication Errors
@@ -24,7 +25,7 @@ Common errors, causes, and CLI recovery patterns.
 | Error | Cause | Fix |
 |-------|-------|-----|
 | Command killed / no output / timeout | Shell timeout too short for a polling command | `poof build`, `poof iterate`, `poof verify`, and `poof ship` can take 5–15+ minutes. Use `run_in_background: true` in Claude Code or set `timeout: 600000`. See the timeout table in SKILL.md |
-| `verify timed out or failed: timed out after 10m0s` | Pre-CLI-fix verify deadline | Rebuild the CLI — current versions enforce a 30-minute internal poll deadline on build/iterate/verify |
+| `verify timed out or failed: timed out after 10m0s` | Pre-CLI-fix verify deadline | Run `poof update --check`, then update with `poof update` or `brew upgrade poofdotnew/tap/poof` for Homebrew installs. Current versions enforce a 30-minute internal poll deadline on build/iterate/verify |
 | Build stuck for >15 minutes | AI is stuck or in a loop | Run `poof chat cancel -p <id>`, then start a new iteration with clearer instructions |
 | `poof chat active` stays `true` but `task list`/`test-results` never change | Stale active-chat state after the AI stopped making progress | Run `poof task list -p <id> --json`, `poof logs -p <id>`, and `poof task test-results -p <id> --json`. If there is no new task and no recent activity, capture that evidence, run `poof chat cancel -p <id>`, then retry once with a targeted prompt |
 | Build finishes immediately | Rare edge case if AI starts and finishes very quickly, or server issue | Run `poof project status -p <id>` to verify the project has tasks and content. If the project looks empty, retry with `poof iterate -p <id> -m "..."` |
@@ -83,6 +84,15 @@ Bash tool: command="poof build -m '...'", run_in_background=true
 # Extended timeout — for security scan, deploy
 Bash tool: command="poof security scan -p <id>", timeout=600000
 ```
+
+## CLI Version & Update Errors
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| CLI prints `A new poof version is available` | The automatic daily update check found a newer GitHub release | Run `poof update --check` to inspect it. Update with `poof update`, or use `brew upgrade poofdotnew/tap/poof` for Homebrew-managed installs |
+| Update notice appears where output must be parseable | Human text-mode command ran in an interactive terminal | Use `--json`, `--quiet`, `--no-update-check`, or set `POOF_NO_UPDATE_CHECK=1` |
+| `poof update` says the binary is managed by Homebrew | The current executable resolves into a Homebrew Cellar path | Run `brew upgrade poofdotnew/tap/poof` |
+| `poof update` refuses a `dev` or dirty build | The current version is not comparable to a release tag | Use `poof update --force` only when you intentionally want to replace the current binary with the latest release |
 
 ## Agent Recovery Patterns
 

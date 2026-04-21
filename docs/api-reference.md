@@ -139,6 +139,9 @@ These composite commands handle multi-step operations automatically (polling, se
 | `poof config set KEY VALUE`                     | Set persistent config. Valid keys: `default_project_id`, `environment`, `output_format`. |
 | `poof browser`                                  | Generate a sign-in link for poof.new using CLI credentials.                              |
 | `poof version`                                  | Print version, commit, and build date.                                                   |
+| `poof update`                                   | Update poof to the latest GitHub release. Homebrew-managed installs should use `brew upgrade poofdotnew/tap/poof`. |
+| `poof update --check`                           | Check the latest release and platform asset without installing.                          |
+| `poof update --force`                           | Install the latest release even when the current version cannot be compared, such as a `dev` build. |
 
 ## Global Flags
 
@@ -150,6 +153,7 @@ All commands support these flags:
 | `--env <environment>` | Target environment: `production` (default), `staging`, `local`. |
 | `--json`              | Output as JSON (for scripting and parsing).                     |
 | `--quiet`             | Minimal output (IDs and URLs only).                             |
+| `--no-update-check`   | Skip automatic update checks and update-available notices.      |
 
 ## JSON Output Shapes
 

@@ -20,6 +20,10 @@ The `poof` CLI wraps authentication, API calls, and polling into simple commands
 Your Agent ──► poof CLI (auth + API + polling built in) ──► poof.new
 ```
 
+## CLI Version and Updates
+
+If the CLI prints an update notice, or you suspect behavior depends on a recent CLI fix, run `poof update --check` first. Use `poof update` only when the user asks for an update or the current CLI version is blocking the workflow. For Homebrew-managed installs, prefer `brew upgrade poofdotnew/tap/poof`; self-update will tell the user to use Homebrew. For scripts, JSON/quiet output, redirected output, or deterministic logs, use `--no-update-check` or set `POOF_NO_UPDATE_CHECK=1` so update notices do not appear.
+
 ## Timeouts for Long-Running Commands
 
 **Critical:** `poof build`, `poof iterate`, `poof verify`, and `poof ship` poll until the Poof AI finishes, which can take **5–15+ minutes**. You **must** set an extended timeout or run these commands in the background, or they will be killed mid-execution.

@@ -42,6 +42,7 @@ brew install poofdotnew/tap/poof
 ```
 
 Or see the [poof-cli repo](https://github.com/poofdotnew/poof-cli) for other install methods.
+To update later, use `brew upgrade poofdotnew/tap/poof` for Homebrew installs, or `poof update` for self-managed binaries.
 
 ### 2. Set up credentials
 
