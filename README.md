@@ -133,7 +133,7 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 - **CLI commands** — Complete interface for project lifecycle (build, iterate, deploy, test, download)
 - **Generation modes** — `full`, `policy`, `backend,policy`, `ui,policy`
 - **Composite workflows** — `poof build` (create + wait), `poof iterate` (chat + wait + test results), `poof ship` (scan + check + deploy)
-- **Testing workflows** — Lifecycle action tests with pass/fail evaluation
+- **Testing workflows** — Lifecycle action tests, including source-authored UI tests for statically deployed local frontends
 - **Deployment pipeline** — Draft → Preview → Production with security scanning
 - **Troubleshooting** — Common errors and recovery patterns
 
@@ -158,7 +158,7 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | SDK init, wallet auth, database access, React hooks |
 | [**Database SDK**](docs/database-sdk.md) | Generated typed SDK, collections, read/write patterns |
 | [**Deployment**](docs/deployment.md) | Environments, publishing, code downloads, custom domains |
-| [**Testing**](docs/testing.md) | Lifecycle actions, test files, bootstrap scripts, UI functional tests, expression syntax, testing strategy by layer |
+| [**Testing**](docs/testing.md) | Lifecycle actions, test files, bootstrap scripts, UI functional tests, static-deploy UI test workflow, expression syntax, testing strategy by layer |
 | [**Credits & Payments**](docs/credits-and-payments.md) | Credit system, paid features, USDC top-up |
 | [**Troubleshooting**](docs/troubleshooting.md) | Common errors and recovery patterns |
 

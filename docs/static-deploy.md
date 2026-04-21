@@ -53,25 +53,33 @@ poof verify -p $PROJECT_ID
 cd ./my-frontend && npm run build && cd ..
 tar czf dist.tar.gz -C ./my-frontend/dist .
 
-# 4. Deploy static frontend — your UI now lives at the draft URL
+# 4. If you want Poof-hosted UI lifecycle tests, upload source-authored test files
+#    (keys are project paths like lifecycle-actions/ui-test-create-post.json)
+#    See testing.md#how-to-generate-ui-test-json for how to author them.
+poof files update -p $PROJECT_ID --from-json lifecycle-ui-tests.json
+
+# 5. Deploy static frontend — your UI now lives at the draft URL
 poof deploy static -p $PROJECT_ID --archive dist.tar.gz --title "Initial frontend deploy"
 
-# 5. Run UI smoke tests LOCALLY against the draft URL
-#    (your agent already has the real source — Poof's AI only sees the minified dist)
-#    See docs/backend-only.md#testing-a-static-deploy for ready-made recipes
-#    (claude-in-chrome tools, Playwright, or raw curl).
+# 6. Run uploaded Poof UI lifecycle tests against the real static frontend
+poof verify -p $PROJECT_ID --ui-tests=true -m "Run the existing source-authored lifecycle-actions/ui-test-*.json files against the deployed draft app. Do not create or rewrite UI tests from the dist bundle."
+
+# 7. Optionally also run agent-local browser smoke tests against the draft URL.
+#    See docs/backend-only.md#testing-a-static-deploy for Playwright, claude-in-chrome, and curl recipes.
 ```
 
-**Do not pass `poof verify --ui-tests=true` for statically-deployed frontends.** Poof's AI
-cannot write meaningful UI tests against a minified `dist/` bundle it didn't build. For static
-deploys, `poof verify` remains lifecycle-only (auto-detected from `generationMode`) and UI
-coverage lives on the agent side.
+**Do not use `poof verify --ui-tests=true` to generate UI tests from a statically-deployed
+frontend.** Poof's AI cannot write meaningful tests against a minified `dist/` bundle it didn't
+build. Use `--ui-tests=true` only after the local agent has authored `lifecycle-actions/ui-test-*.json`
+from the real frontend source, uploaded those files with `poof files update`, and deployed the static
+frontend. The prompt should tell Poof to run the existing source-authored tests, not create or rewrite
+them from the bundle.
 
 **Ordering matters.** Run `poof verify` BEFORE the static deploy to gate the backend policies
-(it auto-detects `backend,policy` mode and skips UI tests). Run your own browser smoke tests
-AFTER the static deploy so they hit your real frontend instead of Poof's placeholder shell.
-Treat a failing smoke test the same as a failing `poof verify` — block `poof ship` until the
-source is fixed, rebuilt, and redeployed.
+(it auto-detects `backend,policy` mode and skips UI tests). Run Poof-hosted UI lifecycle tests or
+agent-local browser smoke tests AFTER the static deploy so they hit your real frontend instead of
+Poof's placeholder shell. Treat failing UI tests the same as a failing `poof verify`: block
+`poof ship` until the source is fixed, rebuilt, redeployed, and rerun.
 
 ## How It Works
 
@@ -102,4 +110,3 @@ Static deploys create a checkpoint task with `focusArea: 'static_deploy'`. The p
 | Not authenticated | Invalid or expired token | Run `poof auth login` |
 | Not project owner | Wrong account | Only the project creator can deploy |
 | Archive too large | Exceeds 50 MB | Reduce bundle size (tree-shake, compress assets, remove source maps) |
-

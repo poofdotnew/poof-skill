@@ -170,13 +170,30 @@ Copy this checklist and track your progress. Pick the variant that matches your 
 - [ ] Status: poof project status -p <id> --json   # capture connectionInfo (draft tarobaseAppId, backendUrl, apiUrl, authApiUrl, wsUrl)
 - [ ] Verify backend: poof verify -p <id>          # auto-detects backend-only mode and runs policy tests only — no UI tests against the placeholder
 - [ ] Build local frontend: wire @pooflabs/web init() using connectionInfo, run `npm run build`
+- [ ] Author source-aware UI lifecycle tests if you want Poof-hosted UI coverage: write `lifecycle-actions/ui-test-*.json` from the local frontend source, not from the minified dist bundle
+- [ ] Upload UI test files: poof files update -p <id> --from-json lifecycle-ui-tests.json
 - [ ] Package: tar czf dist.tar.gz -C dist .
 - [ ] Deploy static: poof deploy static -p <id> --archive dist.tar.gz
-- [ ] UI smoke test (local): agent runs its own browser tests against the draft URL — see docs/backend-only.md#testing-a-static-deploy
+- [ ] Run static UI tests: poof verify -p <id> --ui-tests=true -m "Run the existing source-authored lifecycle-actions/ui-test-*.json files against the deployed draft app. Do not create or rewrite UI tests from the dist bundle."
+- [ ] UI smoke test (local fallback): agent runs its own browser tests against the draft URL — see docs/backend-only.md#testing-a-static-deploy
 - [ ] Deploy to preview/prod: poof ship -p <id>
 ```
 
-**Do NOT run `poof verify --ui-tests=true` against a statically-deployed frontend.** Poof's AI only has access to your minified `dist/` bundle on the server — not the source it was built from — so any `ui-test-*.json` it generates has to smoke-test generic DOM shapes that pass vacuously (heading exists, interactive elements present) against almost any page. The strict policy gate is `poof verify -p <id>` (lifecycle tests only, which Poof's AI CAN see). Real UI coverage is the agent's responsibility, run locally against the draft URL with whatever browser-automation tool the agent already has (Claude Code's `claude-in-chrome` tools, Playwright, Cypress, or equivalent). See [docs/backend-only.md](docs/backend-only.md) and [docs/testing.md](docs/testing.md) for the recipe.
+**Static-deploy UI tests:** do not ask Poof's AI to invent UI tests from a statically-deployed
+frontend. After `poof deploy static`, the server has your minified `dist/` bundle, not the local
+TypeScript/JSX source, so AI-generated UI tests tend to become generic DOM-shape checks. If you want
+Poof to run UI tests for a local frontend, the external agent must author `lifecycle-actions/ui-test-*.json`
+from its local source, upload those files with `poof files update`, deploy the static frontend, then
+force UI execution with an explicit "run existing source-authored tests" prompt. Without uploaded
+source-aware tests, use agent-local browser automation instead. See [docs/backend-only.md](docs/backend-only.md)
+and [docs/testing.md](docs/testing.md) for the full recipe.
+
+When authoring `ui-test-*.json`, inspect the UI source first: routes/pages, exact button and form
+labels, validation copy, success states, database writes/reads, and auth/onchain behavior. Write one
+file per user flow, use exact visible text in each `act`, and make each `verify` assert a concrete
+result such as a newly created title appearing in a list. Avoid generic checks like "page loaded",
+"heading exists", or "interactive elements are present". See
+[docs/testing.md#how-to-generate-ui-test-json](docs/testing.md#how-to-generate-ui-test-json).
 
 `poof verify` is the only test command an agent should rely on for pass/fail. It snapshots
 existing test result IDs, sends the canonical lifecycle + UI verification prompt, then only
@@ -186,7 +203,7 @@ any fresh result failed, so a successful exit code is real evidence that tests r
 
 **Backend-only and `poof verify`:** when the project's generationMode excludes `ui` (i.e. `policy` or
 `backend,policy`), the CLI auto-detects that and sends a lifecycle-only verification prompt. This
-is the correct behavior for backend-only projects for two reasons:
+is the correct default for backend-only projects for two reasons:
 
 1. **Before a static deploy**, the draft URL serves a Poof placeholder shell, so any UI test against
    it is a vacuous pass ("heading visible, interactive elements present") that does not prove anything.
@@ -195,13 +212,12 @@ is the correct behavior for backend-only projects for two reasons:
    JS. Any tests it does author are again either vacuous DOM shape checks or hallucinated feature
    assertions that happen to match generic page structure.
 
-**Do NOT use `poof verify --ui-tests=true` for backend-only projects.** The flag exists for projects
-where Poof generated the UI itself (`full` or `ui,policy` modes) — in those cases Poof's AI HAS the
-source. For backend-only projects, run UI tests on the agent side instead: the agent already has the
-frontend source locally, so it can spin up its own browser-automation tool (Claude Code's
-`claude-in-chrome` tools, Playwright, Cypress, or equivalent) against the draft URL, assert on the
-real feature contract, and only then call the flow verified. See [docs/backend-only.md](docs/backend-only.md)
-and [docs/testing.md](docs/testing.md) for the full recipe.
+Use `poof verify --ui-tests=true` for a backend-only/static-deploy project only when you have already
+uploaded source-authored `lifecycle-actions/ui-test-*.json` files and your prompt tells Poof to run
+those existing tests against the deployed draft app. Do not use it as a "generate UI tests from my
+dist" shortcut. If no source-aware UI test files exist, run UI tests on the agent side instead:
+the agent has the frontend source locally, so it can use `claude-in-chrome`, Playwright, Cypress, or
+equivalent against the draft URL and assert on the real feature contract.
 
 `--ui-tests=false` is still available to force lifecycle-only in any mode (useful if you're iterating
 on a `full` project and don't want Poof to re-run UI tests on every verify).
@@ -232,7 +248,7 @@ Read these for deeper context — especially **how-poof-works** if you're orches
 | [**Deployment**](docs/deployment.md)                     | Environments (draft/preview/production/mobile), publishing, code downloads, custom domains.                                                              |
 | [**Static Frontend Deploy**](docs/static-deploy.md)      | Deploy a self-built static frontend to Poof — tar.gz upload via CLI.                                                                                     |
 | [**Credits & Payments**](docs/credits-and-payments.md)   | Credit system, paid features, x402 USDC top-up flow.                                                                                                     |
-| [**Testing**](docs/testing.md)                           | Lifecycle actions, test files, bootstrap scripts, UI functional tests, expression syntax, testing strategy by layer.                                     |
+| [**Testing**](docs/testing.md)                           | Lifecycle actions, test files, bootstrap scripts, UI functional tests, static-deploy UI test workflow, expression syntax, testing strategy by layer.     |
 | [**CLI Command Reference**](docs/api-reference.md)       | All CLI commands, flags, output formats, and error codes.                                                                                                |
 | [**Troubleshooting**](docs/troubleshooting.md)           | Common errors, recovery patterns, stuck build handling, credit exhaustion.                                                                               |
 
@@ -246,7 +262,7 @@ After the Poof AI finishes building, **don't assume it works correctly**. Always
 poof verify -p <project-id>
 ```
 
-This runs the standard policy and UI verification prompts, waits on the same runtime signals the web app uses, and fails if no fresh structured test results appear or if any new results fail.
+This runs the standard policy verification prompt, includes UI verification where appropriate, waits on the same runtime signals the web app uses, and fails if no fresh structured test results appear or if any new results fail.
 
 ### 1a. Run Lifecycle Tests Manually (Optional)
 
@@ -264,10 +280,12 @@ The Poof AI will:
 
 ### 1b. Run UI Functional Tests Manually (Optional)
 
-**Only for `full` or `ui,policy` projects — NOT for `backend,policy` or static deploys.**
-For those, see the [backend-only UI testing recipe](docs/backend-only.md#testing-a-static-deploy).
+Ask Poof's AI to **generate** UI tests only for `full` or `ui,policy` projects, where Poof owns the
+UI source. For `backend,policy` or static deploys, use the [backend-only UI testing recipe](docs/backend-only.md#testing-a-static-deploy):
+the external agent authors `lifecycle-actions/ui-test-*.json` from local source, uploads them, then
+asks Poof to run the existing files after `poof deploy static`.
 
-After policy tests pass, generate browser-based tests to verify the full stack:
+For Poof-generated UIs, after policy tests pass, generate browser-based tests to verify the full stack:
 
 ```bash
 poof iterate -p <project-id> -m "Generate and run UI functional tests for the features you built. Test form submissions, navigation, CRUD operations, and any onchain interactions. Fund the mock test user if needed."
@@ -283,8 +301,9 @@ The Poof AI will:
 **Why only for Poof-generated UIs?** Poof's AI only has access to source code it generated itself.
 For `backend,policy` projects with a static deploy, the server only has your minified `dist/` bundle
 — the AI can't read the TypeScript/JSX source behind it, so any UI test it writes is either vacuous
-DOM-shape checks or hallucinated assertions. Agent-local browser automation is the canonical path
-for static deploys; see [backend-only.md#testing-a-static-deploy](docs/backend-only.md#testing-a-static-deploy).
+DOM-shape checks or hallucinated assertions. Source-authored `ui-test-*.json` files or agent-local
+browser automation are the canonical paths for static deploys; see
+[backend-only.md#testing-a-static-deploy](docs/backend-only.md#testing-a-static-deploy).
 
 ### 2. Check Project Status & Get URLs
 

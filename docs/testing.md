@@ -11,6 +11,8 @@ Poof uses **lifecycle actions** — declarative JSON files — to test database 
 - [Actor Variable Quoting](#actor-variable-quoting)
 - [Key Patterns](#key-patterns)
 - [UI Functional Tests](#ui-functional-tests)
+- [How to Generate UI Test JSON](#how-to-generate-ui-test-json)
+- [Static Deploy UI Lifecycle Tests](#static-deploy-ui-lifecycle-tests)
 - [Bootstrap Configuration](#bootstrap-configuration)
 - [Testing Strategy by Layer](#testing-strategy-by-layer)
 - [Testing Best Practices](#testing-best-practices)
@@ -22,7 +24,7 @@ Poof uses **lifecycle actions** — declarative JSON files — to test database 
 
 ## Why This Matters for Agents
 
-When you ask the Poof AI to add features via `poof iterate`, it generates policies (rules, hooks, fields). Lifecycle actions let you validate those policies work correctly before deploying. You can ask the Poof AI to generate these test files for you via `poof iterate`.
+When you ask the Poof AI to add features via `poof iterate`, it generates policies (rules, hooks, fields). Lifecycle actions let you validate those policies work correctly before deploying. For Poof-generated UIs, you can ask the Poof AI to generate UI test files too. For locally-built static frontends, the external agent should author the UI test files from the local source and upload them to Poof before asking Poof to run them.
 
 ## Three Test Modes
 
@@ -369,12 +371,14 @@ UI test files verify that the app's frontend works correctly — buttons functio
 
 ### How They Work
 
-1. The Poof AI generates `ui-test-*.json` files when you ask via `poof iterate`
+1. A source-aware agent creates `ui-test-*.json` files in `lifecycle-actions/`
+   - For `full` or `ui,policy` projects, Poof's AI can generate them because it owns the UI source
+   - For local/static frontends, the external agent must generate them from the local source
 2. The test runner opens your draft app in a real browser with mock authentication
 3. Each step executes a natural language `act` instruction, then runs a structured `verify` assertion
 4. Results are aggregated into `poof task test-results` alongside policy test results
 
-External agents trigger UI tests the same way as policy tests: `poof iterate -p <id> -m "Generate and run UI tests..."` (handles waiting automatically), then check `poof task test-results`.
+For Poof-generated UIs, external agents can trigger UI test generation and execution with `poof iterate -p <id> -m "Generate and run UI tests..."` (handles waiting automatically), then check `poof task test-results`. For static deploys, use the workflow in [Static Deploy UI Lifecycle Tests](#static-deploy-ui-lifecycle-tests) instead.
 
 If `poof task test-results` comes back with `summary.total = 0`, do not treat that as a pass. Inspect `poof task list -p <id> --json`, `poof chat active -p <id> --json`, and `poof logs -p <id>` first. When `chat active` stays `true` but no new task ids or recent logs appear, record that stale-state evidence, run `poof chat cancel -p <id>`, then do at most one targeted retry for lifecycle/UI artifact generation before escalating the gap.
 
@@ -416,6 +420,185 @@ If the app has onchain features (staking, transfers, swaps), the mock user needs
   ]
 }
 ```
+
+## How to Generate UI Test JSON
+
+Generate `ui-test-*.json` files from the UI source and product behavior, not from screenshots,
+asset names, or generic DOM presence. The goal is to encode a real user flow with observable pass/fail
+assertions that would fail if the feature regressed.
+
+### 1. Inventory the UI Source
+
+Before writing JSON, inspect the local UI files or Poof-generated source and list:
+
+- Routes/pages and how users navigate to them
+- Exact visible labels for buttons, links, tabs, dialogs, form fields, and submit actions
+- Required form fields, validation messages, empty states, and success states
+- Data the flow creates, updates, deletes, or reads back from Poof
+- Auth behavior: whether the mock-auth user should already be treated as signed in
+- Onchain behavior: whether the mock user needs SOL or tokens funded before the test
+
+For React/Vite apps, useful files are usually `src/App.*`, `src/pages/**`, `src/components/**`,
+router files, and the SDK/database call sites. Prefer user-visible strings from the source over
+CSS selectors or implementation names.
+
+### 2. Choose Test Files and Flows
+
+Use one file per logical flow:
+
+```text
+lifecycle-actions/ui-test-create-post.json
+lifecycle-actions/ui-test-navigation.json
+lifecycle-actions/ui-test-validation-errors.json
+lifecycle-actions/ui-test-delete-item.json
+```
+
+Start with the highest-value flows:
+
+- **Render and navigation:** the app loads, primary route/page is reachable, tab/page changes show the expected heading or content
+- **Create/read:** submit a form with unique test data and verify that data appears in the UI
+- **Update/delete:** change or remove an existing item and verify the resulting UI state
+- **Validation/error handling:** submit invalid or missing input and verify the exact error or disabled state
+- **Auth-gated behavior:** verify signed-in mock-user actions work and signed-out paths fail gracefully when applicable
+- **Onchain behavior:** fund the mock user first, perform the action, then verify a concrete confirmation or record
+
+### 3. Name the Test Clearly
+
+Use a stable filename and matching `name`:
+
+```json
+{
+  "version": 1,
+  "name": "test-ui-create-post",
+  "type": "ui-test",
+  "description": "Create a post and verify it appears in the feed",
+  "steps": []
+}
+```
+
+Always include `version`, `name`, `type: "ui-test"`, `description`, and non-empty `steps`. The
+runner requires `type: "ui-test"` and at least one valid step; `version`, `name`, and `description`
+make results easier to read and debug.
+
+### 4. Convert the Flow Into Steps
+
+Each step has one `act` string and, almost always, one `verify` block:
+
+```json
+{
+  "act": "Click the 'New Post' button",
+  "verify": {
+    "extract": "Is the new post form visible?",
+    "schema": { "formVisible": "boolean" },
+    "expect": { "formVisible": true }
+  }
+}
+```
+
+Good `act` instructions:
+
+- Use exact UI copy: `"Click the 'New Post' button"` beats `"open the modal"`
+- Name labels users can see: `"Type 'Launch notes' in the input labeled 'Title'"`
+- Keep one user intent per step. For short forms, filling fields and submitting can be one step if the verify block checks the result.
+- Do not include full URLs; the runner starts on the app homepage with `?mockAuth=true`
+- Do not add "Connect Wallet" steps; the runner seeds mock auth automatically
+- Do not use CSS selectors, component names, minified filenames, or asset hashes
+
+### 5. Write Strong Verify Blocks
+
+`verify.extract` tells the browser runner what to observe. `schema` defines the extracted fields.
+`expect` defines the matcher for those same fields.
+
+```json
+{
+  "extract": "The titles visible in the post feed",
+  "schema": { "titles": "string[]" },
+  "expect": { "titles": { "contains": "Agent launch notes" } }
+}
+```
+
+Good assertions verify the result of the action:
+
+- `"titles"` contains the unique title that was just created
+- `"errorText"` equals or contains the expected validation copy
+- `"heading"` equals the destination page heading after navigation
+- `"count"` is `{ "gte": 1 }` after adding an item, or `{ "lte": previous }` only when the exact count is not stable
+- `"confirmationVisible"` is `true` after a transaction-like operation
+
+Weak assertions to avoid:
+
+- `"pageLoaded": true`
+- `"headingVisible": true` when any page heading would pass
+- `"hasButtons": true`
+- `"interactiveElementsPresent": true`
+- Assertions based on CSS classes, hashed asset names, or DOM shape instead of user-visible outcomes
+
+### 6. Full Example: Create and Validate a Post
+
+```json
+{
+  "version": 1,
+  "name": "test-ui-create-post",
+  "type": "ui-test",
+  "description": "Create a post from the feed UI and verify validation errors",
+  "steps": [
+    {
+      "act": "Click the 'New Post' button",
+      "verify": {
+        "extract": "Is the new post form visible?",
+        "schema": { "formVisible": "boolean" },
+        "expect": { "formVisible": true }
+      }
+    },
+    {
+      "act": "Click the 'Publish' button without filling in the form",
+      "verify": {
+        "extract": "The validation error text visible near the form",
+        "schema": { "errorText": "string" },
+        "expect": { "errorText": "Title is required" }
+      }
+    },
+    {
+      "act": "Type 'Agent launch notes' in the title field, type 'Testing the static deploy flow' in the body field, and click 'Publish'",
+      "verify": {
+        "extract": "The post titles visible in the feed",
+        "schema": { "titles": "string[]" },
+        "expect": { "titles": { "contains": "Agent launch notes" } }
+      }
+    }
+  ]
+}
+```
+
+### 7. Upload Format for Agent-Authored Tests
+
+To upload generated UI test files with `poof files update --from-json`, create a JSON map whose keys
+are Poof project paths and whose values are the file contents:
+
+```json
+{
+  "lifecycle-actions/ui-test-create-post.json": "{\n  \"version\": 1,\n  \"name\": \"test-ui-create-post\",\n  \"type\": \"ui-test\",\n  \"description\": \"Create a post from the feed UI\",\n  \"steps\": []\n}\n"
+}
+```
+
+For multiple files, include one map entry per `lifecycle-actions/ui-test-*.json` file. Do not put
+these test JSON files inside `dist.tar.gz`; static deploy only uploads the frontend assets, not the
+source archive that Poof's test runner reads.
+
+### 8. UI Test JSON Checklist
+
+Before uploading, check:
+
+- Filename starts with `ui-test-` and ends in `.json`
+- JSON parses cleanly; no comments or trailing commas
+- Top-level `type` is exactly `"ui-test"`
+- `steps` is a non-empty array
+- Every step has an `act` string
+- Every `verify` has `extract`, `schema`, and `expect`
+- Schema values use only `"boolean"`, `"string"`, `"number"`, `"string[]"`, or `"number[]"`
+- `expect` keys match the schema keys
+- Assertions use exact visible data or supported matchers (`contains`, `gte`, `lte`)
+- The test would fail if the target feature were broken
 
 ### Schema Types
 
@@ -528,11 +711,84 @@ If the app has onchain features (staking, transfers, swaps), the mock user needs
 
 1. **Check if app has onchain features** — look at the policy for `onchain: true` collections
 2. **Fund the mock test user if needed** — ask the Poof AI via `poof iterate` to fund the test user before running UI tests
-3. **Ask the Poof AI to generate and run UI tests** — use `poof iterate -p <id> -m "..."` (handles waiting automatically)
+3. **Generate and run UI tests** — for Poof-generated UIs, use `poof iterate -p <id> -m "..."`; for static deploys, upload source-authored `ui-test-*.json` files and use the workflow below
 4. **Check results** — `poof task test-results` aggregates UI test results alongside policy test results
 5. Tests run sequentially (they may modify shared app state)
 6. Each test gets its own browser session
 7. Screenshots are captured after every step for debugging
+
+## Static Deploy UI Lifecycle Tests
+
+When an agent builds the UI locally and publishes it with `poof deploy static`, Poof can still run
+browser-based lifecycle UI tests, but the test files must come from the agent that has the local
+source. Do not ask Poof's AI to infer meaningful UI tests from the deployed `dist/` bundle.
+
+**Correct workflow for local frontends:**
+
+1. Build and verify the backend first:
+
+```bash
+poof verify -p <project-id> --ui-tests=false
+```
+
+2. Inspect the local frontend source and create one or more source-aware UI tests. Use
+[How to Generate UI Test JSON](#how-to-generate-ui-test-json) as the authoring recipe:
+
+```text
+lifecycle-actions/ui-test-create-post.json
+lifecycle-actions/ui-test-navigation.json
+lifecycle-actions/ui-test-error-states.json
+```
+
+Use exact UI text, labels, route names, and expected records from the source. Keep each file focused
+on one user flow. Prefer concrete assertions such as "the list contains 'Buy groceries'" over generic
+checks such as "a heading exists".
+
+3. Upload the test files to the Poof project source archive. `poof files update --from-json` expects
+a JSON object whose keys are project paths and whose values are file contents:
+
+```json
+{
+  "lifecycle-actions/ui-test-create-post.json": "{\n  \"version\": 1,\n  \"name\": \"test-ui-create-post\",\n  \"type\": \"ui-test\",\n  \"description\": \"Create a post from the deployed static UI\",\n  \"steps\": [\n    {\n      \"act\": \"Click the 'New Post' button\",\n      \"verify\": {\n        \"extract\": \"Is the post form visible?\",\n        \"schema\": { \"formVisible\": \"boolean\" },\n        \"expect\": { \"formVisible\": true }\n      }\n    }\n  ]\n}\n"
+}
+```
+
+```bash
+poof files update -p <project-id> --from-json lifecycle-ui-tests.json
+```
+
+4. Build, package, and deploy the local frontend:
+
+```bash
+npm run build
+tar czf dist.tar.gz -C dist .
+poof deploy static -p <project-id> --archive dist.tar.gz
+```
+
+5. Run the uploaded UI lifecycle tests against the deployed draft URL. `poof verify` auto-skips UI
+tests for backend-only/static-deploy projects unless you explicitly force them, so force UI tests
+only when the uploaded `ui-test-*.json` files were authored from local source:
+
+```bash
+poof verify -p <project-id> --ui-tests=true -m "Run the existing source-authored lifecycle-actions/ui-test-*.json files against the deployed draft app. Do not create, rewrite, or replace UI tests from the dist bundle. If a UI test fails, report the failing file and step instead of weakening the assertion."
+```
+
+6. Check fresh structured results:
+
+```bash
+poof task test-results -p <project-id> --json
+```
+
+Treat `summary.total == 0`, UI test validation errors, browser console errors, and failed assertions
+as blockers. Fix the local source or the source-authored test, rebuild, redeploy static, and rerun.
+
+**Rules for static-deploy UI tests:**
+
+- Generate `ui-test-*.json` from local source knowledge, not from minified asset names
+- Upload lifecycle test files with `poof files update`; do not put them inside `dist.tar.gz`
+- Run tests only after `poof deploy static`, because before static deploy the draft URL is a placeholder
+- Keep local smoke tests or Playwright checks as a useful fallback, especially when a wallet-signed path needs human approval
+- Never replace a specific failing assertion with a generic "page loaded" check just to get a pass
 
 ## Bootstrap Configuration
 
@@ -740,6 +996,10 @@ You can ask the Poof AI via `poof iterate` to generate all three types of test f
 **UI functional tests:**
 
 > "Generate UI functional tests for the app. Test creating a post, navigating to the details page, and deleting a post. Fund the mock test user if the app has onchain features."
+
+Use that UI prompt only when Poof generated the UI source (`full` or `ui,policy`). For a local UI
+published with `poof deploy static`, the external agent should generate `ui-test-*.json` from the
+local source, upload those files with `poof files update`, then ask Poof to run the existing files.
 
 **Policy + UI together:**
 

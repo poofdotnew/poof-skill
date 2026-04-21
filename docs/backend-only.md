@@ -156,21 +156,103 @@ two reasons:
 2. `poof project status -p <id> --json` — capture `connectionInfo` and the draft URL
 3. `poof verify -p <id>` — lifecycle tests only (auto-detected from generationMode)
 4. Build your local frontend wired to `connectionInfo`, `npm run build`
-5. `poof deploy static -p <id> --archive dist.tar.gz` — your UI is now live at the draft URL
-6. **UI smoke test (agent-local).** Run your own browser-automation against the draft URL — see
+5. Author and upload source-aware `lifecycle-actions/ui-test-*.json` files if you want Poof-hosted
+   UI lifecycle tests for the local frontend
+6. `poof deploy static -p <id> --archive dist.tar.gz` — your UI is now live at the draft URL
+7. **UI verification.** Run the uploaded Poof UI lifecycle tests, agent-local browser tests, or both — see
    [Testing a Static Deploy](#testing-a-static-deploy) below
-7. `poof ship -p <id>` — preview / production deploy
+8. `poof ship -p <id>` — preview / production deploy
 
-**Never** pass `poof verify --ui-tests=true` for a backend-only project — Poof's AI has no
-meaningful source context to write the tests from. UI testing of statically-deployed frontends is
-the agent's responsibility, not Poof's.
+Do not use `poof verify --ui-tests=true` as a request for Poof's AI to generate UI tests from the
+static bundle. Use it only after the external agent has authored source-aware `ui-test-*.json` files,
+uploaded them to the project, and deployed the real static frontend.
 
 ## Testing a Static Deploy
 
 After `poof deploy static`, your frontend is live at the project's draft URL (from `poof project status`
 under `.urls.draft`). Testing it is the agent's job because the agent already has the real source
 code checked out locally, so it knows the feature contract, routes, and selectors. Poof's AI only
-sees your minified `dist/` bundle and can't write meaningful assertions against your features.
+sees your minified `dist/` bundle, so it should run source-authored tests, not invent assertions
+from the deployed assets.
+
+There are two useful UI verification layers:
+
+1. **Poof-hosted UI lifecycle tests** — source-aware `lifecycle-actions/ui-test-*.json` files that
+   the external agent writes and uploads, then Poof runs in its Browserbase/Stagehand runner.
+2. **Agent-local browser tests** — Playwright, Cypress, `claude-in-chrome`, or a raw curl fallback
+   that the external agent runs directly against the draft URL.
+
+### Poof-Hosted UI Lifecycle Tests
+
+Use this path when you want UI test results recorded in `poof task test-results` after a static
+deploy.
+
+1. Write test files from the local UI source, using exact visible text and feature contracts. The
+full authoring recipe is in [testing.md#how-to-generate-ui-test-json](testing.md#how-to-generate-ui-test-json):
+
+```json
+{
+  "version": 1,
+  "name": "test-ui-create-note",
+  "type": "ui-test",
+  "description": "Create a note through the statically deployed UI",
+  "steps": [
+    {
+      "act": "Click the 'New Note' button",
+      "verify": {
+        "extract": "Is the note editor visible?",
+        "schema": { "editorVisible": "boolean" },
+        "expect": { "editorVisible": true }
+      }
+    },
+    {
+      "act": "Type 'Launch checklist' in the title field and click 'Save'",
+      "verify": {
+        "extract": "The note titles visible in the notes list",
+        "schema": { "titles": "string[]" },
+        "expect": { "titles": { "contains": "Launch checklist" } }
+      }
+    }
+  ]
+}
+```
+
+2. Upload them as project files. The JSON map keys are Poof project paths:
+
+```json
+{
+  "lifecycle-actions/ui-test-create-note.json": "{ ... file contents ... }"
+}
+```
+
+```bash
+poof files update -p <project-id> --from-json lifecycle-ui-tests.json
+```
+
+3. Deploy the frontend:
+
+```bash
+npm run build
+tar czf dist.tar.gz -C dist .
+poof deploy static -p <project-id> --archive dist.tar.gz
+```
+
+4. Force UI execution with an explicit "run existing tests" prompt:
+
+```bash
+poof verify -p <project-id> --ui-tests=true -m "Run the existing source-authored lifecycle-actions/ui-test-*.json files against the deployed draft app. Do not create, rewrite, or replace UI tests from the dist bundle. If a UI test fails, report the failing file and step instead of weakening the assertion."
+```
+
+5. Gate on fresh results:
+
+```bash
+poof task test-results -p <project-id> --json
+```
+
+If no fresh UI results appear, inspect `poof project messages -p <id> --limit 100 --json` to confirm
+whether `run_all_ui_tests` was invoked. Treat missing results as a blocker, not a pass.
+
+### Agent-Local Browser Smoke Tests
 
 **What to check, at minimum:**
 
@@ -254,14 +336,13 @@ test $(wc -c </tmp/draft.html) -gt 1000 || { echo "body too small (placeholder?)
 This catches the "deploy silently reverted to placeholder" case but nothing else. Prefer a real
 browser runner for anything past basic sanity.
 
-> **Do not ask Poof's AI to write these tests for you** via `poof iterate -m "generate UI tests"`.
-> The AI will write `lifecycle-actions/ui-test-*.json` specs against minified asset hashes that
-> break on every rebuild, OR it will write vacuous DOM shape assertions that pass against almost
-> any deployed page. UI testing of static deploys lives on the agent side.
+> Do not ask Poof's AI to write these tests from the deployed bundle via a generic
+> `poof iterate -m "generate UI tests"` prompt. Either upload source-authored `ui-test-*.json`
+> files and ask Poof to run those existing files, or run browser tests locally.
 
 ## End-to-End Example
 
-Complete workflow: create backend, verify policies, build local frontend, deploy static, (optional) UI tests, ship.
+Complete workflow: create backend, verify policies, build local frontend, deploy static, run source-aware UI tests, ship.
 
 ```bash
 #!/usr/bin/env bash
@@ -287,13 +368,16 @@ poof verify -p "$PROJECT_ID"
 cd ./my-frontend && npm run build && cd ..
 tar czf dist.tar.gz -C ./my-frontend/dist .
 
-# 5. Deploy the static frontend to the draft URL
+# 5. Upload source-authored Poof UI lifecycle tests
+poof files update -p "$PROJECT_ID" --from-json lifecycle-ui-tests.json
+
+# 6. Deploy the static frontend to the draft URL
 poof deploy static -p "$PROJECT_ID" --archive dist.tar.gz --title "initial static deploy"
 
-# 6. (Optional) Now that a real UI is live, run UI functional tests
-poof verify -p "$PROJECT_ID" --ui-tests=true
+# 7. Run the uploaded tests against the real static UI
+poof verify -p "$PROJECT_ID" --ui-tests=true -m "Run the existing source-authored lifecycle-actions/ui-test-*.json files against the deployed draft app. Do not create or rewrite UI tests from the dist bundle."
 
-# 7. Ship to preview / production
+# 8. Ship to preview / production
 poof ship -p "$PROJECT_ID"
 ```
 
