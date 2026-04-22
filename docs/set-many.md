@@ -4,6 +4,27 @@
 
 **From the agent's perspective, everything here runs through `poof data ...` CLI commands.** The `@pooflabs/web` / `@pooflabs/server` SDKs are what the generated *frontend and backend code in the deployed app* use at runtime — agents and dev tools should drive the CLI.
 
+## Project ID vs appId — and two ways to target
+
+Before the examples, the thing to understand: a Poof **project ID** (what most CLI commands take via `-p <id>`) is your handle on the project you build and deploy. A Tarobase **appId** is the data-plane address of a *specific deployed policy instance*. **Each project has multiple appIds — one per environment** (draft = off-chain Poofnet, preview = real mainnet preview, production = real mainnet production), so the instances stay cleanly separated.
+
+`poof data` takes either:
+
+- **Project-based mode** — `-p <project-id> -e draft|preview|production`. The CLI resolves the right appId from the project's `connectionInfo`. Requires that you own (or have access to) the project.
+- **Shared-appid mode** — `--app-id <id> --chain offchain|mainnet`. Talks to an appId directly. Useful when pointing at a *shared primitives library* someone else has deployed — no Poof-project access to it is needed, auth is still your own wallet, and any fees are paid by your wallet on your own writes. The user-scoped path convention (`user/$userId/...`) is what keeps callers safely sandboxed inside a shared appId: the rules pin each write to the caller's `@user.address`, so one wallet can't touch another's data.
+
+List a project's appIds per env with:
+
+```bash
+poof data app-ids -p <project-id>
+# → project <project-id>
+#     draft      appId=... chain=offchain
+#     preview    appId=... chain=mainnet
+#     production appId=... chain=mainnet
+```
+
+All `poof data` subcommands below accept either `-p <id> -e <env>` or `--app-id <id> --chain <chain>`. The two are mutually exclusive — mixing them (e.g. `-e preview` with `--app-id`) errors out.
+
 ## Using `poof data set-many`
 
 ```bash
@@ -17,16 +38,24 @@ cat > bundle.json <<'EOF'
 ]
 EOF
 
+# Project-based — targets whichever env you pick; default is draft
 poof data set-many -p <project-id> --from-json bundle.json
 # → ✓ submitted 2 document(s) on offchain (txid=sim_...)
+
+# Or shared-appid — point at an appId directly
+poof data set-many --app-id <appId> --chain mainnet --from-json bundle.json
 ```
 
 The payload is either a bare array or `{"documents":[...]}` — both work. Each entry is `{path, document}`.
 
-Environments:
+Targeting (project-based mode):
 - `-e draft` (default) — Poofnet, simulated chain, safe for testing
 - `-e preview` — mainnet preview, real tokens
 - `-e production` — mainnet production, real tokens
+
+Targeting (shared-appid mode):
+- `--chain offchain` — talks to a draft/Poofnet appId
+- `--chain mainnet` — talks to a real Solana mainnet appId (fees are real)
 
 All entries in one bundle must be the same kind (all on-chain OR all off-chain). Mixed kinds are rejected.
 

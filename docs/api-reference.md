@@ -80,15 +80,25 @@ These composite commands handle multi-step operations automatically (polling, se
 
 ### Data (runtime reads/writes)
 
-Agent-facing runtime operations against a project's data plane — all CLI-driven. `-e/--environment` defaults to `draft` (Poofnet, simulated chain). Use `preview` for mainnet preview, `production` for mainnet production. The CLI handles both the offchain submit path (draft) and real Solana tx signing + submit (mainnet) under the hood.
+Agent-facing runtime operations against a project's data plane — all CLI-driven. The CLI handles both the offchain submit path and real Solana tx signing + submit (mainnet) under the hood.
+
+**Two targeting modes** (every command below accepts either, but not both):
+
+- **Project-based** — `-p <project-id> [-e draft|preview|production]`. Default `-e` is `draft`. Looks up the right Tarobase appId from the project's `connectionInfo`. Requires project access.
+- **Shared-appid** — `--app-id <appId> --chain offchain|mainnet`. Talks to a Tarobase appId directly, e.g. a shared primitives library someone else has deployed. Auth is still your own wallet; no project access needed. User-scoped paths (`user/$userId/...`) keep callers sandboxed to their own data within the shared appId.
+
+Use `poof data app-ids -p <id>` to list a project's appIds per environment so you have the right `--app-id` / `--chain` pair for shared-appid mode.
 
 | Command                                                                                       | Description                                                                                                                                            |
 | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `poof data set -p <id> [-e ENV] --path <path> --data '<json>'`                                | Write a single document. Path is the full Poof collection path (e.g. `memories/<addr>` or `user/<addr>/TokenTransfer/<id>`).                          |
-| `poof data set-many -p <id> [-e ENV] --from-json <file>`                                      | Atomic multi-doc write. Payload is either a `[{path, document}, ...]` array or `{"documents":[...]}`. Any rule/hook failure rolls back the whole bundle. |
-| `poof data get -p <id> [-e ENV] --path <path>`                                                | Read one document or list a collection by path.                                                                                                        |
-| `poof data get-many -p <id> [-e ENV] --from-json <paths.json>`                                | Batch-read paths from a JSON string array; returns one result per path in order.                                                                       |
-| `poof data query -p <id> [-e ENV] --name <queryName> [--args '<json>'] [--path <path>]`       | Run a policy query. Default path is `queries/<name>`. Use `--path` for queries attached to a specific collection — e.g. `--path "user/<addr>/BalanceCheck/any" --name simulate` for a guard's simulate query. Inside queries, named `queryArgs` resolve as `@newData.<field>`. |
+| `poof data set <TARGET> --path <path> --data '<json>'`                                        | Write a single document. Path is the full Poof collection path (e.g. `memories/<addr>` or `user/<addr>/TokenTransfer/<id>`).                          |
+| `poof data set-many <TARGET> --from-json <file>`                                              | Atomic multi-doc write. Payload is either a `[{path, document}, ...]` array or `{"documents":[...]}`. Any rule/hook failure rolls back the whole bundle. |
+| `poof data get <TARGET> --path <path>`                                                        | Read one document or list a collection by path.                                                                                                        |
+| `poof data get-many <TARGET> --from-json <paths.json>`                                        | Batch-read paths from a JSON string array; returns one result per path in order.                                                                       |
+| `poof data query <TARGET> --name <queryName> [--args '<json>'] [--path <path>]`               | Run a policy query. Default path is `queries/<name>`. Use `--path` for queries attached to a specific collection — e.g. `--path "user/<addr>/BalanceCheck/any" --name simulate` for a guard's simulate query. Inside queries, named `queryArgs` resolve as `@newData.<field>`. |
+| `poof data app-ids -p <id>`                                                                   | List a project's Tarobase appIds per env (draft/preview/production) plus the chain each maps to. Read this once; reuse the appId in shared-appid mode. |
+
+`<TARGET>` above is one of: `-p <project-id> [-e draft|preview|production]` or `--app-id <id> --chain offchain|mainnet`.
 
 ### Security
 

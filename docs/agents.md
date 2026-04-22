@@ -2,7 +2,7 @@
 
 This doc is the shape of an agent running continuously on top of a Poof project — read its own state, poll the world, decide, act atomically, verify. Everything is driven through `poof data …`; no SDK import needed.
 
-For the atomicity story of the "act" step, see [set-many.md](set-many.md). For the CLI surface, see [api-reference.md](api-reference.md).
+For the atomicity story of the "act" step, see [set-many.md](set-many.md). For the CLI surface, see [api-reference.md](api-reference.md). Both targeting modes work for every command below: project-based (`-p <project-id> -e <env>`, agent owns the project) or shared-appid (`--app-id <id> --chain offchain|mainnet`, agent points at a shared primitives library someone else deployed). The examples below use `-p <id>` for brevity; swap in `--app-id <id> --chain <chain>` if you're running against a shared appid. See [set-many.md — Project ID vs appId](set-many.md#project-id-vs-appid--and-two-ways-to-target) for the distinction.
 
 ## Contents
 - [The loop](#the-loop)
