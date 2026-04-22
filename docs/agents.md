@@ -152,3 +152,5 @@ done
 ```
 
 Shape swaps — you'd read different queries, compose different guards, write to different state — but the skeleton stays the same.
+
+For a concrete worked-out domain where this loop shows up, see [perps.md](perps.md) — the Phoenix.trade integration has a register/fund/trade/monitor/close shape that maps onto exactly this read-poll-decide-act-verify skeleton, with the full read surface (positions, portfolio value, mark prices) for an agent to reason against.
