@@ -102,7 +102,7 @@ import { setMany, Time, Increment, Token, Address } from '@/lib/db-client';
 | `Increment.by(n)` | `{ likes: Increment.by(1) }` | Atomic increment/decrement. |
 | `Token.amount(name, amt)` | `Token.amount('SOL', 1.5)` | Handles decimal conversion (SOL=9, USDC=6). |
 | `Address.publicKey(key)` | `{ owner: Address.publicKey(pubkey) }` | Solana address for writes. |
-| `setMany([...])` | `await setMany([buildPost(...), buildComment(...)])` | Atomic batch operations. All items must be same type (all onchain OR all offchain). See [set-many.md](set-many.md) for composition patterns (transfer+guard, swap+price check, etc.) and failure semantics. |
+| `setMany([...])` | `await setMany([buildPost(...), buildComment(...)])` | Atomic batch operations. All items must be same type (all onchain OR all offchain). See [set-many.md](agent-use/set-many.md) for composition patterns (transfer+guard, swap+price check, etc.) and failure semantics. |
 
 ## Frontend Usage (React)
 

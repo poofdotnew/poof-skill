@@ -181,7 +181,7 @@ Each collection file exports typed functions: `setItems()`, `getItems()`, `getMa
 - Verifiable randomness (VRF)
 - Prediction markets
 - Access control and business logic (policy rules)
-- Cross-document atomic operations — multi-write guarantees via `setMany`, all-or-nothing per Solana tx; see [set-many.md](set-many.md)
+- Cross-document atomic operations — multi-write guarantees via `setMany`, all-or-nothing per Solana tx; see [set-many.md](agent-use/set-many.md)
 
 ### Cannot Do
 - ML/AI model training → use external API via backend

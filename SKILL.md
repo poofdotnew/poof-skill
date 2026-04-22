@@ -1,24 +1,32 @@
 ---
 name: poof
 description: >-
-  Use when building AI agents that interact with Poof (poof.new), creating or
-  managing Solana dApps programmatically, using the poof CLI, or connecting a
-  local frontend to a Poof backend. Triggers: "poof project", "deploy dApp",
-  "create poof app", "poof.new", "poof CLI", "poof build", "poof-cli",
-  "Solana agent", "blockchain app builder", "@pooflabs/web".
+  Use when working with the Poof CLI (poof.new) in either of its two modes:
+  (1) chat-driven app building — creating, iterating on, and shipping
+  full-stack Solana dApps via `poof build`/`iterate`/`ship`; or (2) agent
+  runtime data plane — using `poof data` to read, write, and atomically
+  compose onchain actions (Token/NFT/Pump.fun/Meteora/Phoenix perps/DFlow/
+  Tensor) against a deployed Poof project or a shared primitives appid.
+  Triggers: "poof build", "poof iterate", "poof ship", "poof data",
+  "poof.new", "poof CLI", "poof-cli", "Solana agent", "onchain agent",
+  "Phoenix perps", "setMany", "shared appid", "@pooflabs/web".
 ---
 
 # Poof CLI
 
-Build autonomous AI agents that create, deploy, and manage full-stack Solana applications on [poof.new](https://poof.new) using the `poof` CLI — no custom code needed.
+The `poof` CLI has two distinct modes. An agent reading this skill should know which one applies to the task at hand before picking commands.
+
+1. **App building** — ask Poof's AI to create, iterate on, and ship full-stack Solana apps on [poof.new](https://poof.new). Driven by commands like `poof build`, `poof iterate`, `poof verify`, `poof ship`, `poof deploy`. Long-running (5–15+ min per call). See the app-building docs at `docs/` (how-poof-works, building-and-chat, etc.).
+2. **Runtime data plane** — use `poof data` against a deployed Poof project (yours or a shared primitives library like the generic-onchain appid) to read, write, and atomically compose onchain actions as an agent. Fast, synchronous, designed for per-tick agent loops. See the agent-use docs at `docs/agent-use/`.
 
 ## How It Works
 
-The `poof` CLI wraps authentication, API calls, and polling into simple commands. Your agent runs shell commands and parses output.
+```
+App building:    Your Agent ──► poof build/iterate/ship ──► poof.new (AI builds for you)
+Data plane:      Your Agent ──► poof data set/get/query ──► Poof project's Tarobase appId
+```
 
-```
-Your Agent ──► poof CLI (auth + API + polling built in) ──► poof.new
-```
+Both modes share the same CLI binary, auth, and config; only the commands and the cadence differ.
 
 ## CLI Version and Updates
 
@@ -237,22 +245,40 @@ on a `full` project and don't want Poof to re-run UI tests on every verify).
 
 ## Documentation
 
-Read these for deeper context — especially **how-poof-works** if you're orchestrating what the Poof AI should build.
+Docs are grouped by the two CLI modes. Pick the section that matches your task.
 
-| Doc                                                      | What it covers                                                                                                                                           |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+### For app building (in `docs/`)
+
+Read **How Poof Works** first if you're writing prompts for the Poof AI.
+
+| Doc                                                               | What it covers                                                                                                                                           |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [**How Poof Works**](docs/how-poof-works.md)             | Architecture, policy system, plugins, on-chain vs off-chain, what Poof can/can't do. **Read this to write effective prompts.**                           |
 | [**Building & Chat**](docs/building-and-chat.md)         | Project creation, chat workflow, follow-up patterns, generation modes.                                                                                   |
 | [**Backend-Only Mode**](docs/backend-only.md)            | Using `backend,policy` generation mode with a local frontend — connection info, `@pooflabs/web` setup, PartyServer integration.                          |
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | Building a frontend that connects to a Poof backend — SDK init, wallet auth, database access, API routes, real-time subscriptions, React hooks, gotchas. |
 | [**Database SDK**](docs/database-sdk.md)                 | The generated db-client + collections pattern — typed functions, read/write, frontend vs backend, how to extract and use.                                |
-| [**setMany & Atomic Batches**](docs/set-many.md)         | The atomicity story — when to reach for `setMany`, composition patterns (transfer+guard, swap+price guard, escrow create+fund), failure semantics.        |
-| [**Phoenix Perps Integration**](docs/perps.md)           | Phoenix.trade perps via Poof — markets (SOL/BTC/ETH), the full read + write surface, position enumeration pattern, lots-to-dollars math, composing with guards.                                   |
 | [**Deployment**](docs/deployment.md)                     | Environments (draft/preview/production/mobile), publishing, code downloads, custom domains.                                                              |
 | [**Static Frontend Deploy**](docs/static-deploy.md)      | Deploy a self-built static frontend to Poof — tar.gz upload via CLI.                                                                                     |
-| [**Credits & Payments**](docs/credits-and-payments.md)   | Credit system, paid features, x402 USDC top-up flow.                                                                                                     |
 | [**Testing**](docs/testing.md)                           | Lifecycle actions, test files, bootstrap scripts, UI functional tests, static-deploy UI test workflow, expression syntax, testing strategy by layer.     |
-| [**CLI Command Reference**](docs/api-reference.md)       | All CLI commands, flags, output formats, and error codes.                                                                                                |
+
+### For runtime agent use (`docs/agent-use/`)
+
+Read **Onchain actions** to see what's available to write against, then **setMany** for atomic composition patterns.
+
+| Doc                                                                 | What it covers                                                                                                                                          |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [**Onchain action catalog**](docs/agent-use/onchain-actions.md)     | Every onchain action exposed by the generic-onchain primitives library — Token, NFT, Pump.fun, Meteora, DFlow, Tensor, Phoenix. Fields + a minimal example per category. |
+| [**Guard primitives**](docs/agent-use/guards.md)                    | BalanceCheck, TimeWindow, NftOwnershipCheck, Allowlist (on/off-chain trios), RateLimit counters, Escrow trio — what each asserts, field shape, simulate query, composition. |
+| [**setMany & Atomic Batches**](docs/agent-use/set-many.md)          | The atomicity story — when to reach for `setMany`, `--app-id` vs `-p`, composition patterns (transfer+guard, swap+price guard, escrow create+fund), failure semantics. |
+| [**Phoenix Perps Integration**](docs/agent-use/perps.md)            | Phoenix.trade perps — markets (SOL/BTC/ETH), the full read + write surface, position enumeration pattern, lots-to-dollars math, composing with guards.  |
+
+### Shared (either mode)
+
+| Doc                                                      | What it covers                                                                                                                                           |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [**CLI Command Reference**](docs/api-reference.md)       | All CLI commands, flags, output formats, and error codes. Covers both `poof data` and the app-building commands.                                         |
+| [**Credits & Payments**](docs/credits-and-payments.md)   | Credit system, paid features, x402 USDC top-up flow.                                                                                                     |
 | [**Troubleshooting**](docs/troubleshooting.md)           | Common errors, recovery patterns, stuck build handling, credit exhaustion.                                                                               |
 
 ## Post-Build Verification

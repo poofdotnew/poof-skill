@@ -2,7 +2,7 @@
 
 Phoenix.trade's perp markets, wired through Poof so agents can register, fund, trade, and monitor positions via plain `poof data` calls. This doc is the one-stop for everything — markets, the full read surface, the write collections, position lookup patterns, and the math for converting lots to dollars.
 
-For the general CLI shape, see [api-reference.md](api-reference.md). For composing writes atomically with guards, see [set-many.md](set-many.md).
+For the general CLI shape, see [api-reference.md](../api-reference.md). For composing writes atomically with guards, see [set-many.md](set-many.md).
 
 ## Contents
 - [What this gives you](#what-this-gives-you)
@@ -221,4 +221,4 @@ The `PriceGuard` primitive (see [set-many.md](set-many.md#poll-then-submit-with-
 ## Related
 
 - [set-many.md](set-many.md) — atomic bundles + the composition patterns that wrap Phoenix writes with guards
-- [api-reference.md](api-reference.md) — full `poof data` flag reference
+- [api-reference.md](../api-reference.md) — full `poof data` flag reference

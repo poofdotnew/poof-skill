@@ -194,11 +194,11 @@ For debugging, this is the raw flow the CLI orchestrates — you don't need it d
 
 CPI co-signing (`txData` / server-`signedTransaction` responses) is the one path not yet covered by the CLI — very few collections produce it, and when they do the CLI errors with a clear message pointing at the `@pooflabs/server` SDK. All normal reads, writes, and setMany bundles go through the CLI end-to-end.
 
-See [api-reference.md](api-reference.md) for full CLI flags and JSON output shapes.
+See [api-reference.md](../api-reference.md) for full CLI flags and JSON output shapes.
 
 ## Related
 
-- [api-reference.md](api-reference.md) — full `poof data` flag reference
-- [database-sdk.md](database-sdk.md) — the generated frontend/backend SDK used *inside* a deployed app
-- [how-poof-works.md](how-poof-works.md#passthrough-pattern) — passthrough collections, which most guards are
-- [testing.md](testing.md) — lifecycle-action `setMany` op for test files
+- [api-reference.md](../api-reference.md) — full `poof data` flag reference
+- [database-sdk.md](../database-sdk.md) — the generated frontend/backend SDK used *inside* a deployed app
+- [how-poof-works.md](../how-poof-works.md#passthrough-pattern) — passthrough collections, which most guards are
+- [testing.md](../testing.md) — lifecycle-action `setMany` op for test files
