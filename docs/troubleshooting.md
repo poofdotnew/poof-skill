@@ -28,6 +28,7 @@ Common errors, causes, and CLI recovery patterns.
 | `verify timed out or failed: timed out after 10m0s` | Pre-CLI-fix verify deadline | Run `poof update --check`, then update with `poof update` or `brew upgrade poofdotnew/tap/poof` for Homebrew installs. Current versions enforce a 30-minute internal poll deadline on build/iterate/verify |
 | Build stuck for >15 minutes | AI is stuck or in a loop | Run `poof chat cancel -p <id>`, then start a new iteration with clearer instructions |
 | `poof chat active` stays `true` but `task list`/`test-results` never change | Stale active-chat state after the AI stopped making progress | Run `poof task list -p <id> --json`, `poof logs -p <id>`, and `poof task test-results -p <id> --json`. If there is no new task and no recent activity, capture that evidence, run `poof chat cancel -p <id>`, then retry once with a targeted prompt |
+| Targeted retries keep repeating stale assumptions or broken Claude Code context | Saved AI session ID is resuming an unhealthy context | Run `poof chat clear -p <id>` once, then send one precise retry prompt |
 | Build finishes immediately | Rare edge case if AI starts and finishes very quickly, or server issue | Run `poof project status -p <id>` to verify the project has tasks and content. If the project looks empty, retry with `poof iterate -p <id> -m "..."` |
 | Build fails after starting | Session expired mid-build | Run `poof auth login` and retry |
 | AI builds the wrong thing | Vague or ambiguous `-m` flag in `poof build` | Be specific about data models, access rules, token operations, and on-chain vs off-chain. See [how-poof-works.md](how-poof-works.md) |
@@ -100,6 +101,12 @@ Bash tool: command="poof security scan -p <id>", timeout=600000
 ```bash
 poof chat cancel -p <id>
 poof iterate -p <id> -m "The previous build got stuck. Review current state and continue."
+```
+
+### Stale Context Recovery
+```bash
+poof chat clear -p <id>
+poof iterate -p <id> -m "Start a fresh AI context. Inspect the current project files, then apply this specific fix: ..."
 ```
 
 ### Credit Check Before Workflow

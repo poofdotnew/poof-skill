@@ -47,6 +47,7 @@ These composite commands handle multi-step operations automatically (polling, se
 | `poof chat send -p <id> -m "..." [--stdin] [--file img.png]` | Send a message (does NOT wait). Use `poof iterate` instead for wait + results. Attach images with `--file`. |
 | `poof chat active -p <id>`                                   | Check if AI is currently processing. JSON output includes `state` (`running`, `queued`, or `idle`).        |
 | `poof chat cancel -p <id>`                                   | Cancel in-progress AI execution.                                                                            |
+| `poof chat clear -p <id>`                                    | Clear the saved Claude Code session ID so the next chat starts with fresh AI context.                       |
 | `poof chat steer -p <id> -m "..." [--stdin]`                 | Redirect AI mid-execution without cancelling.                                                               |
 
 ### Files

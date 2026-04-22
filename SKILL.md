@@ -139,6 +139,9 @@ poof chat steer -p <project-id> -m "Focus on the backend first"
 # 5. Cancel if stuck
 poof chat cancel -p <project-id>
 
+# 5a. Clear saved Claude Code context if retries keep resuming a broken session
+poof chat clear -p <project-id>
+
 # 6. Read/modify files directly (requires credit purchase)
 poof files get -p <project-id>
 poof files update -p <project-id> --file src/config.ts --content 'export const MAX = 100;'
@@ -237,6 +240,7 @@ on a `full` project and don't want Poof to re-run UI tests on every verify).
 - If `poof task test-results -p <id> --json` reports `summary.total == 0`, inspect `poof task list -p <id> --json`, `poof chat active -p <id> --json`, `poof logs -p <id>`, and `poof project messages -p <id> --limit 100 --json` before you assume tests passed or failed.
 - `poof task test-results`, `poof iterate`, `poof verify`, and `poof doctor` now collapse test results to the **latest run per test file** by default (collapse key is `source|fileName`, not per-testName — so if the AI renames a test inside a file between runs, only the latest file state wins). If you need to see the full history (e.g. to debug why an earlier run failed), use `poof task test-results -p <id> --history`.
 - If `poof chat active -p <id> --json` stays `true` while task list shows no new work and logs show no recent activity, cancel that stale chat once with `poof chat cancel -p <id>` before the single allowed targeted retry.
+- If a targeted retry keeps inheriting bad Claude Code context, tool loops, or stale assumptions even after the active run is canceled, run `poof chat clear -p <id>` once to clear the saved AI session ID, then send one precise retry prompt.
 - If the only visible tasks are still bootstrap/constants work and the targeted retry also returns an empty test summary, treat that as a Poof execution incident rather than a prompt-quality problem. Record `poof project status`, smoke probes, and the missing test-artifact evidence, then block or escalate.
 - If the retry still ends with `summary.total == 0` or the CLI prints `Done, but no test results were found.`, treat that as missing-artifact failure and block or escalate instead of calling the build verified.
 - `poof iterate` distinguishes two empty-test cases: `Done, but no tests ran during this turn.` (prior suite exists, but this turn didn't touch it — expected for non-test prompts) vs `Done, but no test results were found.` (no suite exists at all). Neither counts as a pass — only `poof verify` produces canonical pass/fail evidence.
@@ -390,6 +394,7 @@ See [docs/how-poof-works.md](docs/how-poof-works.md) for the architecture knowle
 
 - **Check credits** — `poof credits balance` is free. A full build + test + polish cycle costs 3-5 credits. If credits run out mid-build, the AI stops responding
 - **One message at a time** — `poof iterate` handles waiting automatically; if using `poof chat send`, wait for `poof chat active -p <id>` to return `state: "idle"` before sending the next message
+- **Clear context sparingly** — `poof chat clear -p <id>` drops the saved Claude Code session ID so the next message starts with fresh AI context while preserving the project and message history. Use it after evidence of stale context, not as a routine retry button
 - **Any credit purchase unlocks deployment** — mainnet deployment requires that the wallet has completed at least one credit purchase. An x402 top-up ($15 minimum) is the agent-friendly way to unlock both AI credits and deployment access. Once paid, paid features are permanently unlocked
 - **Always verify after building** — generate lifecycle tests and run them before deploying
 - **Deploy to preview first** — test before production

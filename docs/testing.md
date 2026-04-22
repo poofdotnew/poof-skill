@@ -380,7 +380,7 @@ UI test files verify that the app's frontend works correctly — buttons functio
 
 For Poof-generated UIs, external agents can trigger UI test generation and execution with `poof iterate -p <id> -m "Generate and run UI tests..."` (handles waiting automatically), then check `poof task test-results`. For static deploys, use the workflow in [Static Deploy UI Lifecycle Tests](#static-deploy-ui-lifecycle-tests) instead.
 
-If `poof task test-results` comes back with `summary.total = 0`, do not treat that as a pass. Inspect `poof task list -p <id> --json`, `poof chat active -p <id> --json`, and `poof logs -p <id>` first. When `chat active` stays `true` but no new task ids or recent logs appear, record that stale-state evidence, run `poof chat cancel -p <id>`, then do at most one targeted retry for lifecycle/UI artifact generation before escalating the gap.
+If `poof task test-results` comes back with `summary.total = 0`, do not treat that as a pass. Inspect `poof task list -p <id> --json`, `poof chat active -p <id> --json`, and `poof logs -p <id>` first. When `chat active` stays `true` but no new task ids or recent logs appear, record that stale-state evidence, run `poof chat cancel -p <id>`, then do at most one targeted retry for lifecycle/UI artifact generation before escalating the gap. If that retry clearly resumes stale Claude Code context, run `poof chat clear -p <id>` once before the final targeted retry.
 
 ### Mock Test User
 
