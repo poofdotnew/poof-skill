@@ -221,5 +221,4 @@ The `PriceGuard` primitive (see [set-many.md](set-many.md#poll-then-submit-with-
 ## Related
 
 - [set-many.md](set-many.md) — atomic bundles + the composition patterns that wrap Phoenix writes with guards
-- [agents.md](agents.md) — the general agent loop; perps-specific examples live here
 - [api-reference.md](api-reference.md) — full `poof data` flag reference
