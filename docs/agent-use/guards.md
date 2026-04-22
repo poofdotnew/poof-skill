@@ -23,7 +23,7 @@ For how to compose these with actions, see [set-many.md](set-many.md). For the a
 Simulate:
 
 ```bash
-poof data query --app-id <appId> --chain mainnet \
+poof data query --app-id 69bcffc78d4b88997d0ed01a --chain mainnet \
   --path "user/<self>/BalanceCheck/any" --name simulate \
   --args '{"mint":"<usdc>","op":"gte","threshold":100000000}'
 # → true | false
@@ -54,7 +54,7 @@ Lifecycle:
 
 ```bash
 # 1. Admin creates the list + adds members (one-time, per list)
-poof data set-many --app-id <appId> --chain mainnet --from-json - <<'EOF'
+poof data set-many --app-id 69bcffc78d4b88997d0ed01a --chain mainnet --from-json - <<'EOF'
 [
   {"path":"AllowlistOnchain/vip","document":{"name":"VIPs","admin":"<admin-addr>"}},
   {"path":"AllowlistOnchain/vip/member/<alice>","document":{"addedAt":1730000000}},
@@ -63,7 +63,7 @@ poof data set-many --app-id <appId> --chain mainnet --from-json - <<'EOF'
 EOF
 
 # 2. Alice gates a transfer on being in the list
-poof data set-many --app-id <appId> --chain mainnet --from-json - <<'EOF'
+poof data set-many --app-id 69bcffc78d4b88997d0ed01a --chain mainnet --from-json - <<'EOF'
 [
   {"path":"user/<alice>/TokenTransfer/t1","document":{...}},
   {"path":"user/<alice>/AllowlistOnchainCheck/t1-gate","document":{"listId":"vip"}}
@@ -96,7 +96,7 @@ Typical use: one counter per (user, action-kind). Include the counter increment 
 
 ```bash
 # Initialize once (count=0, window=3600s, cap=10)
-poof data set --app-id <appId> --chain mainnet \
+poof data set --app-id 69bcffc78d4b88997d0ed01a --chain mainnet \
   --path "user/<self>/RateLimitOnchainCounter/transfers" \
   --data '{"count":0,"windowStart":1730000000,"windowSeconds":3600,"maxPerWindow":10}'
 ```
@@ -113,7 +113,7 @@ Simple single-recipient-set escrow. Depositor funds, lists allowed withdrawers; 
 
 ```bash
 # Depositor sets up in one atomic bundle
-poof data set-many --app-id <appId> --chain mainnet --from-json - <<'EOF'
+poof data set-many --app-id 69bcffc78d4b88997d0ed01a --chain mainnet --from-json - <<'EOF'
 [
   {"path":"Escrow/payout-1","document":{"depositor":"<me>","amount":1000000,"mint":"<usdc>"}},
   {"path":"Escrow/payout-1/allowedWithdrawer/<alice>","document":{"addedAt":1730000000}}
@@ -121,7 +121,7 @@ poof data set-many --app-id <appId> --chain mainnet --from-json - <<'EOF'
 EOF
 
 # Alice withdraws
-poof data set --app-id <appId> --chain mainnet \
+poof data set --app-id 69bcffc78d4b88997d0ed01a --chain mainnet \
   --path "user/<alice>/EscrowWithdraw/w-1" --data '{"escrowId":"payout-1"}'
 ```
 

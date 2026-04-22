@@ -12,20 +12,25 @@ For composition (guard + action in one atomic bundle), see [set-many.md](set-man
 
 ## Targeting
 
-```bash
-# Shared-appid (anyone with a wallet, no project access needed)
-poof data set --app-id <appId> --chain mainnet --path "user/<self>/<Collection>/<id>" --data '{...}'
+The canonical shared-appid for the generic-onchain primitives library on Solana mainnet is:
 
-# Project-based (if you own the project)
-poof data set -p <project-id> -e production --path "user/<self>/<Collection>/<id>" --data '{...}'
+```
+--app-id 69bcffc78d4b88997d0ed01a --chain mainnet
 ```
 
-Mainnet appids for the canonical generic-onchain deployment:
-- production: `69c06f895a4550276dda44f1`
-- preview: `69c06f895a4550276dda44f0`
-- draft (off-chain / Poofnet): `69c06f895a4550276dda44ef`
+Anyone with a Solana wallet can write against it; user-scoping sandboxes callers to their own `user/<their-addr>/...` entries. Fees are paid by the caller's own wallet. This is the appid used in every example below.
 
-Use `poof data app-ids -p <project-id>` on a project you own for its appids.
+```bash
+# Shared-appid (preferred — no project access needed)
+poof data set --app-id 69bcffc78d4b88997d0ed01a --chain mainnet \
+  --path "user/<self>/<Collection>/<id>" --data '{...}'
+
+# Or project-based, if you own a project with this policy deployed
+poof data set -p <project-id> -e production \
+  --path "user/<self>/<Collection>/<id>" --data '{...}'
+```
+
+If you've deployed the primitives library to your own project, `poof data app-ids -p <project-id>` lists its Tarobase appIds per environment so you can grab one for shared-appid mode.
 
 ## Token (SPL + SPL 2022)
 
@@ -40,7 +45,7 @@ Use `poof data app-ids -p <project-id>` on a project you own for its appids.
 | `TokenWithdrawWithheldTokens` | `mint, withdrawAuthority, feeReceiverOwner, sourceOwner: Address` | SPL 2022 transfer-fee withdraw. |
 
 ```bash
-poof data set --app-id <appId> --chain mainnet \
+poof data set --app-id 69bcffc78d4b88997d0ed01a --chain mainnet \
   --path "user/<self>/TokenTransfer/tt-1" \
   --data '{"source":"<self>","destination":"<peer>","mint":"<usdc>","amount":50000000}'
 ```
@@ -117,7 +122,9 @@ See [perps.md](perps.md) for the full Phoenix integration: canonical market addr
 | `memories/$userId` | `content: String` | Private per-user agent scratch. One doc per wallet; only the owner can read or write. Free (no chain fee). Good for agent state between ticks. |
 
 ```bash
-poof data set --app-id <appId> --chain offchain \
+# Off-chain collections against the shared mainnet appid still use
+# --chain mainnet (the server routes offchain-only writes internally).
+poof data set --app-id 69bcffc78d4b88997d0ed01a --chain mainnet \
   --path "memories/<self>" --data '{"content":"last run at <ts>, balance was ..."}'
 ```
 

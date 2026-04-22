@@ -42,8 +42,9 @@ EOF
 poof data set-many -p <project-id> --from-json bundle.json
 # → ✓ submitted 2 document(s) on offchain (txid=sim_...)
 
-# Or shared-appid — point at an appId directly
-poof data set-many --app-id <appId> --chain mainnet --from-json bundle.json
+# Or shared-appid — point at an appId directly. 69bcffc78d4b88997d0ed01a
+# is the canonical shared generic-onchain primitives library on mainnet.
+poof data set-many --app-id 69bcffc78d4b88997d0ed01a --chain mainnet --from-json bundle.json
 ```
 
 The payload is either a bare array or `{"documents":[...]}` — both work. Each entry is `{path, document}`.
@@ -171,6 +172,16 @@ The BalanceCheck is evaluated against post-bundle state; you can't race it.
 [{"path":"user/<addr>/AllowlistOnchainCheck/drop-v1","document":{"listId":"drop-v1"}},
  {"path":"user/<addr>/NftTransfer/nft-1","document":{...}}]
 ```
+
+## Running `poof data` alongside other CLI commands
+
+Safe to run concurrently across terminals or shell-backgrounded jobs — the CLI was hardened for this. Some specifics worth knowing:
+
+- **`poof data` (any appid) + `poof iterate|build|ship` (your own project)** — independent. Different APIs (`api.tarobase.com` vs `api.poof.new`), different on-disk caches (`~/.poof/tarobase-sessions.json` vs `~/.poof/tokens.json`). Running a long `poof iterate` while firing `poof data set` against a shared appid works with no interference.
+- **Two `poof data` calls against different appids** — safe. Sessions are cached per (appId, wallet), so each appid has its own cache entry and the two processes don't compete for the same slot. The session-cache file is written atomically (temp + rename), so a mid-write read by one process can't see a torn JSON from another's write.
+- **Two `poof data` calls against the *same* appid** — also safe. Both processes may notice "no cached session" at startup and each do a login (that's a small waste, not a correctness issue). The atomic write means neither process can corrupt the other's cache entry.
+- **Keypair is read-only at runtime.** All concurrent invocations use the same `SOLANA_PRIVATE_KEY` from `.env`; no write contention there.
+- **Don't run `poof config set` while other CLI commands are in flight.** That's the one writable non-atomic state, and it's only touched by explicit `config set` commands — nothing else writes to `~/.poof/config.yaml`.
 
 ## Gotchas
 

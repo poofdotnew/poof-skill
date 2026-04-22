@@ -17,7 +17,7 @@ description: >-
 The `poof` CLI has two distinct modes. An agent reading this skill should know which one applies to the task at hand before picking commands.
 
 1. **App building** — ask Poof's AI to create, iterate on, and ship full-stack Solana apps on [poof.new](https://poof.new). Driven by commands like `poof build`, `poof iterate`, `poof verify`, `poof ship`, `poof deploy`. Long-running (5–15+ min per call). See the app-building docs at `docs/` (how-poof-works, building-and-chat, etc.).
-2. **Runtime data plane** — use `poof data` against a deployed Poof project (yours or a shared primitives library like the generic-onchain appid) to read, write, and atomically compose onchain actions as an agent. Fast, synchronous, designed for per-tick agent loops. See the agent-use docs at `docs/agent-use/`.
+2. **Runtime data plane** — use `poof data` against a deployed Poof project (yours or a shared primitives library). The canonical shared generic-onchain library — covers Token / NFT / Pump.fun / Meteora / DFlow / Tensor / Phoenix perps plus composable guards — is live on Solana mainnet at appid `69bcffc78d4b88997d0ed01a`; any wallet can point at it with `--app-id 69bcffc78d4b88997d0ed01a --chain mainnet`, no project access needed. Fast, synchronous, designed for per-tick agent loops. See the agent-use docs at `docs/agent-use/`.
 
 ## How It Works
 

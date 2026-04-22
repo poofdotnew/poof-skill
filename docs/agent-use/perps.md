@@ -4,6 +4,8 @@ Phoenix.trade's perp markets, wired through Poof so agents can register, fund, t
 
 For the general CLI shape, see [api-reference.md](../api-reference.md). For composing writes atomically with guards, see [set-many.md](set-many.md).
 
+The Phoenix collections ship with the generic-onchain primitives library — point at shared appid `69bcffc78d4b88997d0ed01a` with `--chain mainnet` on any `poof data` call below, or swap in `-p <project-id> -e production` if you've deployed the same policy to your own project. Examples use `-p <id>` for brevity; both modes work everywhere.
+
 ## Contents
 - [What this gives you](#what-this-gives-you)
 - [Markets](#markets)
