@@ -62,16 +62,23 @@ JavaScript-like expressions controlling read/create/update/delete:
 
 **Default deny** — omitted operations default to `false`.
 
+**Rules are also where assertions live.** There is no `@assert` / `@require` primitive — if you need to reject a write because some runtime condition fails (balance, price, time), put the predicate in the `rules.create` expression. When it evaluates `false`, the whole Solana tx is rejected. Hooks are for side effects only.
+
 Key variables:
 - `@user.address` — current wallet
 - `@data` / `@newData` — document before/after mutation
 - `@constants.*` — app constants (ADMIN_ADDRESS, SOL, USDC, PROJECT_VAULT_ADDRESS)
 - `@time.now` — server timestamp (seconds)
-- `get(/path/$id)` — read another document
-- `getAfter(/path/$id)` — read document after pending atomic changes
+- `get(/path/$id)` — read another document before any pending changes
+- `getAfter(/path/$id)` — read after pending atomic changes (use this when a rule must observe another write in the same setMany bundle)
+
+DSL limits worth knowing up front:
+- No ternary `?:`, no `switch/case`. Multi-branch dispatch is chained `(cond && A) || (!cond && B)`.
+- No string concat `+` for path building. `+` is arithmetic only. Embed variables directly: `get(/Allowlist/@newData.listId/member/@user.address)`.
+- On-chain rules / hooks cannot read off-chain data. Any cross-collection gate whose source-of-truth is off-chain forces the gating collection to be on-chain.
 
 ### Hooks (Blockchain Operations)
-Policy hooks trigger on-chain actions automatically:
+Policy hooks run plugin calls as side effects when a rule passes:
 
 ```json
 "hooks": {
@@ -81,7 +88,7 @@ Policy hooks trigger on-chain actions automatically:
 }
 ```
 
-This means: when a document is created, transfer USDC from the user to the vault. No backend code needed.
+Chain multiple calls with `&&`; a falsy result short-circuits subsequent effects. Don't try to `throw` from a hook to gate something — put the predicate in `rules.create` instead.
 
 ### Queries (Read-Only Helpers)
 Policy `queries` handle read operations like checking balances, getting token addresses, or fetching swap quotes — without needing a backend endpoint.
@@ -113,6 +120,8 @@ For one-time operations (tips, direct transfers) where you don't need to store a
 ```
 
 No rent cost — executes the hook but doesn't create persistent state.
+
+**Rule enforcement on passthrough is defense-in-depth, not the primary gate.** Because nothing is written to storage, the `PUT /items` build-transaction step does not reject a passthrough create on a failed `create` rule — it still returns `202` with a signed transaction payload. The real authority check is the on-chain plugin call itself (e.g. `@TokenPlugin.transfer` requires `source` to sign the transaction; the Solana program rejects it at submission if the signer doesn't match). So `@newData.source == @user.address` and path-scope rules like `$userId == @user.address` on passthrough collections are useful for the generated SDK's type-safety and for documenting intent, but don't rely on them to block a forged client from *constructing* a transaction against your app — rely on them only to block the chain from *executing* one.
 
 ### Rent Reclaim Pattern
 Users pay rent on create → reclaim it on delete (plus any winnings/refunds via delete hooks).
@@ -172,7 +181,7 @@ Each collection file exports typed functions: `setItems()`, `getItems()`, `getMa
 - Verifiable randomness (VRF)
 - Prediction markets
 - Access control and business logic (policy rules)
-- Cross-document atomic operations
+- Cross-document atomic operations — multi-write guarantees via `setMany`, all-or-nothing per Solana tx; see [set-many.md](set-many.md)
 
 ### Cannot Do
 - ML/AI model training → use external API via backend

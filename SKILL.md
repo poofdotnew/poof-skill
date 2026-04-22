@@ -167,7 +167,7 @@ Copy this checklist and track your progress. Pick the variant that matches your 
 ```
 - [ ] Setup: poof keygen >> .env && poof auth login
 - [ ] Build: poof build -m "..." --mode backend,policy
-- [ ] Status: poof project status -p <id> --json   # capture connectionInfo (draft tarobaseAppId, backendUrl, apiUrl, authApiUrl, wsUrl)
+- [ ] Status: poof project status -p <id> --json   # capture connectionInfo (draft appId, backendUrl, apiUrl, authApiUrl, wsUrl)
 - [ ] Verify backend: poof verify -p <id>          # auto-detects backend-only mode and runs policy tests only — no UI tests against the placeholder
 - [ ] Build local frontend: wire @pooflabs/web init() using connectionInfo, run `npm run build`
 - [ ] Author source-aware UI lifecycle tests if you want Poof-hosted UI coverage: write `lifecycle-actions/ui-test-*.json` from the local frontend source, not from the minified dist bundle
@@ -233,6 +233,7 @@ on a `full` project and don't want Poof to re-run UI tests on every verify).
 - If the retry still ends with `summary.total == 0` or the CLI prints `Done, but no test results were found.`, treat that as missing-artifact failure and block or escalate instead of calling the build verified.
 - `poof iterate` distinguishes two empty-test cases: `Done, but no tests ran during this turn.` (prior suite exists, but this turn didn't touch it — expected for non-test prompts) vs `Done, but no test results were found.` (no suite exists at all). Neither counts as a pass — only `poof verify` produces canonical pass/fail evidence.
 - If `poof ship --target preview` fails because security review is required, capture that as an external unblock gate. `ship` is not equivalent to a successful deploy, and a security-review stop should be treated as a real blocker rather than retried blindly.
+- **Deploy eligibility is gated on `critical` findings only.** `high`, `medium`, `low` findings are surfaced in the scan output but don't block `poof deploy check` / `poof ship`. Default posture: still flag high findings to the user so they can make the call, but don't hard-stop a deploy on non-critical findings the way you would on a critical.
 
 ## Documentation
 
@@ -245,6 +246,8 @@ Read these for deeper context — especially **how-poof-works** if you're orches
 | [**Backend-Only Mode**](docs/backend-only.md)            | Using `backend,policy` generation mode with a local frontend — connection info, `@pooflabs/web` setup, PartyServer integration.                          |
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | Building a frontend that connects to a Poof backend — SDK init, wallet auth, database access, API routes, real-time subscriptions, React hooks, gotchas. |
 | [**Database SDK**](docs/database-sdk.md)                 | The generated db-client + collections pattern — typed functions, read/write, frontend vs backend, how to extract and use.                                |
+| [**setMany & Atomic Batches**](docs/set-many.md)         | The atomicity story — when to reach for `setMany`, composition patterns (transfer+guard, swap+price guard, escrow create+fund), failure semantics.        |
+| [**Writing Agents on Poof**](docs/agents.md)             | The read-own-state → poll → decide → act-atomic → verify loop for continuously-running agents. Covers `memories/$userId`, simulate queries, and putting it all together through `poof data …`. |
 | [**Deployment**](docs/deployment.md)                     | Environments (draft/preview/production/mobile), publishing, code downloads, custom domains.                                                              |
 | [**Static Frontend Deploy**](docs/static-deploy.md)      | Deploy a self-built static frontend to Poof — tar.gz upload via CLI.                                                                                     |
 | [**Credits & Payments**](docs/credits-and-payments.md)   | Credit system, paid features, x402 USDC top-up flow.                                                                                                     |
