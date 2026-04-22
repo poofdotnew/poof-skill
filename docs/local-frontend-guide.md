@@ -20,7 +20,7 @@ Use this guide when you're building your own UI (React, Vue, Svelte, React Nativ
 ## Prerequisites
 
 1. A Poof project with a backend — created via `poof build --mode backend,policy` or `poof build --mode policy`. See [backend-only.md](backend-only.md).
-2. Connection info from `poof project status -p <id> --json` — you need `tarobaseAppId`, `backendUrl`, and the API URLs. Get connection info with `poof project status -p <id> --json | jq '.connectionInfo'`.
+2. Connection info from `poof project status -p <id> --json` — you need the per-environment app ID (emitted as `tarobaseAppId` in the JSON, historical field name), `backendUrl`, and the API URLs. Get connection info with `poof project status -p <id> --json | jq '.connectionInfo'`.
 
 ## SDK Installation & Setup
 
@@ -143,7 +143,7 @@ Instead of hardcoding connection info, use env vars:
 
 ```env
 # Pick draft, preview, or production from connectionInfo
-VITE_TAROBASE_APP_ID=<connectionInfo.draft.tarobaseAppId>
+VITE_POOF_APP_ID=<connectionInfo.draft.tarobaseAppId>
 VITE_PARTYSERVER_URL=<connectionInfo.draft.backendUrl>
 # Shared URLs from connectionInfo
 VITE_API_URL=<connectionInfo.apiUrl>
@@ -571,7 +571,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 
 await init({
-  appId: import.meta.env.VITE_TAROBASE_APP_ID,
+  appId: import.meta.env.VITE_POOF_APP_ID,
   authApiUrl: 'https://auth.tarobase.com',
   apiUrl: 'https://api.tarobase.com',
   wsApiUrl: 'wss://api.tarobase.com/ws/v2',

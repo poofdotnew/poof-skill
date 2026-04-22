@@ -102,7 +102,7 @@ import { setMany, Time, Increment, Token, Address } from '@/lib/db-client';
 | `Increment.by(n)` | `{ likes: Increment.by(1) }` | Atomic increment/decrement. |
 | `Token.amount(name, amt)` | `Token.amount('SOL', 1.5)` | Handles decimal conversion (SOL=9, USDC=6). |
 | `Address.publicKey(key)` | `{ owner: Address.publicKey(pubkey) }` | Solana address for writes. |
-| `setMany([...])` | `await setMany([buildPost(...), buildComment(...)])` | Atomic batch operations. All items must be same type (all onchain OR all offchain). |
+| `setMany([...])` | `await setMany([buildPost(...), buildComment(...)])` | Atomic batch operations. All items must be same type (all onchain OR all offchain). See [set-many.md](agent-use/set-many.md) for composition patterns (transfer+guard, swap+price check, etc.) and failure semantics. |
 
 ## Frontend Usage (React)
 
@@ -199,7 +199,7 @@ For agents that build their own frontend/backend but want Poof's database:
 5. **Copy** those files into your own project
 6. **After policy changes**, re-download and re-extract — the generated files will reflect the updated schema
 
-> **Auth requirement:** If your policy has access rules that check caller identity (anything other than `true` for write rules), your frontend must integrate Tarobase login via `@pooflabs/web` so writes are wallet-signed. Without authenticated identity, the policy engine will reject writes. This only applies to frontend collections — backend collections use server-signed writes with `PROJECT_VAULT_PRIVATE_KEY` and don't need user login.
+> **Auth requirement:** If your policy has access rules that check caller identity (anything other than `true` for write rules), your frontend must integrate Poof wallet auth via `@pooflabs/web` so writes are wallet-signed. Without authenticated identity, the policy engine will reject writes. This only applies to frontend collections — backend collections use server-signed writes with `PROJECT_VAULT_PRIVATE_KEY` and don't need user login.
 >
 > See [local-frontend-guide.md](local-frontend-guide.md) for complete SDK setup, auth integration, and usage patterns in a local frontend.
 

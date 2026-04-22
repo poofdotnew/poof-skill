@@ -78,6 +78,28 @@ These composite commands handle multi-step operations automatically (polling, se
 | `poof deploy download -p <id>`                                                                                    | Start code export. Returns task ID.                                                                                                                                                                                                   |
 | `poof deploy download-url -p <id> --task <taskId>`                                                                | Get signed download URL (5-min expiry).                                                                                                                                                                                               |
 
+### Data (runtime reads/writes)
+
+Agent-facing runtime operations against a project's data plane — all CLI-driven. The CLI handles both the offchain submit path and real Solana tx signing + submit (mainnet) under the hood.
+
+**Two targeting modes** (every command below accepts either, but not both):
+
+- **Project-based** — `-p <project-id> [-e draft|preview|production]`. Default `-e` is `draft`. Looks up the right Tarobase appId from the project's `connectionInfo`. Requires project access.
+- **Shared-appid** — `--app-id <appId> --chain offchain|mainnet`. Talks to a Tarobase appId directly, e.g. a shared primitives library someone else has deployed. Auth is still your own wallet; no project access needed. User-scoped paths (`user/$userId/...`) keep callers sandboxed to their own data within the shared appId.
+
+Use `poof data app-ids -p <id>` to list a project's appIds per environment so you have the right `--app-id` / `--chain` pair for shared-appid mode.
+
+| Command                                                                                       | Description                                                                                                                                            |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `poof data set <TARGET> --path <path> --data '<json>'`                                        | Write a single document. Path is the full Poof collection path (e.g. `memories/<addr>` or `user/<addr>/TokenTransfer/<id>`).                          |
+| `poof data set-many <TARGET> --from-json <file>`                                              | Atomic multi-doc write. Payload is either a `[{path, document}, ...]` array or `{"documents":[...]}`. Any rule/hook failure rolls back the whole bundle. |
+| `poof data get <TARGET> --path <path>`                                                        | Read one document or list a collection by path.                                                                                                        |
+| `poof data get-many <TARGET> --from-json <paths.json>`                                        | Batch-read paths from a JSON string array; returns one result per path in order.                                                                       |
+| `poof data query <TARGET> --name <queryName> [--args '<json>'] [--path <path>]`               | Run a policy query. Default path is `queries/<name>`. Use `--path` for queries attached to a specific collection — e.g. `--path "user/<addr>/BalanceCheck/any" --name simulate` for a guard's simulate query. Inside queries, named `queryArgs` resolve as `@newData.<field>`. |
+| `poof data app-ids -p <id>`                                                                   | List a project's Tarobase appIds per env (draft/preview/production) plus the chain each maps to. Read this once; reuse the appId in shared-appid mode. |
+
+`<TARGET>` above is one of: `-p <project-id> [-e draft|preview|production]` or `--app-id <id> --chain offchain|mainnet`.
+
 ### Security
 
 | Command                                        | Description                                                                                        |
@@ -142,6 +164,15 @@ These composite commands handle multi-step operations automatically (polling, se
 | `poof update`                                   | Update poof to the latest GitHub release. Homebrew-managed installs should use `brew upgrade poofdotnew/tap/poof`. |
 | `poof update --check`                           | Check the latest release and platform asset without installing.                          |
 | `poof update --force`                           | Install the latest release even when the current version cannot be compared, such as a `dev` build. |
+
+## Debugging below the CLI
+
+You shouldn't need to talk to Poof's data-plane HTTP endpoints directly — `poof data` is the interface. If you do end up in the raw-HTTP layer (e.g. to reproduce a report that hit the REST endpoint), the two non-obvious points the CLI hides for you:
+
+- **Use the Cognito `idToken` as the Bearer token, not `accessToken`.** The data-plane API verifies against the ID token — `accessToken` returns `401 "Error verifying auth token"`.
+- **Scope auth to the per-env app ID, not the top-level poof.new app.** Nonce + signed-session have to be issued against the per-environment app ID from `poof project status --json` (`connectionInfo.<env>.tarobaseAppId` — a legacy field name; treat it as your Poof app ID for that environment). A session scoped to the wrong app returns `401` on every call.
+
+Everything else — `PUT /items`, `GET /items`, `POST /queries`, offchain submit, LUT-aware VersionedTransaction assembly for mainnet — is baked into the CLI and exposed through `poof data`.
 
 ## Global Flags
 

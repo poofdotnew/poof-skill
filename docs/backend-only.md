@@ -54,10 +54,10 @@ The `connectionInfo` object contains per-environment connection details:
 | `preview` | `{ tarobaseAppId, backendUrl }` or `null` | Mainnet Preview environment (after publishing with `target: "preview"`) |
 | `production` | `{ tarobaseAppId, backendUrl }` or `null` | Production environment (after publishing with `target: "production"`) |
 | `wsUrl` | WebSocket URL | Real-time data connection |
-| `apiUrl` | Tarobase REST API URL | Database API |
+| `apiUrl` | Poof data-plane REST API URL | Database API |
 | `authApiUrl` | Auth service URL | Pass to `init()` in `@pooflabs/web` |
 
-Each environment has a separate Tarobase app with its own data. Use `draft` for development/testing, `preview` for mainnet testing with allowlisted wallets, and `production` for live.
+Each environment has a separate Poof app with its own data. Use `draft` for development/testing, `preview` for mainnet testing with allowlisted wallets, and `production` for live. The legacy field name `tarobaseAppId` in the JSON above is what the server still emits — treat it as your per-environment Poof app ID.
 
 ## Building Your Local Frontend
 
@@ -262,7 +262,7 @@ whether `run_all_ui_tests` was invoked. Treat missing results as a blocker, not 
 | Page title matches your HTML, not "Poof Preview App" | Confirms your build replaced the placeholder shell |
 | Your top-level heading/root element renders | Confirms the JS bundle executed without runtime errors |
 | Browser console has zero errors (no `ReferenceError`, no CORS/CSP/import failures) | Catches bundler misconfig (Buffer polyfill, CommonJS interop, missing peers) |
-| SDK initialization log ("SDK initialized (appId=...)") | Confirms `@pooflabs/web` wired up to the right Tarobase app |
+| SDK initialization log ("SDK initialized (appId=...)") | Confirms `@pooflabs/web` wired up to the right Poof app |
 | A read-path smoke call (e.g. `get('notes')`) returns without throwing | Confirms the frontend can actually reach the backend with the right appId/endpoints |
 | Public-read collections render without wallet auth | Confirms the policy read rules are public |
 | Auth-gated write fails gracefully without a wallet session | Confirms the policy engine is actually enforcing, and your UI degrades cleanly |

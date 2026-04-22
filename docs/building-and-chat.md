@@ -54,7 +54,7 @@ Control what the AI generates with `--mode`:
 
 #### Auth requirement for policies
 
-If your app uses policies with access rules beyond `true` (rules that check caller identity), your frontend **must** integrate Tarobase login via the `@pooflabs/web` SDK so writes are wallet-signed. Without this, writes will be rejected.
+If your app uses policies with access rules beyond `true` (rules that check caller identity), your frontend **must** integrate Poof wallet auth via the `@pooflabs/web` SDK so writes are wallet-signed. Without this, writes will be rejected.
 
 Exception: policies where all write rules are `true` (fully public access) don't require authentication.
 
@@ -125,6 +125,8 @@ EOF
 ```
 
 `poof iterate` sends the message, waits for the AI to finish, and shows test results.
+
+> **Where to ask the AI to write .md / .txt artifacts.** Only files under the project's **synced source tree** come back through `poof files get`. In practice, that's `UI/`, `policy/`, `server/`, plus `src/content/` — the content folder is the canonical home for free-form markdown, text, and reference docs the AI produces. If you ask it to write to `docs/...`, `server/docs/...`, or any other path, the file may appear in the AI's sandbox but never sync to your project, and you'll only get the chat summary back. When requesting a design doc, spec, or notes file, tell the AI explicitly: *"Write the doc to `src/content/<name>.md`."*
 
 > **One message at a time.** `poof iterate` handles waiting automatically. If using the lower-level `poof chat send`, always wait for `poof chat active` to return `state: "idle"` before sending the next message. Sending while AI is active queues the message (FIFO), but the AI won't have your evaluation context.
 >
