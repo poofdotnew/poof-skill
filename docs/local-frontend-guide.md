@@ -7,13 +7,17 @@ Use this guide when you're building your own UI (React, Vue, Svelte, React Nativ
 ## Contents
 - [Prerequisites](#prerequisites)
 - [SDK Installation & Setup](#sdk-installation--setup)
+- [Mount First, Init Asynchronously](#mount-first-init-asynchronously)
 - [Wallet Authentication](#wallet-authentication)
 - [Two Ways to Access Data](#two-ways-to-access-data)
 - [Direct Database Access (get/set/subscribe)](#direct-database-access-getsetsubscribe)
 - [Calling PartyServer API Routes](#calling-partyserver-api-routes)
 - [Using the Generated Typed SDK](#using-the-generated-typed-sdk)
 - [Real-Time Subscriptions (React)](#real-time-subscriptions-react)
+- [Mobile / Desktop Modal Split](#mobile--desktop-modal-split)
 - [Special Utilities & Gotchas](#special-utilities--gotchas)
+- [Mock Auth for Local Dev + Stagehand](#mock-auth-for-local-dev--stagehand)
+- [Anti-Patterns](#anti-patterns)
 - [Complete React Example](#complete-react-example)
 - [Complete Vanilla JS Example](#complete-vanilla-js-example)
 
@@ -151,6 +155,30 @@ VITE_WS_API_URL=<connectionInfo.wsUrl>
 VITE_AUTH_API_URL=<connectionInfo.authApiUrl>
 ```
 
+## Mount First, Init Asynchronously
+
+**Never gate `createRoot(...).render(...)` on a top-level `await` of `init()` from `@pooflabs/web`.**
+
+```tsx
+// GOOD — main.tsx
+const root = document.getElementById('root');
+if (!root) throw new Error('Missing #root element');
+createRoot(root).render(<StrictMode><App /></StrictMode>);
+
+void init({ appId, authApiUrl, apiUrl, wsApiUrl, authMethod: 'phantom', skipBackendInit: true })
+  .catch((err) => { console.error('[init] failed', err); /* surface via context */ });
+```
+
+```tsx
+// BAD
+await init({ ... });  // top-level await at module scope
+createRoot(root).render(<App />);  // never reached if init() hangs in prod
+```
+
+Vite dev mode is forgiving about top-level await so the bug stays hidden until the production bundle. In the built bundle, ES modules block evaluation at top-level await — if `init()` hangs on a websocket handshake or a slow auth call, `render()` is never reached, `<div id="root">` stays empty, `curl` returns HTTP 200 on the shell, and the page silently never mounts.
+
+Surface init failures through React state / context, not by blocking mount. The poof v3 template's `src/lib/poofClient.ts` demonstrates the pattern — `startInit()` returns a promise consumed by a subscribe hook, not awaited at module scope.
+
 ## Wallet Authentication
 
 Poof uses Solana wallet authentication. The `@pooflabs/web` SDK handles the full flow — wallet connection, message signing, and JWT token management.
@@ -242,6 +270,21 @@ await set('notes/note-123', {
 ```
 
 The write goes through the policy engine — access rules are checked against the authenticated user's wallet address.
+
+**Mutations from the generated SDK return `Promise<boolean>`.** Every `set*` / `update*` / `delete*` generated under `src/lib/collections/*` (or the `db-client`) returns `Promise<boolean>`:
+
+- `true` → operation succeeded.
+- `false` → policy denied (logged internally by `@pooflabs/web`). It does **not** throw.
+
+```typescript
+const ok = await setNotes(noteId, { title, body });
+if (!ok) {
+  toast.error('Could not save — permission denied.');
+  return;
+}
+```
+
+You **must** check the return value. Ignoring it silently hides `ruleDenied` from users — the UI says "saved!" while nothing landed.
 
 ### Read
 
@@ -501,6 +544,28 @@ function subscribeToNotes(callback: (data: any) => void) {
 const { data: allNotes, loading } = useRealtimeData(subscribeToNotes, true);
 ```
 
+## Mobile / Desktop Modal Split
+
+Use a `useMobile()` hook (viewport breakpoint) to switch between Sheet/Drawer (bottom sheet, swipeable) on mobile and Dialog/AlertDialog (centered modal) on desktop:
+
+```tsx
+import { useMobile } from './hooks/use-mobile';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui';
+
+const isMobile = useMobile();
+const Wrapper = isMobile ? Sheet : Dialog;
+const Content = isMobile ? SheetContent : DialogContent;
+const Trigger = isMobile ? SheetTrigger : DialogTrigger;
+
+<Wrapper>
+  <Trigger>...</Trigger>
+  <Content>...</Content>
+</Wrapper>
+```
+
+The poof v3 template ships `use-mobile.ts` at `src/hooks/`. Don't hand-roll — import it.
+
 ## Special Utilities & Gotchas
 
 ### Timestamps are Unix Seconds
@@ -555,6 +620,29 @@ if (loading) return <Spinner />;
 if (!user) return <LoginButton />;
 return <Dashboard />;
 ```
+
+## Mock Auth for Local Dev + Stagehand
+
+The poof v3 template's `poofClient.ts` recognizes `?mockAuth=true` on `localhost` and during local Stagehand UI-test runs:
+
+- `poofClient` seeds a mock user address in `sessionStorage` (`poof:mockUserAddress` or `test-user-address`) before calling `init()` / `login()`.
+- The default mock address is `HKbZbRR7jWWR5VRN8KFjvTCHEzJQgameYxKQxh2gPoof`.
+- Stagehand opens `/?mockAuth=true&appId=<tarobaseAppId>`; if the bound project's `tarobaseAppId` is missing from `poof.config.json`, every test returns `status: 'skipped'` with `project-unbound`.
+
+**Mock-auth race.** The most common failure: your `init()` / `startInit()` flips `ready` before `await login()` resolves. First render paints the "Connect wallet" fallback copy, Stagehand reads it, every test fails. Gate render on `ready`, show a distinctive pre-ready loading state (e.g. `"Loading room…"`), await mock login before flipping. Don't trust the fact that `useAuth().user` is populated; check your own `ready` flag that only flips after `await login()` returns.
+
+## Anti-Patterns
+
+- **`enabled: false` left behind.** Double-check every `useRealtimeData` call's second argument when the UI is blank.
+- **Ignoring mutation return values.** `if (!ok) return;` after every `set*` / `update*` / `delete*`.
+- **Top-level `await` before `createRoot`.** See [Mount First, Init Asynchronously](#mount-first-init-asynchronously).
+- **Creating your own hook files.** Import `useRealtimeData`, `useMobile` from the template's `src/hooks/`.
+- **Skeleton loaders on fast realtime data.** They flash for < 100ms and distract. Render final layout + empty state instead, or use a subtle `animate-fade-in` on arrival. Reserve `Skeleton` for genuinely slow surfaces.
+- **Hidden initial animations around realtime containers.** `initial='hidden'` without an `animate` triggered on data arrival → blank UI until timeline completes.
+- **Missing null safety.** Optional chaining everywhere: `obj?.prop`, `obj?.method?.()`, `value?.toFixed?.(2) ?? '0.00'`.
+- **Touching `src/lib/*`.** Auto-generated. Put your utilities in `src/utils/` instead.
+- **Overwriting existing page content.** `Read` the target file before you `Write`. Only replace if the user explicitly asks.
+- **Ambiguous visible text in ui-test flows.** Stagehand can't read `data-testid` — if two elements say "0 staked", extract is ambiguous. Use distinctive phrasing per element (e.g. `"42 stakers"` vs `"Your stake: 0.0099 SOL"`).
 
 ## Complete React Example
 
