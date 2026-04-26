@@ -103,7 +103,7 @@ If `poof credits topup` fails, check:
 
 ## Per-Project Credit Bank
 
-Pre-fund a project so its runtime usage and AI chat don't draw from your personal credit pool. Owner-only mutations; admins / collaborators read-only.
+Pre-fund a project's wallet so its runtime usage and AI chat draw from there before falling back to your account. Owner-only mutations; admins / collaborators read-only.
 
 ### Buckets
 
@@ -113,7 +113,7 @@ Pre-fund a project so its runtime usage and AI chat don't draw from your persona
 | `usage`    | Runtime only: infra compute, storage, gas | No       |
 | `chat`     | AI chat / Claude development only         | No       |
 
-Drain order: purpose-specific bucket → `combined` → owner's personal balance (unless that purpose is isolated). Each bucket splits into *withdrawable* (deposited) and *reserved* (Poof-granted) pools — only withdrawable can be pulled back out.
+Drain order: purpose-specific bucket → `combined` → owner's account balance (unless that purpose is isolated). Each bucket splits into *withdrawable* (your deposits) and *reserved* (Poof-granted) pools — only withdrawable can be pulled back out.
 
 ### Commands
 
@@ -127,13 +127,13 @@ poof credits project deposit -p <id> --amount 100 --bucket usage
 # Withdraw creates a fresh add-on payment record (6-month expiry).
 poof credits project withdraw -p <id> --amount 30
 
-# Isolation: when true, that purpose pauses on empty (no personal-balance fallback).
+# Isolation: when true, that purpose pauses on empty (no account-balance fallback).
 poof credits project isolation -p <id> --usage true --chat false
 ```
 
 ### Picking a policy
 
-- **Default (recommended).** Deposit `combined`, leave both isolations off. Bank covers spend, personal balance picks up after.
+- **Default (recommended).** Deposit `combined`, leave both isolations off. Wallet covers spend; account balance picks up after.
 - **Hard cap.** Set `--usage true` (and/or `--chat true`) to pause instead of falling back.
 - **Per-purpose accounting.** Use `usage` / `chat` buckets even with isolation off, just to track separately.
 
@@ -162,7 +162,7 @@ poof usage resume -p <id>                  # unblock a paused project
 Key fields in `status`:
 
 - `costCredits` / `freeCreditsApplied` / `chargedCredits` — spend / free-tier coverage / overage.
-- `paidCreditsRemaining` — available to cover overage (includes the project bank's `usage`-spendable balance when not isolated).
+- `paidCreditsRemaining` — available to cover overage (your account balance plus the project wallet's `usage`-spendable portion when not isolated).
 - `isBlocked` / `canResume` / `blockedReason` — pause state.
 - `summaryStale` / `blockedStatusStale` — upstream pipeline failed; **don't act on the corresponding fields**.
 

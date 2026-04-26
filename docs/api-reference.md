@@ -143,16 +143,16 @@ User-level credits (your personal pool — daily, subscription, add-on):
 | `poof credits balance`              | Credit balance: daily, add-on, totals.                                                          |
 | `poof credits topup [--quantity N]` | Buy credits via x402 USDC (1-10 packages, each = 50 credits / $15). Also unlocks paid features. |
 
-Per-project credit bank (owner-only — see [credits-and-payments](credits-and-payments.md#per-project-credit-bank) for the full model):
+Per-project credit bank — the project's "wallet" (owner-only — see [credits-and-payments](credits-and-payments.md#per-project-credit-bank) for the full model):
 
 | Command                                                                             | Description                                                                                                                                            |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `poof credits project status -p <id>`                                               | Buckets (combined/usage/chat), withdrawable/reserved totals, isolation flags, your personal paid balance.                                              |
-| `poof credits project deposit -p <id> --amount N [--bucket B]`                      | Move N whole paid credits into the project bank. Bucket defaults to `combined`. Daily credits are never used.                                          |
-| `poof credits project withdraw -p <id> --amount N [--bucket B]`                     | Drain N from a withdrawable bucket back as a fresh add-on payment record (6-month expiry). Concurrent withdrawals are server-side gated.               |
-| `poof credits project isolation -p <id> [--usage true\|false] [--chat true\|false]` | When isolated, that purpose pauses on empty (no fallback to personal balance). At least one flag required.                                             |
+| `poof credits project status -p <id>`                                               | Wallet buckets (combined/usage/chat), yours/granted totals, isolation flags, your account balance.                                                     |
+| `poof credits project deposit -p <id> --amount N [--bucket B]`                      | Add N whole paid credits to the project wallet. Bucket defaults to `combined`. Daily credits are never used.                                           |
+| `poof credits project withdraw -p <id> --amount N [--bucket B]`                     | Drain N from a withdrawable bucket back to your account as a fresh add-on payment record (6-month expiry). Concurrent withdrawals are server-side gated. |
+| `poof credits project isolation -p <id> [--usage true\|false] [--chat true\|false]` | When isolated, that purpose pauses on empty (no fallback to your account). At least one flag required.                                                  |
 
-Drain order: purpose bucket → `combined` → personal balance (unless that purpose is isolated).
+Drain order: purpose bucket → `combined` → your account balance (unless that purpose is isolated).
 
 ### Usage & Overuse Limits
 

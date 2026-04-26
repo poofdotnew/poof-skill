@@ -394,7 +394,7 @@ See [docs/how-poof-works.md](docs/how-poof-works.md) for the architecture knowle
 ## Best Practices
 
 - **Check credits** — `poof credits balance` is free. A full build + test + polish cycle costs 3-5 credits. If credits run out mid-build, the AI stops responding
-- **Pre-fund a project (optional)** — `poof credits project deposit -p <id> --amount N` funds a per-project bank so runtime + AI chat draw from there first. Pair with `poof credits project isolation -p <id> --usage true --chat true` to hard-cap spend. See [credits-and-payments](docs/credits-and-payments.md#per-project-credit-bank)
+- **Pre-fund a project (optional)** — `poof credits project deposit -p <id> --amount N` funds the project's wallet so runtime + AI chat draw from there before falling back to your account. Pair with `poof credits project isolation -p <id> --usage true --chat true` to hard-cap spend at the wallet. See [credits-and-payments](docs/credits-and-payments.md#per-project-credit-bank)
 - **Read project usage** — `poof usage status -p <id>` shows month-to-date cost and pause state. `poof usage limit -p <id> --credits N` caps paid overage; `poof usage resume -p <id>` unblocks a paused app once preconditions are met
 - **One message at a time** — `poof iterate` handles waiting automatically; if using `poof chat send`, wait for `poof chat active -p <id>` to return `state: "idle"` before sending the next message
 - **Clear context sparingly** — `poof chat clear -p <id>` drops the saved Claude Code session ID so the next message starts with fresh AI context while preserving the project and message history. Use it after evidence of stale context, not as a routine retry button
