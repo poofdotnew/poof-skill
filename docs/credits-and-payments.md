@@ -103,7 +103,7 @@ If `poof credits topup` fails, check:
 
 ## Per-Project Credit Balance
 
-Add credits to a specific project so its infrastructure and Poof AI draw from there before falling back to your credit balance. Owner-only mutations; admins / collaborators read-only.
+Add credits to a specific project so its infrastructure and Poof AI draw from there before falling back to your account credit balance. Owner-only mutations; admins / collaborators read-only.
 
 ### Buckets
 
@@ -115,7 +115,7 @@ The bucket choice scopes what a credit can be spent on:
 | `usage`    | Infrastructure only (compute, storage, gas) | No     |
 | `chat`     | Poof AI only                              | No       |
 
-Drain order: purpose-specific bucket → `combined` → owner's credit balance (unless that purpose has fallback off). Each bucket splits into *yours* (deposits) and *granted* (Poof-granted) pools — only the yours portion can be pulled back out.
+Drain order: purpose-specific bucket → `combined` → owner's account credit balance (unless that purpose has fallback off). Each bucket splits into *yours* (deposits) and *granted* (Poof-granted) pools — only the yours portion can be pulled back out.
 
 ### Commands
 
@@ -135,7 +135,7 @@ poof credits project isolation -p <id> --usage true --chat false
 
 ### Picking a policy
 
-- **Default (recommended).** Deposit `combined`, leave both fallbacks on. Project credits cover spend; your credit balance picks up after.
+- **Default (recommended).** Deposit `combined`, leave both fallbacks on. Project credits cover spend; your account credit balance picks up after.
 - **Hard cap a purpose.** Set `--usage true` (and/or `--chat true`) to pause that purpose instead of falling back.
 - **Per-purpose accounting.** Use `usage` / `chat` buckets to scope credits by what they cover, even with fallback on.
 
@@ -164,7 +164,7 @@ poof usage resume -p <id>                  # unblock a paused project
 Key fields in `status`:
 
 - `costCredits` / `freeCreditsApplied` / `chargedCredits` — spend / free-tier coverage / overage.
-- `paidCreditsRemaining` — available to cover overage (your credit balance plus this project's infrastructure-spendable credits when fallback is on).
+- `paidCreditsRemaining` — available to cover overage (your account credit balance plus this project's infrastructure-spendable credits when fallback is on).
 - `isBlocked` / `canResume` / `blockedReason` — pause state.
 - `summaryStale` / `blockedStatusStale` — upstream pipeline failed; **don't act on the corresponding fields**.
 

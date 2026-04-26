@@ -147,12 +147,12 @@ Per-project credit balance — credits scoped to a specific project (owner-only 
 
 | Command                                                                             | Description                                                                                                                                            |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `poof credits project status -p <id>`                                               | Bucket totals (combined / infrastructure / Poof AI), yours/granted split, fallback flags, your credit balance.                                          |
+| `poof credits project status -p <id>`                                               | Bucket totals (combined / infrastructure / Poof AI), yours/granted split, fallback flags, your account credit balance.                                  |
 | `poof credits project deposit -p <id> --amount N [--bucket B]`                      | Add N whole paid credits to a project. Bucket defaults to `combined`. Daily credits are never used.                                                    |
 | `poof credits project withdraw -p <id> --amount N [--bucket B]`                     | Drain N from a withdrawable bucket back to your account as a fresh add-on payment record (6-month expiry). Concurrent withdrawals are server-side gated. |
 | `poof credits project isolation -p <id> [--usage true\|false] [--chat true\|false]` | When isolated, that purpose pauses on empty (no fallback to your account). At least one flag required.                                                  |
 
-Drain order: purpose bucket → `combined` → your credit balance (unless that purpose has fallback off).
+Drain order: purpose bucket → `combined` → your account credit balance (unless that purpose has fallback off).
 
 ### Usage & Overuse Limits
 
