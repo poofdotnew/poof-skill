@@ -4,7 +4,7 @@
 - [Credit System](#credit-system)
 - [Paid Features](#paid-features)
 - [x402 Credit Top-Up](#x402-credit-top-up)
-- [Per-Project Credit Bank](#per-project-credit-bank)
+- [Per-Project Credit Balance](#per-project-credit-balance)
 - [Usage & Overuse Limits](#usage--overuse-limits)
 - [AI Preferences](#ai-preferences)
 
@@ -101,19 +101,21 @@ If `poof credits topup` fails, check:
 2. You are authenticated (`poof auth login`)
 3. Quantity is between 1 and 10
 
-## Per-Project Credit Bank
+## Per-Project Credit Balance
 
-Pre-fund a project's wallet so its runtime usage and AI chat draw from there before falling back to your account. Owner-only mutations; admins / collaborators read-only.
+Add credits to a specific project so its infrastructure and Poof AI draw from there before falling back to your credit balance. Owner-only mutations; admins / collaborators read-only.
 
 ### Buckets
 
+The bucket choice scopes what a credit can be spent on:
+
 | Bucket     | Spendable on                              | Default? |
 | ---------- | ----------------------------------------- | -------- |
-| `combined` | Either runtime usage or AI chat           | Yes      |
-| `usage`    | Runtime only: infra compute, storage, gas | No       |
-| `chat`     | AI chat / Claude development only         | No       |
+| `combined` | Either infrastructure or Poof AI          | Yes      |
+| `usage`    | Infrastructure only (compute, storage, gas) | No     |
+| `chat`     | Poof AI only                              | No       |
 
-Drain order: purpose-specific bucket → `combined` → owner's account balance (unless that purpose is isolated). Each bucket splits into *withdrawable* (your deposits) and *reserved* (Poof-granted) pools — only withdrawable can be pulled back out.
+Drain order: purpose-specific bucket → `combined` → owner's credit balance (unless that purpose has fallback off). Each bucket splits into *yours* (deposits) and *granted* (Poof-granted) pools — only the yours portion can be pulled back out.
 
 ### Commands
 
@@ -122,20 +124,20 @@ poof credits project status -p <id>
 
 # Deposit pulls from paid (subscription + add-on) credits — never daily.
 poof credits project deposit -p <id> --amount 50                  # combined
-poof credits project deposit -p <id> --amount 100 --bucket usage
+poof credits project deposit -p <id> --amount 100 --bucket usage  # infrastructure only
 
 # Withdraw creates a fresh add-on payment record (6-month expiry).
 poof credits project withdraw -p <id> --amount 30
 
-# Isolation: when true, that purpose pauses on empty (no account-balance fallback).
+# Fallback off: that purpose pauses when this project's credits run out.
 poof credits project isolation -p <id> --usage true --chat false
 ```
 
 ### Picking a policy
 
-- **Default (recommended).** Deposit `combined`, leave both isolations off. Wallet covers spend; account balance picks up after.
-- **Hard cap.** Set `--usage true` (and/or `--chat true`) to pause instead of falling back.
-- **Per-purpose accounting.** Use `usage` / `chat` buckets even with isolation off, just to track separately.
+- **Default (recommended).** Deposit `combined`, leave both fallbacks on. Project credits cover spend; your credit balance picks up after.
+- **Hard cap a purpose.** Set `--usage true` (and/or `--chat true`) to pause that purpose instead of falling back.
+- **Per-purpose accounting.** Use `usage` / `chat` buckets to scope credits by what they cover, even with fallback on.
 
 ### Concurrency
 
@@ -162,7 +164,7 @@ poof usage resume -p <id>                  # unblock a paused project
 Key fields in `status`:
 
 - `costCredits` / `freeCreditsApplied` / `chargedCredits` — spend / free-tier coverage / overage.
-- `paidCreditsRemaining` — available to cover overage (your account balance plus the project wallet's `usage`-spendable portion when not isolated).
+- `paidCreditsRemaining` — available to cover overage (your credit balance plus this project's infrastructure-spendable credits when fallback is on).
 - `isBlocked` / `canResume` / `blockedReason` — pause state.
 - `summaryStale` / `blockedStatusStale` — upstream pipeline failed; **don't act on the corresponding fields**.
 
