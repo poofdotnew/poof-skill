@@ -35,6 +35,7 @@ These composite commands handle multi-step operations automatically (polling, se
 | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `poof project list [--limit N] [--offset N]`                                                                               | List all projects. Default limit: 10.                                                                                                                                                                                         |
 | `poof project create -m "..." [--mode MODE] [--public] [--stdin]`                                                          | Create a project (AI starts building). Does NOT wait — use `poof build` instead. Mode: `full` (default), `policy`, `ui,policy`, `backend,policy`. Bare values `ui` and `backend` are also accepted (policy is auto-included). |
+| `poof project create --no-ai [--title T] [--description D] [--slug S] [--mode policy\|backend,policy] [--policy FILE] [--constants FILE] [--public]` | Create a project-backed policy/database backend without invoking AI. Default no-AI mode is `backend,policy`. The project can still be used later with `poof iterate -p <id> ...`. |
 | `poof project status -p <id>`                                                                                              | Get metadata, task status, deployment URLs, connection info.                                                                                                                                                                  |
 | `poof project update -p <id> [--title T] [--description D] [--slug S] [--public] [--generation-mode MODE] [--network NET]` | Update project settings.                                                                                                                                                                                                      |
 | `poof project delete -p <id> --yes [--dry-run]`                                                                            | Delete a project permanently. Use `--dry-run` to preview without deleting.                                                                                                                                                    |
@@ -58,6 +59,18 @@ These composite commands handle multi-step operations automatically (polling, se
 | `poof files update -p <id> --file PATH --content "..."` | Update a single file.                                                                             |
 | `poof files update -p <id> --from-json FILE`            | Update multiple files from a JSON map of project paths to file contents. Use paths like `lifecycle-actions/ui-test-create-post.json` for source-authored UI lifecycle tests. |
 | `poof files upload -p <id> --file <path>`               | Upload an image to project storage. Returns CDN URL. Supported: PNG, JPEG, GIF, WebP (max 3.4MB). |
+
+### Policy (direct policy/DB)
+
+Direct policy commands manage project-backed policy/constants versions without invoking Poof AI. Use `poof data` afterward for runtime reads, writes, and policy queries.
+
+| Command                                                                                                      | Description                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `poof policy get -p <id> [--out-dir DIR]`                                                                    | Fetch the latest stored policy/constants and connection info. With `--out-dir`, writes `poof.json` and `constants.json`.                                         |
+| `poof policy validate -p <id> [--env draft\|preview\|production] [--policy FILE] [--constants FILE] [--dry-run]` | Validate policy/constants server-side against the target environment without creating a stored version. `--env` defaults to `draft`.                              |
+| `poof policy deploy -p <id> [--env draft\|preview\|production] [--policy FILE] [--constants FILE] [--dry-run] [--yes]` | Validate, version, and deploy policy/constants. Preview/production use the signed update-authority permit flow; production requires `--yes`.                      |
+| `poof policy history -p <id> [--limit N]`                                                                    | List recent policy/constants versions and hashes.                                                                                                                 |
+| `poof policy rollback -p <id> --task <taskId> [--env draft\|preview\|production] [--dry-run]`                | Deploy policy/constants from a previous task. Production rollback must be staged through draft first, then deployed to production from the latest stored version. |
 
 ### Tasks & Testing
 
