@@ -5,7 +5,7 @@
 <h3 align="center">Poof CLI Skill</h3>
 
 <p align="center">
-  Build autonomous AI agents that create, deploy, and manage full-stack Solana dApps — using the <code>poof</code> CLI, no custom code needed.
+  Build autonomous AI agents that create, deploy, and manage Solana app backends and full-stack dApps — using the <code>poof</code> CLI, no custom code needed.
 </p>
 
 <p align="center">
@@ -21,17 +21,19 @@
 
 This repository contains the **Poof skill** — a documentation and reference package that teaches AI agents (Claude Code, Cursor, Windsurf, etc.) how to use the [Poof](https://poof.new) platform programmatically via the `poof` CLI.
 
-Poof is a Backend-as-a-Service for Solana. It generates full-stack dApps (database policies, backend APIs, frontend UI, blockchain operations) from natural language — and this skill gives your AI agent the knowledge to drive that entire lifecycle without a browser.
+Poof is a Backend-as-a-Service for Solana. It can generate full-stack dApps (database policies, backend APIs, frontend UI, blockchain operations) from natural language, or let agents manage project-backed policy/database backends directly without invoking AI. This skill gives your AI agent the knowledge to drive that lifecycle without a browser.
 
 > **For AI agents:** The skill definition lives in [`SKILL.md`](SKILL.md). Detailed docs are in [`docs/`](docs/).
 
 ## How It Works
 
 ```
-Your Agent ──► poof CLI (auth + API + polling built in) ──► poof.new
+App building:    Your Agent ──► poof build/iterate/ship ──► poof.new
+Direct backend:  Your Agent ──► poof project create --no-ai + poof policy ──► Poof project's Tarobase apps
+Data plane:      Your Agent ──► poof data set/get/query ──► Poof project's Tarobase appId
 ```
 
-Your agent runs `poof` CLI commands to create projects, iterate via chat, run tests, and deploy — all through simple shell commands.
+Your agent runs `poof` CLI commands to create projects, optionally iterate via chat, run tests, deploy, and operate the runtime data plane — all through simple shell commands.
 
 ## Quick Start
 
@@ -65,6 +67,14 @@ poof build -m "Build a token-gated voting app where holders can create proposals
 ```
 
 This creates the project, waits for the AI to finish building, and returns the project ID and URLs.
+
+For a no-AI backend project from local policy files:
+
+```bash
+poof project create --no-ai --title "Agent Memory" --mode backend,policy
+poof policy validate -p <project-id> --policy policy/poof.json --constants policy/constants.json
+poof policy deploy -p <project-id> --policy policy/poof.json --constants policy/constants.json
+```
 
 ### 4. Iterate
 
@@ -131,6 +141,7 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 ### What the skill provides
 
 - **CLI commands** — Complete interface for project lifecycle (build, iterate, deploy, test, download)
+- **Direct policy/DB commands** — `poof project create --no-ai` plus `poof policy get|validate|deploy|history|rollback`
 - **Generation modes** — `full`, `policy`, `backend,policy`, `ui,policy`
 - **Composite workflows** — `poof build` (create + wait), `poof iterate` (chat + wait + test results), `poof ship` (scan + check + deploy)
 - **Testing workflows** — Lifecycle action tests, including source-authored UI tests for statically deployed local frontends
