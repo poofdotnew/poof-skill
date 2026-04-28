@@ -642,7 +642,7 @@ The poof v3 template's `poofClient.ts` recognizes `?mockAuth=true` on `localhost
 - **Missing null safety.** Optional chaining everywhere: `obj?.prop`, `obj?.method?.()`, `value?.toFixed?.(2) ?? '0.00'`.
 - **Touching `src/lib/*`.** Auto-generated. Put your utilities in `src/utils/` instead.
 - **Overwriting existing page content.** `Read` the target file before you `Write`. Only replace if the user explicitly asks.
-- **Ambiguous visible text in ui-test flows.** Stagehand can't read `data-testid` — if two elements say "0 staked", extract is ambiguous. Use distinctive phrasing per element (e.g. `"42 stakers"` vs `"Your stake: 0.0099 SOL"`).
+- **Ambiguous visible text in ui-test flows.** Use deterministic `action` steps with `data-testid`, role/name, labels, or placeholders for interactions when source selectors are available. `verify.extract` is still natural-language, so if two elements say "0 staked", extraction is ambiguous. Use distinctive phrasing per element (e.g. `"42 stakers"` vs `"Your stake: 0.0099 SOL"`).
 
 ## Complete React Example
 

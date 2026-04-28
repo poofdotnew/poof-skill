@@ -201,9 +201,10 @@ and [docs/testing.md](docs/testing.md) for the full recipe.
 
 When authoring `ui-test-*.json`, inspect the UI source first: routes/pages, exact button and form
 labels, validation copy, success states, database writes/reads, and auth/onchain behavior. Write one
-file per user flow, use exact visible text in each `act`, and make each `verify` assert a concrete
-result such as a newly created title appearing in a list. Avoid generic checks like "page loaded",
-"heading exists", or "interactive elements are present". See
+file per user flow. Prefer deterministic `action` steps targeting `data-testid`, role/name, labels,
+placeholders, or unique visible text; use natural-language `act` only as a fallback. Make each
+`verify` assert a concrete result such as a newly created title appearing in a list. Avoid generic
+checks like "page loaded", "heading exists", or "interactive elements are present". See
 [docs/testing.md#how-to-generate-ui-test-json](docs/testing.md#how-to-generate-ui-test-json).
 
 `poof verify` is the only test command an agent should rely on for pass/fail. It snapshots

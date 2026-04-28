@@ -89,7 +89,7 @@ Bootstraps set up required state (configs, counters, default data). They run cli
 
 ### 3. UI Test Files — Browser-Based Functional Tests
 
-UI test files use browser automation (Browserbase + Stagehand) to verify the full stack works end-to-end: UI renders correctly, forms submit, navigation works, and on-chain operations complete.
+UI test files use browser automation (Browserbase + Stagehand) to verify the full stack works end-to-end: UI renders correctly, forms submit, navigation works, and on-chain operations complete. Prefer deterministic `action` steps when source selectors, roles, labels, placeholders, or unique text are known; use natural-language `act` only as a fallback.
 
 All UI tests run as a mock authenticated user with address: **`HKbZbRR7jWWR5VRN8KFjvTCHEzJQgameYxKQxh2gPoof`**. The test runner opens the app with `?mockAuth=true` — no real wallet needed.
 
@@ -101,7 +101,7 @@ All UI tests run as a mock authenticated user with address: **`HKbZbRR7jWWR5VRN8
   "description": "Verify users can create and view posts",
   "steps": [
     {
-      "act": "Click the 'Create Post' button in the header",
+      "action": { "op": "click", "target": { "testId": "create-post-button" } },
       "verify": {
         "extract": "Is the post creation form visible?",
         "schema": { "formVisible": "boolean" },
@@ -109,7 +109,13 @@ All UI tests run as a mock authenticated user with address: **`HKbZbRR7jWWR5VRN8
       }
     },
     {
-      "act": "Type 'My First Post' in the title input and 'Hello world' in the content area, then click Submit",
+      "action": { "op": "fill", "target": { "label": "Title" }, "value": "My First Post" }
+    },
+    {
+      "action": { "op": "fill", "target": { "label": "Content" }, "value": "Hello world" }
+    },
+    {
+      "action": { "op": "click", "target": { "role": "button", "name": "Submit" } },
       "verify": {
         "extract": "The text of the success message or the title of the newly created post",
         "schema": { "title": "string" },
@@ -367,7 +373,7 @@ Fund with native SOL (omit `mint`) and specific tokens (pass `mint` address).
 
 ## UI Functional Tests
 
-UI test files verify that the app's frontend works correctly — buttons function, forms submit, data displays, navigation works. They use browser automation (Browserbase + Stagehand) with natural-language-driven interactions and structured assertions.
+UI test files verify that the app's frontend works correctly — buttons function, forms submit, data displays, navigation works. They use browser automation (Browserbase + Stagehand) with deterministic Playwright-backed `action` steps when possible, natural-language `act` fallback when needed, and structured assertions.
 
 ### How They Work
 
@@ -375,7 +381,7 @@ UI test files verify that the app's frontend works correctly — buttons functio
    - For `full` or `ui,policy` projects, Poof's AI can generate them because it owns the UI source
    - For local/static frontends, the external agent must generate them from the local source
 2. The test runner opens your draft app in a real browser with mock authentication
-3. Each step executes a natural language `act` instruction, then runs a structured `verify` assertion
+3. Each step executes a deterministic `action` or fallback natural-language `act`, then runs a structured `verify` assertion
 4. Results are aggregated into `poof task test-results` alongside policy test results
 
 For Poof-generated UIs, external agents can trigger UI test generation and execution with `poof iterate -p <id> -m "Generate and run UI tests..."` (handles waiting automatically), then check `poof task test-results`. For static deploys, use the workflow in [Static Deploy UI Lifecycle Tests](#static-deploy-ui-lifecycle-tests) instead.
@@ -410,7 +416,10 @@ If the app has onchain features (staking, transfers, swaps), the mock user needs
   "description": "What this test verifies",
   "steps": [
     {
-      "act": "Natural language instruction for what to do",
+      "action": {
+        "op": "click",
+        "target": { "testId": "primary-action" }
+      },
       "verify": {
         "extract": "Question about what to observe on the page",
         "schema": { "fieldName": "type" },
@@ -420,6 +429,8 @@ If the app has onchain features (staking, transfers, swaps), the mock user needs
   ]
 }
 ```
+
+Each step must include either `action` (deterministic, preferred) or `act` (natural language fallback), never both.
 
 ## How to Generate UI Test JSON
 
@@ -437,10 +448,12 @@ Before writing JSON, inspect the local UI files or Poof-generated source and lis
 - Data the flow creates, updates, deletes, or reads back from Poof
 - Auth behavior: whether the mock-auth user should already be treated as signed in
 - Onchain behavior: whether the mock user needs SOL or tokens funded before the test
+- Stable selectors: `data-testid`, accessible role/name, labels, placeholders, and unique visible text
 
 For React/Vite apps, useful files are usually `src/App.*`, `src/pages/**`, `src/components/**`,
 router files, and the SDK/database call sites. Prefer user-visible strings from the source over
-CSS selectors or implementation names.
+CSS selectors or implementation names. When a repeated/icon-only control has no stable accessible
+name, add a `data-testid` in source and target it with a deterministic `action`.
 
 ### 2. Choose Test Files and Flows
 
@@ -482,11 +495,17 @@ make results easier to read and debug.
 
 ### 4. Convert the Flow Into Steps
 
-Each step has one `act` string and, almost always, one `verify` block:
+Each step has either a deterministic `action` object or a natural-language `act` string, and almost
+always one `verify` block. Prefer `action` when the local source exposes a stable `data-testid`,
+role/name, label, placeholder, or unique text. Use `act` only as a fallback when the interaction
+cannot be targeted deterministically.
 
 ```json
 {
-  "act": "Click the 'New Post' button",
+  "action": {
+    "op": "click",
+    "target": { "testId": "new-post-button" }
+  },
   "verify": {
     "extract": "Is the new post form visible?",
     "schema": { "formVisible": "boolean" },
@@ -495,14 +514,38 @@ Each step has one `act` string and, almost always, one `verify` block:
 }
 ```
 
-Good `act` instructions:
+Supported deterministic operations:
 
+- `click`, `fill`, `type`, `press`, `select`, `check`, `uncheck`, `hover`, `waitFor`
+
+Supported targets, in preferred order:
+
+- `{ "testId": "new-post-button" }`
+- `{ "role": "button", "name": "New Post" }`
+- `{ "label": "Title" }`
+- `{ "text": "Settings" }`
+- `{ "placeholder": "Search" }`
+- `{ "selector": ".fallback" }` only as a last resort
+
+Examples:
+
+```json
+{ "action": { "op": "click", "target": { "testId": "new-post-button" } } }
+{ "action": { "op": "fill", "target": { "label": "Title" }, "value": "Launch notes" } }
+{ "action": { "op": "press", "target": { "label": "Search" }, "key": "Enter" } }
+{ "action": { "op": "waitFor", "target": { "text": "Saved" }, "state": "visible" } }
+```
+
+Good action / `act` discipline:
+
+- Use `action` for source-known selectors and labels; this bypasses Stagehand's action planner
 - Use exact UI copy: `"Click the 'New Post' button"` beats `"open the modal"`
 - Name labels users can see: `"Type 'Launch notes' in the input labeled 'Title'"`
 - Keep one user intent per step. For short forms, filling fields and submitting can be one step if the verify block checks the result.
 - Do not include full URLs; the runner starts on the app homepage with `?mockAuth=true`
 - Do not add "Connect Wallet" steps; the runner seeds mock auth automatically
-- Do not use CSS selectors, component names, minified filenames, or asset hashes
+- Do not use component names, minified filenames, or asset hashes
+- Use CSS selectors only as a last resort when no accessible target or `data-testid` exists
 
 ### 5. Write Strong Verify Blocks
 
@@ -543,7 +586,7 @@ Weak assertions to avoid:
   "description": "Create a post from the feed UI and verify validation errors",
   "steps": [
     {
-      "act": "Click the 'New Post' button",
+      "action": { "op": "click", "target": { "testId": "new-post-button" } },
       "verify": {
         "extract": "Is the new post form visible?",
         "schema": { "formVisible": "boolean" },
@@ -551,7 +594,7 @@ Weak assertions to avoid:
       }
     },
     {
-      "act": "Click the 'Publish' button without filling in the form",
+      "action": { "op": "click", "target": { "role": "button", "name": "Publish" } },
       "verify": {
         "extract": "The validation error text visible near the form",
         "schema": { "errorText": "string" },
@@ -559,7 +602,13 @@ Weak assertions to avoid:
       }
     },
     {
-      "act": "Type 'Agent launch notes' in the title field, type 'Testing the static deploy flow' in the body field, and click 'Publish'",
+      "action": { "op": "fill", "target": { "label": "Title" }, "value": "Agent launch notes" }
+    },
+    {
+      "action": { "op": "fill", "target": { "label": "Body" }, "value": "Testing the static deploy flow" }
+    },
+    {
+      "action": { "op": "click", "target": { "role": "button", "name": "Publish" } },
       "verify": {
         "extract": "The post titles visible in the feed",
         "schema": { "titles": "string[]" },
@@ -593,7 +642,8 @@ Before uploading, check:
 - JSON parses cleanly; no comments or trailing commas
 - Top-level `type` is exactly `"ui-test"`
 - `steps` is a non-empty array
-- Every step has an `act` string
+- Every step has either an `action` object or an `act` string, never both
+- Prefer deterministic `action` steps for source-known selectors, roles, labels, placeholders, or unique visible text
 - Every `verify` has `extract`, `schema`, and `expect`
 - Schema values use only `"boolean"`, `"string"`, `"number"`, `"string[]"`, or `"number[]"`
 - `expect` keys match the schema keys
@@ -610,12 +660,15 @@ Before uploading, check:
 - **Array contains:** `{ "items": { "contains": "Buy groceries" } }`
 - **Number comparison:** `{ "count": { "gte": 1 } }`, `{ "count": { "lte": 10 } }`
 
-### Writing Good `act` Instructions
+### Writing Good Actions / `act` Instructions
 
+- Prefer deterministic `action` over Stagehand `act` when source selectors or labels are available
+- Add `data-testid` in source for icon-only buttons, repeated controls, canvas/video controls, and admin tools that Stagehand has trouble localizing
 - Be specific: `"Click the blue 'Add Task' button in the header"`
 - Include exact text: `"Type 'Buy groceries' in the input labeled 'Task name'"`
 - One action per step — avoid compound: "click X then type Y then click Z"
 - Use the app's actual UI text, not generic descriptions
+- Use `act` only when no stable deterministic target exists
 - The browser starts on the app's homepage with mock auth — do NOT include URLs
 - The user is already logged in — do NOT include "Connect Wallet" steps
 
@@ -633,7 +686,13 @@ Before uploading, check:
 
 ```json
 {
-  "act": "Type 'Buy groceries' in the task name input and click 'Add Task'",
+  "action": { "op": "fill", "target": { "label": "Task name" }, "value": "Buy groceries" }
+}
+```
+
+```json
+{
+  "action": { "op": "click", "target": { "role": "button", "name": "Add Task" } },
   "verify": {
     "extract": "The list of task names visible on the page",
     "schema": { "tasks": "string[]" },
@@ -646,7 +705,7 @@ Before uploading, check:
 
 ```json
 {
-  "act": "Click the 'Settings' link in the navigation menu",
+  "action": { "op": "click", "target": { "role": "link", "name": "Settings" } },
   "verify": {
     "extract": "The page heading text",
     "schema": { "heading": "string" },
@@ -659,7 +718,7 @@ Before uploading, check:
 
 ```json
 {
-  "act": "Click the toggle switch next to 'Enable notifications'",
+  "action": { "op": "check", "target": { "label": "Enable notifications" } },
   "verify": {
     "extract": "Is the notifications toggle in the on position?",
     "schema": { "enabled": "boolean" },
@@ -672,7 +731,7 @@ Before uploading, check:
 
 ```json
 {
-  "act": "Click the delete button on the first item in the list and confirm the deletion",
+  "action": { "op": "click", "target": { "testId": "delete-item-0" } },
   "verify": {
     "extract": "The number of items remaining in the list",
     "schema": { "count": "number" },
@@ -685,7 +744,7 @@ Before uploading, check:
 
 ```json
 {
-  "act": "Click the 'Submit' button without filling in any fields",
+  "action": { "op": "click", "target": { "role": "button", "name": "Submit" } },
   "verify": {
     "extract": "Is an error message visible on the page?",
     "schema": { "errorVisible": "boolean" },
@@ -698,7 +757,13 @@ Before uploading, check:
 
 ```json
 {
-  "act": "Enter '1' in the stake amount field and click 'Stake SOL'",
+  "action": { "op": "fill", "target": { "label": "Stake amount" }, "value": "1" }
+}
+```
+
+```json
+{
+  "action": { "op": "click", "target": { "role": "button", "name": "Stake SOL" } },
   "verify": {
     "extract": "The confirmation message or staked amount shown on the page",
     "schema": { "staked": "boolean" },
@@ -749,7 +814,7 @@ a JSON object whose keys are project paths and whose values are file contents:
 
 ```json
 {
-  "lifecycle-actions/ui-test-create-post.json": "{\n  \"version\": 1,\n  \"name\": \"test-ui-create-post\",\n  \"type\": \"ui-test\",\n  \"description\": \"Create a post from the deployed static UI\",\n  \"steps\": [\n    {\n      \"act\": \"Click the 'New Post' button\",\n      \"verify\": {\n        \"extract\": \"Is the post form visible?\",\n        \"schema\": { \"formVisible\": \"boolean\" },\n        \"expect\": { \"formVisible\": true }\n      }\n    }\n  ]\n}\n"
+  "lifecycle-actions/ui-test-create-post.json": "{\n  \"version\": 1,\n  \"name\": \"test-ui-create-post\",\n  \"type\": \"ui-test\",\n  \"description\": \"Create a post from the deployed static UI\",\n  \"steps\": [\n    {\n      \"action\": { \"op\": \"click\", \"target\": { \"testId\": \"new-post-button\" } },\n      \"verify\": {\n        \"extract\": \"Is the post form visible?\",\n        \"schema\": { \"formVisible\": \"boolean\" },\n        \"expect\": { \"formVisible\": true }\n      }\n    }\n  ]\n}\n"
 }
 ```
 
@@ -945,7 +1010,7 @@ Place `fund` steps at the beginning, before any data operations that require bal
 | Insufficient balance        | Actor not funded before on-chain operation             | Add `fund` step for the actor before the operation that requires a balance                                                    |
 | Expression evaluation error | Syntax issue in `expect` or `ensure`                   | Check: actor variables quoted in strings (`'$Alice'`), operators correct (`==` not `===`, `//` not `/`), paths start with `/` |
 | `as` in bootstrap           | Used `as` in a client-side bootstrap                   | Remove `as` — client-side bootstraps run as the authenticated admin only                                                      |
-| UI test timeout             | `act` instruction too vague or element not found       | Make instructions more specific; verify the draft app is built and accessible                                                 |
+| UI test timeout             | Deterministic `action` target not found, or fallback `act` instruction too vague | Prefer `data-testid`/role/name/label targets; make fallback instructions more specific; verify the draft app is built and accessible |
 | UI test verify fails        | Extracted value doesn't match expected                 | Check schema type matches actual data; loosen expect matcher if appropriate (use `gte` instead of exact)                      |
 
 ## Rules

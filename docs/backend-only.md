@@ -187,7 +187,8 @@ There are two useful UI verification layers:
 Use this path when you want UI test results recorded in `poof task test-results` after a static
 deploy.
 
-1. Write test files from the local UI source, using exact visible text and feature contracts. The
+1. Write test files from the local UI source, using deterministic `action` steps for stable
+   selectors/roles/labels when available, plus exact visible text and feature contracts. The
 full authoring recipe is in [testing.md#how-to-generate-ui-test-json](testing.md#how-to-generate-ui-test-json):
 
 ```json
@@ -198,7 +199,7 @@ full authoring recipe is in [testing.md#how-to-generate-ui-test-json](testing.md
   "description": "Create a note through the statically deployed UI",
   "steps": [
     {
-      "act": "Click the 'New Note' button",
+      "action": { "op": "click", "target": { "testId": "new-note-button" } },
       "verify": {
         "extract": "Is the note editor visible?",
         "schema": { "editorVisible": "boolean" },
@@ -206,7 +207,10 @@ full authoring recipe is in [testing.md#how-to-generate-ui-test-json](testing.md
       }
     },
     {
-      "act": "Type 'Launch checklist' in the title field and click 'Save'",
+      "action": { "op": "fill", "target": { "label": "Title" }, "value": "Launch checklist" }
+    },
+    {
+      "action": { "op": "click", "target": { "role": "button", "name": "Save" } },
       "verify": {
         "extract": "The note titles visible in the notes list",
         "schema": { "titles": "string[]" },
