@@ -136,10 +136,32 @@ Use `poof data app-ids -p <id>` to list a project's appIds per environment so yo
 
 ### Credits & Payments
 
+User-level credits (your personal pool — daily, subscription, add-on):
+
 | Command                             | Description                                                                                     |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `poof credits balance`              | Credit balance: daily, add-on, totals.                                                          |
 | `poof credits topup [--quantity N]` | Buy credits via x402 USDC (1-10 packages, each = 50 credits / $15). Also unlocks paid features. |
+
+Per-project credit balance — credits scoped to a specific project (owner-only — see [credits-and-payments](credits-and-payments.md#per-project-credit-balance) for the full model):
+
+| Command                                                                             | Description                                                                                                                                            |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `poof credits project status -p <id>`                                               | Bucket totals (combined / infrastructure / Poof AI), yours/granted split, fallback flags, your account credit balance.                                  |
+| `poof credits project deposit -p <id> --amount N [--bucket B]`                      | Add N whole paid credits to a project. Bucket defaults to `combined`. Daily credits are never used.                                                    |
+| `poof credits project withdraw -p <id> --amount N [--bucket B]`                     | Drain N from a withdrawable bucket back to your account as a fresh add-on payment record (6-month expiry). Concurrent withdrawals are server-side gated. |
+| `poof credits project isolation -p <id> [--usage true\|false] [--chat true\|false]` | When isolated, that purpose pauses on empty (no fallback to your account). At least one flag required.                                                  |
+
+Drain order: purpose bucket → `combined` → your account credit balance (unless that purpose has fallback off).
+
+### Usage & Overuse Limits
+
+| Command                                | Description                                                                                                                                          |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `poof usage status -p <id>`            | Month-to-date cost, free vs paid breakdown, pause state, blocked reason. Honour `summaryStale` / `blockedStatusStale` before acting on those fields. |
+| `poof usage limit -p <id> --credits N` | Set the monthly overuse limit (credit ceiling beyond the free tier; > 0).                                                                            |
+| `poof usage limit -p <id> --clear`     | Remove the limit (app pauses at free-tier exhaustion).                                                                                               |
+| `poof usage resume -p <id>`            | Resume a paused project. Returns 400 with `blockedReason` when preconditions aren't met.                                                             |
 
 ### Templates
 
@@ -203,6 +225,13 @@ When using `--json`, commands return structured JSON. Key shapes:
 | `poof doctor`            | `{ projectId, project: {...}, urls: {...}, publishState: {...}, draftDeployedFlag, previewDeployedFlag, liveDeployedFlag, ai: { active, state, status }, recentTasks: [...], testSummary: {...}, rawTestSummary: {...}, probe: {...}, verdict: string, errors: [...] }` |
 | `poof task test-results` | `{ results: [{id, source, fileName, testName, status, counts: {steps, expects, failed}, lastError, duration, startedAt}], summary: {total, passed, failed, errors, running}, hasMore }`                                              |
 | `poof files get`         | Default: `{ files: { [path]: content } }`. With `--list`: `{ files: ["path1", ...], total: N }`. With `--stat`: `{ files: [{ path, bytes }], total: N, bytes: N }`. |
+| `poof credits project status`    | `{ projectId, usage: { withdrawable, nonWithdrawable, isolated }, chat: { withdrawable, nonWithdrawable, isolated }, combined: { withdrawable, nonWithdrawable }, isOwner, userPaidCreditsAvailable }`. Floats; clamp negatives at 0. |
+| `poof credits project deposit`   | `{ deposited: int, bucket, balance: { usage, chat, combined } }` — bucket-only `balance` (no `isOwner`/`userPaidCreditsAvailable`; re-fetch via `status` if needed).  |
+| `poof credits project withdraw`  | `{ withdrawn: int, bucket, paymentRecordId, balance: { usage, chat, combined } }`.                                                                                    |
+| `poof credits project isolation` | Re-reads `status` after the PUT. On read-after-write failure: `{ success: true, projectId, warning, warningError }`.                                                  |
+| `poof usage status`              | `{ projectId, period, totalRequests, totalCpuTimeMs, totalWallTimeMs, totalStorageBytes, totalDocumentCount, totalFileCount, computeCostCredits, storageCostCredits, costCredits, freeCreditsApplied, chargedCredits, percentUsed, status: "ok"\|"warning"\|"exceeded", environments, lastUpdated, summaryStale?, blockedStatusStale?, isBlocked, canResume, blockedReason: "no_overuse_limit"\|"threshold_reached"\|"insufficient_credits"\|"", paidCreditsRemaining, infraOveruseLimit }`. When `summaryStale`, numeric fields are zero placeholders. When `blockedStatusStale`, don't trust pause fields. |
+| `poof usage limit`               | Re-reads `usage status`. On read-after-write failure: `{ success, projectId, clear, credits, warning, warningError }`.                                                |
+| `poof usage resume`              | `{ resumed: boolean }`. Failures: 400 with the typed `blockedReason`.                                                                                                 |
 
 ## Error Handling
 

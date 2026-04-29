@@ -4,6 +4,8 @@
 - [Credit System](#credit-system)
 - [Paid Features](#paid-features)
 - [x402 Credit Top-Up](#x402-credit-top-up)
+- [Per-Project Credit Balance](#per-project-credit-balance)
+- [Usage & Overuse Limits](#usage--overuse-limits)
 - [AI Preferences](#ai-preferences)
 
 ## Important: How Payment Unlocks Features
@@ -98,6 +100,83 @@ If `poof credits topup` fails, check:
 1. Your wallet has sufficient USDC on Solana mainnet
 2. You are authenticated (`poof auth login`)
 3. Quantity is between 1 and 10
+
+## Per-Project Credit Balance
+
+Add credits to a specific project so its infrastructure and Poof AI draw from there before falling back to your account credit balance. Owner-only mutations; admins / collaborators read-only.
+
+### Buckets
+
+The bucket choice scopes what a credit can be spent on:
+
+| Bucket     | Spendable on                              | Default? |
+| ---------- | ----------------------------------------- | -------- |
+| `combined` | Either infrastructure or Poof AI          | Yes      |
+| `usage`    | Infrastructure only (compute, storage, gas) | No     |
+| `chat`     | Poof AI only                              | No       |
+
+Drain order: purpose-specific bucket → `combined` → owner's account credit balance (unless that purpose has fallback off). Each bucket splits into *yours* (deposits) and *granted* (Poof-granted) pools — only the yours portion can be pulled back out.
+
+### Commands
+
+```bash
+poof credits project status -p <id>
+
+# Deposit pulls from paid (subscription + add-on) credits — never daily.
+poof credits project deposit -p <id> --amount 50                  # combined
+poof credits project deposit -p <id> --amount 100 --bucket usage  # infrastructure only
+
+# Withdraw creates a fresh add-on payment record (6-month expiry).
+poof credits project withdraw -p <id> --amount 30
+
+# Fallback off: that purpose pauses when this project's credits run out.
+poof credits project isolation -p <id> --usage true --chat false
+```
+
+### Picking a policy
+
+- **Default (recommended).** Deposit `combined`, leave both fallbacks on. Project credits cover spend; your account credit balance picks up after.
+- **Hard cap a purpose.** Set `--usage true` (and/or `--chat true`) to pause that purpose instead of falling back.
+- **Per-purpose accounting.** Use `usage` / `chat` buckets to scope credits by what they cover, even with fallback on.
+
+### Concurrency
+
+One withdrawal per (user, project) at a time — concurrent calls get `402`. Deposits + reads are atomic. Negative balances are clamped at 0 so transient overdrafts don't reject legitimate operations.
+
+### Common errors
+
+| Error                                                  | Fix                                                                       |
+| ------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `Insufficient paid credits to deposit N`               | `poof credits topup` first.                                               |
+| `Project's <bucket> withdrawable bucket has X credits` | Re-run `status`, retry with a smaller amount.                             |
+| `A withdrawal is already in progress for this project` | Wait — stale locks auto-clear after 5 minutes.                            |
+| `Only the project owner can deposit/withdraw credits`  | Use the owner's wallet.                                                   |
+
+## Usage & Overuse Limits
+
+```bash
+poof usage status -p <id>                  # month-to-date cost / pause state
+poof usage limit  -p <id> --credits 50     # cap paid overage at N credits
+poof usage limit  -p <id> --clear          # no cap (app pauses at free-tier end)
+poof usage resume -p <id>                  # unblock a paused project
+```
+
+Key fields in `status`:
+
+- `costCredits` / `freeCreditsApplied` / `chargedCredits` — spend / free-tier coverage / overage.
+- `paidCreditsRemaining` — available to cover overage (your account credit balance plus this project's infrastructure-spendable credits when fallback is on).
+- `isBlocked` / `canResume` / `blockedReason` — pause state.
+- `summaryStale` / `blockedStatusStale` — upstream pipeline failed; **don't act on the corresponding fields**.
+
+### When the app is paused
+
+| `blockedReason`        | Fix                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| `no_overuse_limit`     | `poof usage limit -p <id> --credits N` → `poof usage resume`.                         |
+| `threshold_reached`    | Raise `--credits` → `poof usage resume`.                                              |
+| `insufficient_credits` | `poof credits topup` or `poof credits project deposit` → `poof usage resume`.         |
+
+`resume` rejects with 400 if preconditions aren't met — fix first, then retry.
 
 ## AI Preferences
 

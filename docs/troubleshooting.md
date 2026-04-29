@@ -56,6 +56,9 @@ The CLI handles x402 payments internally. If `poof credits topup` fails, ensure 
 | AI stops responding mid-build | Credits exhausted during execution | Run `poof credits balance`. If zero, top up and run `poof iterate -p <id>` to continue |
 | Build silently does nothing | Insufficient credits to start | Always run `poof credits balance` before starting a workflow. A full build + test + polish cycle costs 3-5 credits |
 | Can't deploy after buying credits | Payment may not have completed | Verify the payment actually completed — run `poof credits balance` and check for add-on records |
+| App paused (`isBlocked: true`)                                    | Free tier or limit exhausted        | Read `blockedReason`: `no_overuse_limit` → `poof usage limit --credits N`; `threshold_reached` → raise the limit; `insufficient_credits` → `poof credits topup` or `project deposit`. Then `poof usage resume`. |
+| `withdrawal already in progress`                                  | Concurrent withdraw                  | Wait — locks auto-clear after 5 minutes.                                                                                                                                                                          |
+| `poof usage status` shows `summaryStale` / `blockedStatusStale`   | Upstream pipeline failed             | Don't act on the stale fields; retry shortly.                                                                                                                                                                     |
 
 ## Timeout Errors
 
