@@ -266,6 +266,7 @@ Read **How Poof Works** first if you're writing prompts for the Poof AI.
 | [**Deployment**](docs/deployment.md)                     | Environments (draft/preview/production/mobile), publishing, code downloads, custom domains.                                                              |
 | [**Static Frontend Deploy**](docs/static-deploy.md)      | Deploy a self-built static frontend to Poof — tar.gz upload via CLI.                                                                                     |
 | [**Testing**](docs/testing.md)                           | Lifecycle actions, test files, bootstrap scripts, UI functional tests, static-deploy UI test workflow, expression syntax, testing strategy by layer.     |
+| [**Heartbeats / Scheduled Tasks**](docs/heartbeats.md)   | Built-in cron primitive — task config, handler files, dispatcher, manual trigger on draft for seeding, per-environment schedules. **Use this instead of building local cron services for any recurring work.** |
 
 ### For runtime agent use (`docs/agent-use/`)
 
