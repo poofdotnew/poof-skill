@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://poof.new/_next/image?url=%2Fimages%2Flogo-transparent-bg.png&w=256&q=75" alt="Poof" width="120" />
+  <img src="assets/poof-skill-banner.png" alt="Poof Skill - extend what poof can build" width="100%" />
 </p>
 
 <h3 align="center">Poof CLI Skill</h3>
