@@ -248,6 +248,14 @@ on a `full` project and don't want Poof to re-run UI tests on every verify).
 - If `poof ship --target preview` fails because security review is required, capture that as an external unblock gate. `ship` is not equivalent to a successful deploy, and a security-review stop should be treated as a real blocker rather than retried blindly.
 - **Deploy eligibility is gated on `critical` findings only.** `high`, `medium`, `low` findings are surfaced in the scan output but don't block `poof deploy check` / `poof ship`. Default posture: still flag high findings to the user so they can make the call, but don't hard-stop a deploy on non-critical findings the way you would on a critical.
 
+### Reading Balances in Generated Apps
+
+Every Poof-generated app gets default Tarobase queries — `solBalance`, `usdcBalance`, `tokenBalance` (backed by `@TokenPlugin.getBalance`), plus `jupiterSwapQuote` and `meteoraSwapQuote`. These route through the project's active environment, so the same code returns Poofnet balances on Draft and mainnet balances after `poof ship`. Generated-app code reading SOL/SPL balances **must** call these queries.
+
+**Anti-pattern:** `new Connection(clusterApiUrl('mainnet-beta')).getBalance(...)` (or any direct RPC URL) for balance reads in generated app code. It hits mainnet regardless of environment, so a Draft user sees `0` even after a successful Poofnet airdrop, and the app's deployed behavior won't match its Draft test runs. If you see this pattern, it's a bug — iterate to switch to the matching Tarobase query.
+
+When diagnosing a "balance is wrong" symptom, trace the *actual* call site for that command. A mainnet RPC URL elsewhere in the file (Jupiter routes, transaction sending, simulate) does not mean the balance read uses it. Probe at runtime first; don't predict the symptom from a code skim.
+
 ## Documentation
 
 Docs are grouped by the two CLI modes. Pick the section that matches your task.
