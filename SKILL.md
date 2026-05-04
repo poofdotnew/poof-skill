@@ -1,32 +1,37 @@
 ---
 name: poof
 description: >-
-  Use when working with the Poof CLI (poof.new) in either of its two modes:
+  Use when working with the Poof CLI (poof.new) in any of its three modes:
   (1) chat-driven app building — creating, iterating on, and shipping
-  full-stack Solana dApps via `poof build`/`iterate`/`ship`; or (2) agent
-  runtime data plane — using `poof data` to read, write, and atomically
-  compose onchain actions (Token/NFT/Pump.fun/Meteora/Phoenix perps/DFlow/
-  Tensor) against a deployed Poof project or a shared primitives appid.
-  Triggers: "poof build", "poof iterate", "poof ship", "poof data",
-  "poof.new", "poof CLI", "poof-cli", "Solana agent", "onchain agent",
-  "Phoenix perps", "setMany", "shared appid", "@pooflabs/web".
+  full-stack Solana dApps via `poof build`/`iterate`/`ship`; (2) direct
+  no-AI policy/backend work — creating projects with `poof project create
+  --no-ai` and managing policies with `poof policy`; or (3) agent runtime
+  data plane — using `poof data` to read, write, and atomically compose
+  onchain actions (Token/NFT/Pump.fun/Meteora/Phoenix perps/DFlow/Tensor)
+  against a deployed Poof project or a shared primitives appid.
+  Triggers: "poof build", "poof iterate", "poof ship", "poof policy",
+  "poof project create --no-ai", "poof data", "poof.new", "poof CLI",
+  "poof-cli", "Solana agent", "onchain agent", "Phoenix perps",
+  "setMany", "shared appid", "@pooflabs/web".
 ---
 
 # Poof CLI
 
-The `poof` CLI has two distinct modes. An agent reading this skill should know which one applies to the task at hand before picking commands.
+The `poof` CLI has three distinct modes. An agent reading this skill should know which one applies to the task at hand before picking commands.
 
 1. **App building** — ask Poof's AI to create, iterate on, and ship full-stack Solana apps on [poof.new](https://poof.new). Driven by commands like `poof build`, `poof iterate`, `poof verify`, `poof ship`, `poof deploy`. Long-running (5–15+ min per call). See the app-building docs at `docs/` (how-poof-works, building-and-chat, etc.).
-2. **Runtime data plane** — use `poof data` against a deployed Poof project (yours or a shared primitives library). The canonical shared generic-onchain library — covers Token / NFT / Pump.fun / Meteora / DFlow / Tensor / Phoenix perps plus composable guards — is live on Solana mainnet at appid `69bcffc78d4b88997d0ed01a`; any wallet can point at it with `--app-id 69bcffc78d4b88997d0ed01a --chain mainnet`, no project access needed. Fast, synchronous, designed for per-tick agent loops. See the agent-use docs at `docs/agent-use/`.
+2. **Direct policy/backend** — create a project without invoking AI using `poof project create --no-ai`, then validate, deploy, inspect, or roll back policy/constants with `poof policy`. Fast, synchronous, and still project-scoped, so the same project can later be used with `poof iterate` if AI help is wanted.
+3. **Runtime data plane** — use `poof data` against a deployed Poof project (yours or a shared primitives library). The canonical shared generic-onchain library — covers Token / NFT / Pump.fun / Meteora / DFlow / Tensor / Phoenix perps plus composable guards — is live on Solana mainnet at appid `69bcffc78d4b88997d0ed01a`; any wallet can point at it with `--app-id 69bcffc78d4b88997d0ed01a --chain mainnet`, no project access needed. Fast, synchronous, designed for per-tick agent loops. See the agent-use docs at `docs/agent-use/`.
 
 ## How It Works
 
 ```
 App building:    Your Agent ──► poof build/iterate/ship ──► poof.new (AI builds for you)
+Direct backend:  Your Agent ──► poof project create --no-ai + poof policy ──► Poof project's Tarobase apps
 Data plane:      Your Agent ──► poof data set/get/query ──► Poof project's Tarobase appId
 ```
 
-Both modes share the same CLI binary, auth, and config; only the commands and the cadence differ.
+All modes share the same CLI binary, auth, and config; only the commands and the cadence differ.
 
 ## CLI Version and Updates
 
@@ -114,7 +119,12 @@ poof auth login
 # Bare values "ui" and "backend" are also accepted (policy is auto-included)
 poof build -m "Build a token-gated voting app" --mode full
 
-# 2a. Build with reference image(s) — attach UI screenshots, mockups, etc.
+# 2a. No-AI backend setup (creates project, deploys local policy files)
+poof project create --no-ai --title "Agent Memory" --mode backend,policy
+poof policy validate -p <project-id> --policy policy/poof.json --constants policy/constants.json
+poof policy deploy -p <project-id> --policy policy/poof.json --constants policy/constants.json
+
+# 2b. Build with reference image(s) — attach UI screenshots, mockups, etc.
 # The CLI uploads each image to Poof's global storage first, then embeds the
 # URLs in the initial firstMessage so the AI sees text + images together.
 poof build -m "Build a UI that looks like this" --file screenshot.png
@@ -177,7 +187,8 @@ Copy this checklist and track your progress. Pick the variant that matches your 
 
 ```
 - [ ] Setup: poof keygen >> .env && poof auth login
-- [ ] Build: poof build -m "..." --mode backend,policy
+- [ ] Create backend: poof build -m "..." --mode backend,policy OR poof project create --no-ai --mode backend,policy --title "..."
+- [ ] Direct policy path only: poof policy validate -p <id> --policy policy/poof.json --constants policy/constants.json && poof policy deploy -p <id> --policy policy/poof.json --constants policy/constants.json
 - [ ] Status: poof project status -p <id> --json   # capture connectionInfo (draft appId, backendUrl, apiUrl, authApiUrl, wsUrl)
 - [ ] Verify backend: poof verify -p <id>          # auto-detects backend-only mode and runs policy tests only — no UI tests against the placeholder
 - [ ] Build local frontend: wire @pooflabs/web init() using connectionInfo, run `npm run build`
@@ -212,6 +223,9 @@ existing test result IDs, sends the canonical lifecycle + UI verification prompt
 counts results created during that run. It exits non-zero if no fresh results appear or if
 any fresh result failed, so a successful exit code is real evidence that tests ran and passed.
 `poof iterate` is still a general chat command — only fall back to it for free-form fixes.
+For a project created with `poof project create --no-ai`, `poof iterate -p <id> -m "..."`
+can be used later to bring Poof AI into the same project. Use `poof policy` when the user
+wants deterministic policy/constants changes without consuming AI flow.
 
 **Backend-only and `poof verify`:** when the project's generationMode excludes `ui` (i.e. `policy` or
 `backend,policy`), the CLI auto-detects that and sends a lifecycle-only verification prompt. This
@@ -256,7 +270,7 @@ Every project also gets a server-managed **project vault** wallet, exposed in po
 
 ## Documentation
 
-Docs are grouped by the two CLI modes. Pick the section that matches your task.
+Docs are grouped by CLI mode. Pick the section that matches your task.
 
 ### For app building (in `docs/`)
 

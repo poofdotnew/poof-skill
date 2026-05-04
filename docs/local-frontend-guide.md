@@ -2,7 +2,7 @@
 
 How to build a frontend that connects to a Poof-hosted backend. This covers SDK setup, wallet authentication, database access, calling PartyServer API routes, and real-time subscriptions.
 
-Use this guide when you're building your own UI (React, Vue, Svelte, React Native, plain HTML) and connecting it to a Poof project created with `poof build --mode backend,policy` or `poof build --mode policy`.
+Use this guide when you're building your own UI (React, Vue, Svelte, React Native, plain HTML) and connecting it to a Poof project created with `poof build --mode backend,policy`, `poof build --mode policy`, or `poof project create --no-ai`.
 
 ## Contents
 - [Prerequisites](#prerequisites)
@@ -23,7 +23,7 @@ Use this guide when you're building your own UI (React, Vue, Svelte, React Nativ
 
 ## Prerequisites
 
-1. A Poof project with a backend — created via `poof build --mode backend,policy` or `poof build --mode policy`. See [backend-only.md](backend-only.md).
+1. A Poof project with a backend — created via `poof build --mode backend,policy`, `poof build --mode policy`, or `poof project create --no-ai --mode backend,policy` plus `poof policy deploy`. See [backend-only.md](backend-only.md).
 2. Connection info from `poof project status -p <id> --json` — you need the per-environment app ID (emitted as `tarobaseAppId` in the JSON, historical field name), `backendUrl`, and the API URLs. Get connection info with `poof project status -p <id> --json | jq '.connectionInfo'`.
 
 ## SDK Installation & Setup

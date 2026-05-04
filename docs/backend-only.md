@@ -24,6 +24,8 @@ Poof generates and hosts the backend (PartyServer with API routes + database pol
 
 ## Creating a Backend-Only Project
 
+Use the AI path when you want Poof to design or modify the backend from a prompt:
+
 ```bash
 poof build \
   -m "Build a task management backend with user profiles, project boards, and task assignments. Off-chain storage, owner-only writes for profiles, project members can create/update tasks." \
@@ -37,6 +39,16 @@ The Poof AI will generate:
 - **Lifecycle actions** — for testing
 
 It will **not** generate any frontend UI code.
+
+Use the no-AI path when you already have local policy/constants files and want deterministic direct deployment:
+
+```bash
+poof project create --no-ai --title "Task Backend" --mode backend,policy
+poof policy validate -p <project-id> --policy policy/poof.json --constants policy/constants.json
+poof policy deploy -p <project-id> --policy policy/poof.json --constants policy/constants.json
+```
+
+The no-AI project is still a normal Poof project: use `poof project status -p <id> --json` for connection info, `poof data` for runtime reads/writes, and `poof iterate -p <id> -m "..."` later if you want Poof AI help on the same project.
 
 ## Getting Connection Info
 
@@ -352,13 +364,17 @@ Complete workflow: create backend, verify policies, build local frontend, deploy
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1. Create a backend-only project
+# 1. Create a backend-only project with AI
 PROJECT_ID=$(poof build \
   -m "Build a social feed backend: user profiles (off-chain, owner-write), posts (off-chain, authenticated-create, public-read), likes (off-chain, authenticated-create/delete). Add API routes for feed pagination and trending posts." \
   --mode backend,policy \
   --public \
   --json | jq -r '.projectId')
 echo "Project: $PROJECT_ID"
+
+# No-AI alternative:
+# PROJECT_ID=$(poof project create --no-ai --title "Social Feed Backend" --mode backend,policy --json | jq -r '.projectId')
+# poof policy deploy -p "$PROJECT_ID" --policy policy/poof.json --constants policy/constants.json
 
 # 2. Capture connection info for your local frontend
 poof project status -p "$PROJECT_ID" --json | jq '.connectionInfo' > connection-info.json
