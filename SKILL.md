@@ -1,32 +1,48 @@
 ---
 name: poof
 description: >-
-  Use when working with the Poof CLI (poof.new) in either of its two modes:
-  (1) chat-driven app building — creating, iterating on, and shipping
-  full-stack Solana dApps via `poof build`/`iterate`/`ship`; or (2) agent
-  runtime data plane — using `poof data` to read, write, and atomically
-  compose onchain actions (Token/NFT/Pump.fun/Meteora/Phoenix perps/DFlow/
-  Tensor) against a deployed Poof project or a shared primitives appid.
-  Triggers: "poof build", "poof iterate", "poof ship", "poof data",
-  "poof.new", "poof CLI", "poof-cli", "Solana agent", "onchain agent",
-  "Phoenix perps", "setMany", "shared appid", "@pooflabs/web".
+  Use when working with the Poof platform (poof.new): (1) chat-driven app
+  building via `poof build`/`iterate`/`ship`; (2) runtime data plane via
+  `poof data` for project appIds or shared primitives; or (3) Poof MCP,
+  especially project-scoped `/api/project/<project-id>/mcp` for direct
+  model-to-project inspection, database operations, lifecycle/UI test
+  execution, draft Heartbeat trigger, and Poofnet faucet without `poof iterate`.
+  Triggers: "poof build", "poof iterate",
+  "poof ship", "poof data", "project MCP", "poof MCP", "poof.new",
+  "poof CLI", "poof-cli", "Solana agent", "onchain agent", "Phoenix perps",
+  "setMany", "shared appid", "@pooflabs/web".
 ---
 
 # Poof CLI
 
-The `poof` CLI has two distinct modes. An agent reading this skill should know which one applies to the task at hand before picking commands.
+The `poof` CLI/platform has three distinct agent interfaces. An agent reading this skill should know which one applies to the task at hand before picking commands.
 
 1. **App building** — ask Poof's AI to create, iterate on, and ship full-stack Solana apps on [poof.new](https://poof.new). Driven by commands like `poof build`, `poof iterate`, `poof verify`, `poof ship`, `poof deploy`. Long-running (5–15+ min per call). See the app-building docs at `docs/` (how-poof-works, building-and-chat, etc.).
 2. **Runtime data plane** — use `poof data` against a deployed Poof project (yours or a shared primitives library). The canonical shared generic-onchain library — covers Token / NFT / Pump.fun / Meteora / DFlow / Tensor / Phoenix perps plus composable guards — is live on Solana mainnet at appid `69bcffc78d4b88997d0ed01a`; any wallet can point at it with `--app-id 69bcffc78d4b88997d0ed01a --chain mainnet`, no project access needed. Fast, synchronous, designed for per-tick agent loops. See the agent-use docs at `docs/agent-use/`.
+3. **Project MCP** — use Poof's project-scoped HTTP MCP endpoint to let an external model/agent inspect and operate on an existing Poof project directly, without sending a chat turn through `poof iterate`. Endpoint: `https://poof.new/api/project/<project-id>/mcp` (staging: `https://v2-staging.poof.new/api/project/<project-id>/mcp`). Auth uses the same Tarobase ID token produced by `poof auth login`. Use this for fast project info, policy/schema/constants/log/message/file discovery, database reads/writes, lifecycle/UI test execution, draft Heartbeat trigger, and Poofnet faucet. Platform/lifecycle/admin MCP tools live at `/api/mcp`; Project MCP is intentionally narrower and project-bound. See [docs/project-mcp.md](docs/project-mcp.md).
 
 ## How It Works
 
 ```
 App building:    Your Agent ──► poof build/iterate/ship ──► poof.new (AI builds for you)
 Data plane:      Your Agent ──► poof data set/get/query ──► Poof project's Tarobase appId
+Project MCP:     Your Agent ──► HTTP JSON-RPC /api/project/:id/mcp ──► project data/db/test/draft tools
 ```
 
-Both modes share the same CLI binary, auth, and config; only the commands and the cadence differ.
+All interfaces share the same wallet identity and Poof/Tarobase auth. The CLI commands manage auth and project lifecycle; the MCP endpoint gives a direct model-to-project tool line for tasks that do not need Poof's hosted AI to reason or edit code.
+
+## Choosing the Interface
+
+There is intentional overlap between the CLI, Platform MCP, and Project MCP. Choose the narrowest interface that fits the job:
+
+| Need | Use | Why |
+| --- | --- | --- |
+| Build, iterate, verify, ship, deploy, upload/download files from a shell | CLI | Best polling, auth refresh, payment/signing, archive handling, and terminal ergonomics. |
+| Connect one normal MCP client to a whole Poof account or many projects | Platform MCP at `/api/mcp` | Single MCP server; tools take `projectId` args; covers lifecycle/admin operations including create/chat/deploy/secrets/credits/domains. |
+| Attach one Poof project to one app/repo for direct inspection and data/test work | Project MCP at `/api/project/<project-id>/mcp` | Project is selected by the endpoint URL, so tools cannot accidentally switch projects; no `poof iterate` chat turn needed. Supports project data, database operations, lifecycle/UI tests, draft Heartbeat trigger, and Poofnet faucet. |
+| Query or write a specific Tarobase appId or shared primitives appId | `poof data --app-id ...` | AppId-level data plane, including shared libraries that are not owned as Poof projects. |
+
+Project MCP is not a replacement for every CLI command. Its useful difference is project-scoped, structured, direct access to project facts, policy/schema, logs, messages, file tree, database records, storage file URLs, lifecycle/UI test execution, draft Heartbeat trigger, and Poofnet faucet. For build/deploy/admin actions and secret value writes, use the CLI or Platform MCP.
 
 ## CLI Version and Updates
 
@@ -102,6 +118,18 @@ To target staging: `poof --env staging` or set `POOF_ENV=staging` in `.env`.
 
 > **Important:** The keypair you use becomes the project owner. The wallet address is set as `ADMIN_ADDRESS` in your project's constants, controlling admin permissions in policies.
 
+### MCP Auth
+
+Project MCP uses the same Tarobase ID token as normal authenticated CLI calls:
+
+```bash
+poof auth login                    # production token for https://poof.new
+poof auth login --env staging      # staging token for https://v2-staging.poof.new
+poof auth status --json            # confirm cached env + expiry
+```
+
+For direct HTTP MCP calls, read `id_token` from `~/.poof/tokens.json` into a shell variable and send it as `Authorization: Bearer <token>` (or `X-Tarobase-Token`). Never paste the token into prompts, logs, source files, or docs. The token's wallet must be the project owner or a collaborator, and the token environment must match the host. A 401 with an HTML "Authentication Required" page on staging means Vercel deployment protection blocked the request before Poof MCP ran; use a Vercel-authenticated request or a configured bypass cookie/token for staging.
+
 ## Quick Workflow
 
 ```bash
@@ -145,6 +173,14 @@ poof chat clear -p <project-id>
 # 6. Read/modify files directly (requires credit purchase)
 poof files get -p <project-id>
 poof files update -p <project-id> --file src/config.ts --content 'export const MAX = 100;'
+
+# 6a. Inspect a project directly through MCP (no hosted AI chat turn)
+TOKEN="$(jq -r '.id_token' ~/.poof/tokens.json)"
+MCP_URL="https://poof.new/api/project/<project-id>/mcp"
+curl -sS -H "Authorization: Bearer $TOKEN" "$MCP_URL"            # discovery metadata + tools
+curl -sS -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_project_info","arguments":{}}}' \
+  "$MCP_URL"
 
 # 7. Send a message with image(s) (e.g., UI screenshots for reference)
 poof iterate -p <project-id> -m "Build a UI that looks like this" --file screenshot.png
@@ -237,6 +273,7 @@ on a `full` project and don't want Poof to re-run UI tests on every verify).
 ### Reality Checks
 
 - If `poof project list --json` shows multiple similarly named projects and you do not already have a canonical project id from the user or repo artifacts, do not guess by title. Create or explicitly reconcile the canonical project first, then write that id into your artifact store before more `iterate` or deploy work.
+- If the task is read/diagnose/query focused and you already have the canonical project id, prefer Project MCP over `poof iterate`: call `get_project_info`, `get_recent_tasks`, `get_current_policy`, `get_collections_list`, `get_collection_schema`, `get_constants`, `get_server_logs`, `get_recent_messages`, `get_files_tree`, `run_all_lifecycle_tests`, `run_all_ui_tests`, `trigger_task`, `request_faucet_tokens`, or database `get`/`get_many` directly. Use `poof iterate` when you need Poof's hosted AI to edit/generate code or reason through a build task.
 - After `poof build`, always run `poof project status -p <id> --json`. Record the project id, URLs, and deploy state before you start retries or testing so later wakes do not guess which project is canonical.
 - If `poof task test-results -p <id> --json` reports `summary.total == 0`, inspect `poof task list -p <id> --json`, `poof chat active -p <id> --json`, `poof logs -p <id>`, and `poof project messages -p <id> --limit 100 --json` before you assume tests passed or failed.
 - `poof task test-results`, `poof iterate`, `poof verify`, and `poof doctor` now collapse test results to the **latest run per test file** by default (collapse key is `source|fileName`, not per-testName — so if the AI renames a test inside a file between runs, only the latest file state wins). If you need to see the full history (e.g. to debug why an earlier run failed), use `poof task test-results -p <id> --history`.
@@ -266,6 +303,7 @@ Read **How Poof Works** first if you're writing prompts for the Poof AI.
 | [**Deployment**](docs/deployment.md)                     | Environments (draft/preview/production/mobile), publishing, code downloads, custom domains.                                                              |
 | [**Static Frontend Deploy**](docs/static-deploy.md)      | Deploy a self-built static frontend to Poof — tar.gz upload via CLI.                                                                                     |
 | [**Testing**](docs/testing.md)                           | Lifecycle actions, test files, bootstrap scripts, UI functional tests, static-deploy UI test workflow, expression syntax, testing strategy by layer.     |
+| [**Project MCP**](docs/project-mcp.md)                   | Direct model-to-project HTTP MCP endpoint — auth, JSON-RPC methods, exposed tools, staging/protection caveats, and examples.                            |
 
 ### For runtime agent use (`docs/agent-use/`)
 
