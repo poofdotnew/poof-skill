@@ -248,6 +248,12 @@ on a `full` project and don't want Poof to re-run UI tests on every verify).
 - If `poof ship --target preview` fails because security review is required, capture that as an external unblock gate. `ship` is not equivalent to a successful deploy, and a security-review stop should be treated as a real blocker rather than retried blindly.
 - **Deploy eligibility is gated on `critical` findings only.** `high`, `medium`, `low` findings are surfaced in the scan output but don't block `poof deploy check` / `poof ship`. Default posture: still flag high findings to the user so they can make the call, but don't hard-stop a deploy on non-critical findings the way you would on a critical.
 
+## Onchain
+
+Generated apps read balances and quotes via default Tarobase queries — `solBalance`, `usdcBalance`, `tokenBalance`, `jupiterSwapQuote`, `meteoraSwapQuote` — which auto-route to the project's active environment (Poofnet on Draft, mainnet on Preview/Production). Direct `Connection.getBalance()` against an RPC URL is an anti-pattern in generated code: it hits mainnet regardless of environment, so a Draft user sees `0` after a Poofnet airdrop. See [docs/agent-use/onchain-actions.md](docs/agent-use/onchain-actions.md) for the full action and query catalog.
+
+Every project also gets a server-managed **project vault** wallet, exposed in policies as `@constants.PROJECT_VAULT_ADDRESS` and available to backend code via `PROJECT_VAULT_PRIVATE_KEY`. Use it whenever an onchain action should be signed by the app rather than the user — escrow counterparties, fee collection, automated payouts, backend-only Tarobase writes that need a fixed identity. Vault keypairs are per-environment (Draft and Production have different addresses), so policies and backend code must reference the constant, not a hardcoded address.
+
 ## Documentation
 
 Docs are grouped by the two CLI modes. Pick the section that matches your task.
