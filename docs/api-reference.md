@@ -4,6 +4,7 @@
 
 - [Workflow Commands](#workflow-commands)
 - [All Commands](#all-commands)
+- [MCP Analytics Retrieval](#mcp-analytics-retrieval)
 - [JSON Output Shapes](#json-output-shapes)
 - [Error Handling](#error-handling)
 
@@ -134,6 +135,17 @@ Use `poof data app-ids -p <id>` to list a project's appIds per environment so yo
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `poof logs -p <id> [--environment ENV] [--limit N] [--offset N]` | Get runtime logs. Environment: `development`, `mainnet-preview`, `production`. Limit range: 1-50, default 50. |
 
+### Analytics
+
+| Command                                                                                  | Description                                                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `poof analytics -p <id> [--environment ENV] [--range RANGE] [--limit N]`                 | Get first-party client app analytics from Cloudflare Analytics Engine. Environment: `draft`, `preview`, `production`. Range: `1h`, `6h`, `24h`, `3d`, `7d` (default `24h`). Limit range: 1-50, default 10. |
+
+Use `poof analytics` for deployed client app traffic, browser JS errors, unhandled rejections,
+failed resources, failed browser API calls, edge 4xx/5xx/R2/dispatch failures, and RUM metrics.
+Use `poof logs` for backend/API Worker request logs. See [analytics.md](analytics.md) for the full
+debugging pattern and privacy rules.
+
 ### Credits & Payments
 
 User-level credits (your personal pool — daily, subscription, add-on):
@@ -197,6 +209,37 @@ You shouldn't need to talk to Poof's data-plane HTTP endpoints directly — `poo
 
 Everything else — `PUT /items`, `GET /items`, `POST /queries`, offchain submit, LUT-aware VersionedTransaction assembly for mainnet — is baked into the CLI and exposed through `poof data`.
 
+## MCP Analytics Retrieval
+
+MCP clients can retrieve the same data as `poof analytics --json` with `get_client_app_analytics`.
+
+Project-scoped MCP uses the current project context:
+
+```json
+{
+  "name": "get_client_app_analytics",
+  "arguments": {
+    "environment": "preview",
+    "range": "1h",
+    "limit": 10
+  }
+}
+```
+
+Top-level Poof MCP requires `projectId`:
+
+```json
+{
+  "name": "get_client_app_analytics",
+  "arguments": {
+    "projectId": "<project-id>",
+    "environment": "production",
+    "range": "24h",
+    "limit": 10
+  }
+}
+```
+
 ## Global Flags
 
 All commands support these flags:
@@ -225,6 +268,7 @@ When using `--json`, commands return structured JSON. Key shapes:
 | `poof doctor`            | `{ projectId, project: {...}, urls: {...}, publishState: {...}, draftDeployedFlag, previewDeployedFlag, liveDeployedFlag, ai: { active, state, status }, recentTasks: [...], testSummary: {...}, rawTestSummary: {...}, probe: {...}, verdict: string, errors: [...] }` |
 | `poof task test-results` | `{ results: [{id, source, fileName, testName, status, counts: {steps, expects, failed}, lastError, duration, startedAt}], summary: {total, passed, failed, errors, running}, hasMore }`                                              |
 | `poof files get`         | Default: `{ files: { [path]: content } }`. With `--list`: `{ files: ["path1", ...], total: N }`. With `--stat`: `{ files: [{ path, bytes }], total: N, bytes: N }`. |
+| `poof analytics`         | `{ projectId, environment, siteIds, dataset, timeRange: {start, end, range}, summary: {events, pageViews, routeViews, visitors, sessions, errors, apiErrors, resourceErrors, jsErrors, averageDurationMs, averageTtfbMs, averageFcpMs, averageLcpMs, averageInpMs, averageCls, engagedSeconds}, timeSeries: [...], topPages: [...], errors: [...], devices: [...], countries: [...], referrers: [...], metadata: {fetchedAt, dataSource, message?} }`. Data source is Cloudflare Analytics Engine. |
 | `poof credits project status`    | `{ projectId, usage: { withdrawable, nonWithdrawable, isolated }, chat: { withdrawable, nonWithdrawable, isolated }, combined: { withdrawable, nonWithdrawable }, isOwner, userPaidCreditsAvailable }`. Floats; clamp negatives at 0. |
 | `poof credits project deposit`   | `{ deposited: int, bucket, balance: { usage, chat, combined } }` — bucket-only `balance` (no `isOwner`/`userPaidCreditsAvailable`; re-fetch via `status` if needed).  |
 | `poof credits project withdraw`  | `{ withdrawn: int, bucket, paymentRecordId, balance: { usage, chat, combined } }`.                                                                                    |

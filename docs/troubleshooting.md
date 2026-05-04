@@ -6,6 +6,7 @@ Common errors, causes, and CLI recovery patterns.
 - [Authentication Errors](#authentication-errors)
 - [Build & Chat Errors](#build--chat-errors)
 - [Deployment Errors](#deployment-errors)
+- [Client Analytics & Runtime Errors](#client-analytics--runtime-errors)
 - [x402 Payment Errors](#x402-payment-errors)
 - [Credit Errors](#credit-errors)
 - [Timeout Errors](#timeout-errors)
@@ -59,6 +60,30 @@ The CLI handles x402 payments internally. If `poof credits topup` fails, ensure 
 | App paused (`isBlocked: true`)                                    | Free tier or limit exhausted        | Read `blockedReason`: `no_overuse_limit` → `poof usage limit --credits N`; `threshold_reached` → raise the limit; `insufficient_credits` → `poof credits topup` or `project deposit`. Then `poof usage resume`. |
 | `withdrawal already in progress`                                  | Concurrent withdraw                  | Wait — locks auto-clear after 5 minutes.                                                                                                                                                                          |
 | `poof usage status` shows `summaryStale` / `blockedStatusStale`   | Upstream pipeline failed             | Don't act on the stale fields; retry shortly.                                                                                                                                                                     |
+
+## Client Analytics & Runtime Errors
+
+Use `poof analytics` when the symptom is client-facing: blank page, broken route, failed image/script,
+browser JS error, API call failing from the UI, slow page load, or a reported deployed-app failure
+that is not explained by task/test output.
+
+```bash
+poof analytics -p <id> --environment draft --range 1h --json
+poof analytics -p <id> --environment preview --range 1h --json
+poof analytics -p <id> --environment production --range 1h --json
+```
+
+| Symptom | What to check | Next step |
+|---------|---------------|-----------|
+| Blank or broken page | `summary.errors`, `errors[]` entries like `js_error`, `unhandled_rejection`, `resource_error`, `static_4xx`, `static_5xx` | Fix the UI/static asset problem, redeploy, then re-run analytics for the same range |
+| UI action fails | `api_error`, `api_4xx`, `api_5xx`, `dispatch_error`, route bucket, status/failure class | Run `poof logs -p <id> --environment <env>` for backend details, then fix via `poof iterate` or source changes |
+| Missing route in SPA | `spa_fallback`, `navigation_error`, `static_4xx`, top page path | Check routing and static deploy contents; verify direct URL smoke probes |
+| App says disabled / 403 | First run `poof usage status -p <id>` and inspect `isBlocked` / `blockedReason` | Resolve usage/credit pause before debugging code |
+| No analytics rows | New deploy, no traffic yet, wrong environment, or Analytics Engine dataset not initialized | Confirm URL/environment with `poof project status -p <id> --json`, generate a smoke visit, then retry shortly |
+
+`poof logs` only shows backend/API Worker logs. It will not show browser runtime errors or failed
+static resources; use `poof analytics` for those. See [analytics.md](analytics.md) for the complete
+event catalog and privacy rules.
 
 ## Timeout Errors
 

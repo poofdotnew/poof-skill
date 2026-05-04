@@ -6,6 +6,7 @@ Poof projects have four environments. Deploy to any of them using the `poof` CLI
 - [Environments](#environments)
 - [Pre-Deploy Checks](#pre-deploy-checks)
 - [Publishing](#publishing)
+- [Client App Analytics](#client-app-analytics)
 - [Code Downloads](#code-downloads)
 - [Custom Domains](#custom-domains)
 - [Authentication on Deployed Apps](#authentication-on-deployed-apps)
@@ -107,6 +108,28 @@ poof deploy static -p <id> --archive dist.tar.gz
 ```
 
 See [static-deploy.md](static-deploy.md) for the full guide, API reference, and examples.
+
+## Client App Analytics
+
+Poof serves generated and statically deployed client apps through Cloudflare, so client analytics are
+attached at the edge. A generated app does not need an analytics provider, and a statically deployed
+frontend does not need to be rebuilt to get default telemetry.
+
+```bash
+# Draft/development
+poof analytics -p <projectId> --environment draft --range 1h
+
+# Mainnet preview
+poof analytics -p <projectId> --environment preview --range 24h
+
+# Production/live
+poof analytics -p <projectId> --environment production --range 7d --json
+```
+
+This reads Cloudflare Workers Analytics Engine data for traffic, route views, visitor/session counts,
+browser JS errors, unhandled rejections, failed resources, failed browser API calls, edge 4xx/5xx,
+R2/dispatch failures, and RUM metrics. Use `poof logs` when you specifically need backend/API Worker
+request logs. See [analytics.md](analytics.md) for the full retrieval, MCP, and privacy guidance.
 
 ## Code Downloads
 

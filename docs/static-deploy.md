@@ -66,6 +66,9 @@ poof verify -p $PROJECT_ID --ui-tests=true -m "Run the existing source-authored 
 
 # 7. Optionally also run agent-local browser smoke tests against the draft URL.
 #    See docs/backend-only.md#testing-a-static-deploy for Playwright, claude-in-chrome, and curl recipes.
+
+# 8. Inspect first-party client analytics/failures from the Cloudflare edge.
+poof analytics -p $PROJECT_ID --environment draft --range 1h --json
 ```
 
 **Do not use `poof verify --ui-tests=true` to generate UI tests from a statically-deployed
@@ -91,6 +94,11 @@ Poof's placeholder shell. Treat failing UI tests the same as a failing `poof ver
 The tar.gz is only a transport format — it's never served directly. R2 receives the extracted individual files (`index.html`, JS bundles, etc.), which Cloudflare serves via wildcard DNS on `*.poof.new`.
 
 Static deploys create a checkpoint task with `focusArea: 'static_deploy'`. The previous checkpoint's policy, constants, and API spec are preserved — so your backend and the static frontend coexist.
+
+Default client analytics are added by Poof's Cloudflare proxy. You do not need to rebuild or add an
+analytics SDK to your static frontend to get page/route traffic, browser errors, failed resources,
+failed API calls, RUM, and edge failure metrics. Retrieve them with `poof analytics`; see
+[analytics.md](analytics.md).
 
 ## Constraints
 

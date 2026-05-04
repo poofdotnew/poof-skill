@@ -45,6 +45,7 @@ If the CLI prints an update notice, or you suspect behavior depends on a recent 
 | `poof security scan`                    | 1–3 min          | `timeout: 600000`                     |
 | `poof deploy preview/production/mobile` | 1–3 min          | `timeout: 600000`                     |
 | `poof deploy static`                    | 30s–2 min        | `timeout: 600000`                     |
+| `poof analytics`                        | 5–30 sec         | `timeout: 120000` (default)           |
 | `poof credits topup`                    | 30–90 sec        | `timeout: 120000` (default)           |
 | `poof files get`                        | 10–60 sec        | `timeout: 120000` (default)           |
 | All other commands                      | < 30 sec         | `timeout: 120000` (default)           |
@@ -171,6 +172,7 @@ Copy this checklist and track your progress. Pick the variant that matches your 
 - [ ] Diagnose: poof doctor -p <id>                # only if verify fails — points at the next step
 - [ ] Fix: poof iterate -p <id> -m "Fix: <error details>" && poof verify -p <id>
 - [ ] Deploy: poof ship -p <id>
+- [ ] Observe: poof analytics -p <id> --environment preview --range 1h   # traffic, browser/API/resource failures, RUM
 ```
 
 **Backend-only (policy or backend,policy — you build the UI locally):**
@@ -188,6 +190,7 @@ Copy this checklist and track your progress. Pick the variant that matches your 
 - [ ] Run static UI tests: poof verify -p <id> --ui-tests=true -m "Run the existing source-authored lifecycle-actions/ui-test-*.json files against the deployed draft app. Do not create or rewrite UI tests from the dist bundle."
 - [ ] UI smoke test (local fallback): agent runs its own browser tests against the draft URL — see docs/backend-only.md#testing-a-static-deploy
 - [ ] Deploy to preview/prod: poof ship -p <id>
+- [ ] Observe: poof analytics -p <id> --environment preview --range 1h   # works for static deploys too
 ```
 
 **Static-deploy UI tests:** do not ask Poof's AI to invent UI tests from a statically-deployed
@@ -239,6 +242,7 @@ on a `full` project and don't want Poof to re-run UI tests on every verify).
 - If `poof project list --json` shows multiple similarly named projects and you do not already have a canonical project id from the user or repo artifacts, do not guess by title. Create or explicitly reconcile the canonical project first, then write that id into your artifact store before more `iterate` or deploy work.
 - After `poof build`, always run `poof project status -p <id> --json`. Record the project id, URLs, and deploy state before you start retries or testing so later wakes do not guess which project is canonical.
 - If `poof task test-results -p <id> --json` reports `summary.total == 0`, inspect `poof task list -p <id> --json`, `poof chat active -p <id> --json`, `poof logs -p <id>`, and `poof project messages -p <id> --limit 100 --json` before you assume tests passed or failed.
+- For deployed client failures, use `poof analytics -p <id> --environment <draft|preview|production> --range 1h --json` before guessing. It reports first-party Cloudflare Analytics Engine data: page/route traffic, browser JS errors, unhandled rejections, failed resources, failed browser API calls, RUM metrics, and edge 4xx/5xx/R2/dispatch failures. Use `poof logs` after analytics points at backend/API issues.
 - `poof task test-results`, `poof iterate`, `poof verify`, and `poof doctor` now collapse test results to the **latest run per test file** by default (collapse key is `source|fileName`, not per-testName — so if the AI renames a test inside a file between runs, only the latest file state wins). If you need to see the full history (e.g. to debug why an earlier run failed), use `poof task test-results -p <id> --history`.
 - If `poof chat active -p <id> --json` stays `true` while task list shows no new work and logs show no recent activity, cancel that stale chat once with `poof chat cancel -p <id>` before the single allowed targeted retry.
 - If a targeted retry keeps inheriting bad Claude Code context, tool loops, or stale assumptions even after the active run is canceled, run `poof chat clear -p <id>` once to clear the saved AI session ID, then send one precise retry prompt.
@@ -270,6 +274,7 @@ Read **How Poof Works** first if you're writing prompts for the Poof AI.
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | Building a frontend that connects to a Poof backend — SDK init, mount-first-then-init, wallet auth, `Promise<boolean>` mutation contract, database access, real-time subscriptions, mobile/desktop modal split, mock-auth for Stagehand, anti-patterns. |
 | [**Database SDK**](docs/database-sdk.md)                 | The generated db-client + collections pattern — typed functions, read/write, frontend vs backend, how to extract and use.                                |
 | [**Deployment**](docs/deployment.md)                     | Environments (draft/preview/production/mobile), publishing, code downloads, custom domains.                                                              |
+| [**Client App Analytics**](docs/analytics.md)             | Cloudflare-only analytics, failure/RUM telemetry, `poof analytics`, and MCP retrieval via `get_client_app_analytics`.                                    |
 | [**Static Frontend Deploy**](docs/static-deploy.md)      | Deploy a self-built static frontend to Poof — tar.gz upload via CLI.                                                                                     |
 | [**Testing**](docs/testing.md)                           | Lifecycle actions, test files, bootstrap scripts, UI functional tests, static-deploy UI test workflow, expression syntax, testing strategy by layer.     |
 | [**Heartbeats / Scheduled Tasks**](docs/heartbeats.md)   | Built-in cron primitive — task config, handler files, dispatcher, manual trigger on draft for seeding, per-environment schedules. **Use this instead of building local cron services for any recurring work.** |
@@ -403,6 +408,7 @@ See [docs/how-poof-works.md](docs/how-poof-works.md) for the architecture knowle
 - **Check credits** — `poof credits balance` is free. A full build + test + polish cycle costs 3-5 credits. If credits run out mid-build, the AI stops responding
 - **Pre-fund a project (optional)** — `poof credits project deposit -p <id> --amount N` adds credits to a specific project so its infrastructure + Poof AI draw from there before falling back to your account credit balance. Pair with `poof credits project isolation -p <id> --usage true --chat true` to pause instead of falling back. See [credits-and-payments](docs/credits-and-payments.md#per-project-credit-balance)
 - **Read project usage** — `poof usage status -p <id>` shows month-to-date cost and pause state. `poof usage limit -p <id> --credits N` caps paid overage; `poof usage resume -p <id>` unblocks a paused app once preconditions are met
+- **Read client analytics** — `poof analytics -p <id> --environment draft|preview|production --range 1h|6h|24h|3d|7d` shows first-party Cloudflare Analytics Engine traffic, browser failures, failed API/resource loads, RUM, and edge failures. MCP clients can call `get_client_app_analytics`; see [analytics](docs/analytics.md)
 - **One message at a time** — `poof iterate` handles waiting automatically; if using `poof chat send`, wait for `poof chat active -p <id>` to return `state: "idle"` before sending the next message
 - **Clear context sparingly** — `poof chat clear -p <id>` drops the saved Claude Code session ID so the next message starts with fresh AI context while preserving the project and message history. Use it after evidence of stale context, not as a routine retry button
 - **Any credit purchase unlocks deployment** — mainnet deployment requires that the wallet has completed at least one credit purchase. An x402 top-up ($15 minimum) is the agent-friendly way to unlock both AI credits and deployment access. Once paid, paid features are permanently unlocked
