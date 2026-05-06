@@ -123,7 +123,7 @@ averages. JSON output includes:
 
 MCP clients can call `get_client_app_analytics`.
 
-Project-scoped MCP:
+Project-scoped (External Project MCP — `POST /api/project/<projectId>/mcp`):
 
 ```json
 {
@@ -136,7 +136,7 @@ Project-scoped MCP:
 }
 ```
 
-Top-level Poof MCP:
+Top-level Poof MCP (`POST /api/mcp` — takes `projectId`):
 
 ```json
 {
@@ -151,6 +151,8 @@ Top-level Poof MCP:
 ```
 
 The MCP response has the same shape as `poof analytics --json`.
+
+For endpoints, auth, what's not exposed, and how to discover tools via `tools/list`, see the MCP section in [api-reference.md](api-reference.md#mcp).
 
 ## Custom App Events
 
