@@ -8,6 +8,7 @@ Use `--mode backend,policy` when you're building your own frontend locally but w
 - [Getting Connection Info](#getting-connection-info)
 - [Building Your Local Frontend](#building-your-local-frontend)
 - [Iterating on the Backend](#iterating-on-the-backend)
+- [Deploying a Built Backend Artifact](#deploying-a-built-backend-artifact)
 - [Extracting the Generated SDK](#extracting-the-generated-sdk)
 - [End-to-End Example](#end-to-end-example)
 
@@ -116,6 +117,32 @@ Use `poof iterate` to modify the backend:
 poof iterate -p <project-id> \
   -m "Add a notification system — when a task is assigned, create a notification record for the assignee. Add a GET /api/notifications endpoint that returns unread notifications."
 ```
+
+## Deploying a Built Backend Artifact
+
+If you build the PartyServer backend locally instead of asking Poof's AI to edit backend source, deploy the bundled Worker with `poof deploy backend`. Build from Wrangler's processed output, not raw TypeScript `dist`:
+
+```bash
+bunx wrangler deploy --dry-run --outdir .poof-backend-bundle
+cat > .poof-backend-bundle/poof-backend-artifact.json <<'JSON'
+{
+  "entrypoint": "index.js",
+  "wranglerVersion": "4.80.0",
+  "apiSpecPath": "generated/api-spec.json"
+}
+JSON
+tar czf backend-worker.tar.gz -C .poof-backend-bundle .
+poof deploy backend -p <project-id> --archive backend-worker.tar.gz
+```
+
+After a successful deploy, `poof project status -p <id> --json` includes `latestTask.backendBundleUrl`
+and generation mode includes `backend-artifact`. Static UI deploys preserve the active backend
+artifact, and backend artifact deploys preserve the active static UI. Preview and production deploys
+promote the uploaded backend artifact instead of rebuilding source PartyServer code until a later
+source-backed API/backend task supersedes it.
+
+See [backend-artifact-deploy.md](backend-artifact-deploy.md) for the full manifest contract,
+queue/heartbeat metadata, security scan behavior, and lifecycle verification checklist.
 
 ## Extracting the Generated SDK
 
@@ -372,16 +399,25 @@ poof verify -p "$PROJECT_ID"
 cd ./my-frontend && npm run build && cd ..
 tar czf dist.tar.gz -C ./my-frontend/dist .
 
-# 5. Upload source-authored Poof UI lifecycle tests
+# 5. Optional: deploy a local built backend artifact if you own the backend bundle
+# bunx wrangler deploy --dry-run --outdir .poof-backend-bundle
+# tar czf backend-worker.tar.gz -C .poof-backend-bundle .
+# poof deploy backend -p "$PROJECT_ID" --archive backend-worker.tar.gz
+
+# 6. Upload source-authored Poof UI lifecycle tests
 poof files update -p "$PROJECT_ID" --from-json lifecycle-ui-tests.json
 
-# 6. Deploy the static frontend to the draft URL
+# 7. Deploy the static frontend to the draft URL
 poof deploy static -p "$PROJECT_ID" --archive dist.tar.gz --title "initial static deploy"
 
-# 7. Run the uploaded tests against the real static UI
+# 8. Run the uploaded tests against the real static UI
 poof verify -p "$PROJECT_ID" --ui-tests=true -m "Run the existing source-authored lifecycle-actions/ui-test-*.json files against the deployed draft app. Do not create or rewrite UI tests from the dist bundle."
 
-# 8. Ship to preview / production
+# 9. If a backend artifact is active, smoke the draft API directly too
+BACKEND_URL=$(poof project status -p "$PROJECT_ID" --json | jq -r '.connectionInfo.draft.backendUrl')
+curl -fsS "$BACKEND_URL/api/health"
+
+# 10. Ship to preview / production
 poof ship -p "$PROJECT_ID"
 ```
 
