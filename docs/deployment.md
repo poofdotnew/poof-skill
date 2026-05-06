@@ -6,6 +6,8 @@ Poof projects have four environments. Deploy to any of them using the `poof` CLI
 - [Environments](#environments)
 - [Pre-Deploy Checks](#pre-deploy-checks)
 - [Publishing](#publishing)
+- [Static Frontend Deploy](#static-frontend-deploy)
+- [Built Backend Artifact Deploy](#built-backend-artifact-deploy)
 - [Client App Analytics](#client-app-analytics)
 - [Code Downloads](#code-downloads)
 - [Custom Domains](#custom-domains)
@@ -108,6 +110,21 @@ poof deploy static -p <id> --archive dist.tar.gz
 ```
 
 See [static-deploy.md](static-deploy.md) for the full guide, API reference, and examples.
+
+## Built Backend Artifact Deploy
+
+If you're building the PartyServer backend outside of Poof and want to deploy that exact Worker bundle, use `poof deploy backend`. This uploads a Wrangler-bundled Worker artifact and deploys it through Poof's platform-owned Cloudflare dispatch namespace.
+
+```bash
+bunx wrangler deploy --dry-run --outdir .poof-backend-bundle
+# add .poof-backend-bundle/poof-backend-artifact.json
+tar czf backend-worker.tar.gz -C .poof-backend-bundle .
+poof deploy backend -p <id> --archive backend-worker.tar.gz
+```
+
+Backend artifact deploys target the draft backend first. Later `poof deploy preview`, `poof deploy production --yes`, or `poof ship` promotes the active backend artifact instead of rebuilding source PartyServer code. Static UI deploys and backend artifact deploys preserve each other: a static deploy keeps the active `backendBundleUrl`, and a backend deploy keeps the active `staticDistUrl`.
+
+See [backend-artifact-deploy.md](backend-artifact-deploy.md) for the manifest contract, validation rules, optional API spec/queue/heartbeat metadata, and verification checklist.
 
 ## Client App Analytics
 

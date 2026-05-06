@@ -45,6 +45,7 @@ If the CLI prints an update notice, or you suspect behavior depends on a recent 
 | `poof security scan`                    | 1–3 min          | `timeout: 600000`                     |
 | `poof deploy preview/production/mobile` | 1–3 min          | `timeout: 600000`                     |
 | `poof deploy static`                    | 30s–2 min        | `timeout: 600000`                     |
+| `poof deploy backend`                   | 30s–2 min        | `timeout: 600000`                     |
 | `poof analytics`                        | 5–30 sec         | `timeout: 120000` (default)           |
 | `poof credits topup`                    | 30–90 sec        | `timeout: 120000` (default)           |
 | `poof files get`                        | 10–60 sec        | `timeout: 120000` (default)           |
@@ -193,6 +194,25 @@ Copy this checklist and track your progress. Pick the variant that matches your 
 - [ ] Observe: poof analytics -p <id> --environment preview --range 1h   # works for static deploys too
 ```
 
+**Built backend artifact (you build the PartyServer Worker locally):**
+
+```
+- [ ] Setup: poof keygen >> .env && poof auth login
+- [ ] Build/create a Poof project with policies/source baseline as needed
+- [ ] Bundle backend: bunx wrangler deploy --dry-run --outdir .poof-backend-bundle
+- [ ] Add .poof-backend-bundle/poof-backend-artifact.json with entrypoint + wranglerVersion
+- [ ] Package: tar czf backend-worker.tar.gz -C .poof-backend-bundle .
+- [ ] Dry run: poof deploy backend -p <id> --archive backend-worker.tar.gz --dry-run
+- [ ] Deploy backend artifact: poof deploy backend -p <id> --archive backend-worker.tar.gz
+- [ ] Smoke test draft API routes directly against connectionInfo.draft.backendUrl
+- [ ] If a static UI is active, smoke test the draft UI too; backend deploys preserve active staticDistUrl
+- [ ] Deploy to preview/prod: poof deploy preview -p <id> && poof deploy production -p <id> --yes
+```
+
+See [docs/backend-artifact-deploy.md](docs/backend-artifact-deploy.md). Use Wrangler's bundled output,
+not raw `tsc` `dist`. The archive must contain `poof-backend-artifact.json`; optional
+`apiSpecPath`, `queuesPath`, and `heartbeatPath` files are promoted with the artifact.
+
 **Static-deploy UI tests:** do not ask Poof's AI to invent UI tests from a statically-deployed
 frontend. After `poof deploy static`, the server has your minified `dist/` bundle, not the local
 TypeScript/JSX source, so AI-generated UI tests tend to become generic DOM-shape checks. If you want
@@ -237,6 +257,11 @@ equivalent against the draft URL and assert on the real feature contract.
 `--ui-tests=false` is still available to force lifecycle-only in any mode (useful if you're iterating
 on a `full` project and don't want Poof to re-run UI tests on every verify).
 
+**Backend artifacts and `poof verify`:** when `poof project status` shows `generationMode` containing
+`backend-artifact`, verification should exercise the deployed backend URL and API/lifecycle behavior,
+not ask Poof's AI to regenerate backend source from the uploaded bundle. Treat the bundle as the
+backend source of truth until a later source-backed API/backend task supersedes it.
+
 ### Reality Checks
 
 - If `poof project list --json` shows multiple similarly named projects and you do not already have a canonical project id from the user or repo artifacts, do not guess by title. Create or explicitly reconcile the canonical project first, then write that id into your artifact store before more `iterate` or deploy work.
@@ -271,6 +296,7 @@ Read **How Poof Works** first if you're writing prompts for the Poof AI.
 | [**How Poof Works**](docs/how-poof-works.md)             | Architecture, policy system, plugins, on-chain vs off-chain, what Poof can/can't do. **Read this to write effective prompts.**                           |
 | [**Building & Chat**](docs/building-and-chat.md)         | Project creation, chat workflow, follow-up patterns, generation modes.                                                                                   |
 | [**Backend-Only Mode**](docs/backend-only.md)            | Using `backend,policy` generation mode with a local frontend — connection info, `@pooflabs/web` setup, PartyServer integration.                          |
+| [**Built Backend Artifact Deploy**](docs/backend-artifact-deploy.md) | Deploying a pre-built PartyServer Worker artifact — Wrangler bundle packaging, manifest contract, preservation across static/preview/production deploys. |
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | Building a frontend that connects to a Poof backend — SDK init, mount-first-then-init, wallet auth, `Promise<boolean>` mutation contract, database access, real-time subscriptions, mobile/desktop modal split, mock-auth for Stagehand, anti-patterns. |
 | [**Database SDK**](docs/database-sdk.md)                 | The generated db-client + collections pattern — typed functions, read/write, frontend vs backend, how to extract and use.                                |
 | [**Deployment**](docs/deployment.md)                     | Environments (draft/preview/production/mobile), publishing, code downloads, custom domains.                                                              |

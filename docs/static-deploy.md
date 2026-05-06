@@ -95,6 +95,11 @@ The tar.gz is only a transport format — it's never served directly. R2 receive
 
 Static deploys create a checkpoint task with `focusArea: 'static_deploy'`. The previous checkpoint's policy, constants, and API spec are preserved — so your backend and the static frontend coexist.
 
+If the project has an active built backend artifact from `poof deploy backend`, the static deploy also
+preserves that `backendBundleUrl`. Preview and production deploys then promote both active artifacts:
+the uploaded static frontend and the uploaded PartyServer backend. See
+[backend-artifact-deploy.md](backend-artifact-deploy.md) for the backend side of the lifecycle.
+
 Default client analytics are added by Poof's Cloudflare proxy. You do not need to rebuild or add an
 analytics SDK to your static frontend to get page/route traffic, browser errors, failed resources,
 failed API calls, RUM, and edge failure metrics. Retrieve them with `poof analytics`; see
