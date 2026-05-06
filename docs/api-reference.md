@@ -4,7 +4,7 @@
 
 - [Workflow Commands](#workflow-commands)
 - [All Commands](#all-commands)
-- [MCP Analytics Retrieval](#mcp-analytics-retrieval)
+- [MCP](#mcp)
 - [JSON Output Shapes](#json-output-shapes)
 - [Error Handling](#error-handling)
 
@@ -209,11 +209,49 @@ You shouldn't need to talk to Poof's data-plane HTTP endpoints directly — `poo
 
 Everything else — `PUT /items`, `GET /items`, `POST /queries`, offchain submit, LUT-aware VersionedTransaction assembly for mainnet — is baked into the CLI and exposed through `poof data`.
 
-## MCP Analytics Retrieval
+## MCP
 
-MCP clients can retrieve the same data as `poof analytics --json` with `get_client_app_analytics`.
+Poof exposes two MCP servers over HTTP/JSON-RPC 2.0:
 
-Project-scoped MCP uses the current project context:
+| Server | Endpoint | Scope |
+|---|---|---|
+| Top-level Poof MCP | `POST /api/mcp` | Account-wide; tools take `projectId` per call. Mirrors the full CLI surface — create/delete projects, chat, deploy, manage secrets/domains, top up credits. |
+| External Project MCP | `POST /api/project/<projectId>/mcp` | Bound to one project; tools do **not** take `projectId` (it's in the URL). Project introspection, Tarobase data plane, lifecycle tests, formal verification, mobile publish readiness. |
+
+### Auth
+
+Both endpoints accept the same Cognito **`idToken`** the CLI uses, sent as `Authorization: Bearer <token>` (or `x-tarobase-token` for the project-scoped endpoint). Two carryovers from the data-plane HTTP layer:
+
+- Use `idToken`, not `accessToken` — the latter returns `401 "Error verifying auth token"`.
+- For the project-scoped endpoint, the token must be scoped to the project's per-environment app ID (`connectionInfo.<env>.tarobaseAppId` from `poof project status --json`). A session scoped to the wrong app returns `401`.
+
+### Discover tools with `tools/list`
+
+The MCP server self-describes. Always enumerate the live tool inventory with the standard `tools/list` method — it stays in lockstep with the server as tools are added or renamed:
+
+```json
+{ "jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {} }
+```
+
+Do not assume tool names from CLI commands or training data. Common hallucinations like `add_faucet_funds`, `airdrop`, or `deploy` will fail; the canonical names live in the server's response. (For reference, the actual faucet tool is `request_faucet_tokens`.)
+
+### What's *not* exposed via the External Project MCP
+
+The project-scoped server intentionally limits the surface to lower-risk, project-scoped tools. Calls to tools in any of these categories will return a JSON-RPC error:
+
+- Build/deploy: `build_and_deploy`, package management, deploy triggers
+- Secret writes: `set_secrets`, `store_secrets` (read of secret **names** is allowed via `get_secrets_list`)
+- Constant writes: `modify_constants`
+- Project file writes: `write_project_file`
+- Backend invocation: `call_backend_api`, `trigger_task`
+- Browser automation: `browserbase`, `ui_test_runner`
+- Rewind, memory search, production heartbeat tools
+
+If you need any of those, use the top-level Poof MCP (`POST /api/mcp`) — that surface is account-scoped and includes the deploy/secret-write tooling.
+
+### `get_client_app_analytics` example
+
+Returns the same shape as `poof analytics --json`. Project-scoped (omits `projectId`):
 
 ```json
 {
@@ -226,7 +264,7 @@ Project-scoped MCP uses the current project context:
 }
 ```
 
-Top-level Poof MCP requires `projectId`:
+Top-level (requires `projectId`):
 
 ```json
 {
