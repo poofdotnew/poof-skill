@@ -13,6 +13,10 @@ Use `poof deploy backend` when:
 - You are pairing a local frontend deploy (`poof deploy static`) with a local backend deploy.
 - You want Poof to own the final Cloudflare deploy credentials and environment wiring.
 
+If you are also authoring the backend source, read [local-backend-guide.md](local-backend-guide.md)
+first for the routeSpec, auth, Poof-native AI, Heartbeat, queue, and local scaffold contract. This
+page only covers packaging and deploying the built Worker artifact.
+
 Do not use this when:
 
 - You want Poof's AI to edit backend source. Use `poof iterate` on a source-backed project instead.
@@ -21,15 +25,28 @@ Do not use this when:
 
 ## Build and Package
 
-From your local backend project, build the Worker bundle with Wrangler:
+From your local backend project, build the Worker bundle with Wrangler. If the
+project does not have a concrete `wrangler.toml` because Poof injects one at
+deploy time, pass the Worker entrypoint explicitly:
 
 ```bash
-bunx wrangler deploy --dry-run --outdir .poof-backend-bundle
+bun run build
+rm -rf .poof-backend-bundle backend-worker.tar.gz
+bunx wrangler deploy src/index.ts \
+  --dry-run \
+  --outdir .poof-backend-bundle \
+  --name poof-backend-bundle \
+  --compatibility-date 2025-08-15 \
+  --compatibility-flag nodejs_compat \
+  --compatibility-flag nodejs_compat_populate_process_env
 ```
 
-Add the Poof artifact manifest to the output directory:
+Copy any metadata files referenced by the manifest into the output directory,
+then add the Poof artifact manifest:
 
 ```bash
+mkdir -p .poof-backend-bundle/generated
+cp generated/api-spec.json .poof-backend-bundle/generated/api-spec.json
 cat > .poof-backend-bundle/poof-backend-artifact.json <<'JSON'
 {
   "entrypoint": "index.js",
@@ -38,6 +55,9 @@ cat > .poof-backend-bundle/poof-backend-artifact.json <<'JSON'
 }
 JSON
 ```
+
+If the manifest includes `queuesPath` or `heartbeatPath`, copy those JSON files
+into `.poof-backend-bundle/` too before archiving.
 
 Archive the bundled output:
 

@@ -134,6 +134,7 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 - **Generation modes** — `full`, `policy`, `backend,policy`, `ui,policy`
 - **Composite workflows** — `poof build` (create + wait), `poof iterate` (chat + wait + test results), `poof ship` (scan + check + deploy)
 - **Testing workflows** — Lifecycle action tests, including source-authored UI tests for statically deployed local frontends
+- **Local source workflows** — Local frontend and PartyServer backend development with Poof-hosted policy/auth/database bindings
 - **Deployment pipeline** — Draft → Preview → Production with security scanning, static frontend artifacts, and built backend artifacts
 - **Client analytics** — Cloudflare-only traffic, RUM, browser/API/resource failure, and edge failure telemetry via CLI and MCP
 - **Troubleshooting** — Common errors and recovery patterns
@@ -147,6 +148,8 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 | `backend,policy` | Backend API routes + policies | Your own frontend |
 | `ui,policy` | Frontend UI + policies | Your own backend |
 
+Poof supports source-owned local frontend and backend artifacts layered on top of a Poof project: your workspace owns the frontend source and PartyServer backend source, while Poof still hosts policy, auth, database, static UI artifacts, backend artifacts, queues, and Heartbeats. Fresh local source-owned builds should start from the current frontend/backend templates instead of downloading Poof-generated code.
+
 ## Documentation
 
 | Doc | Covers |
@@ -157,6 +160,7 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 | [**CLI Command Reference**](docs/api-reference.md) | All CLI commands with inputs/outputs |
 | [**Backend-Only Mode**](docs/backend-only.md) | Custom frontend with Poof backend |
 | [**Built Backend Artifact Deploy**](docs/backend-artifact-deploy.md) | Deploy a self-built PartyServer backend bundle |
+| [**Local Backend Guide**](docs/local-backend-guide.md) | Source-owned PartyServer backend development with routeSpec, auth, Poof-native AI, Heartbeats, queues, packaging, and verification |
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | SDK init, wallet auth, database access, React hooks |
 | [**Database SDK**](docs/database-sdk.md) | Generated typed SDK, collections, read/write patterns |
 | [**Deployment**](docs/deployment.md) | Environments, publishing, code downloads, custom domains |

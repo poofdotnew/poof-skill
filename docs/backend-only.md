@@ -123,7 +123,17 @@ poof iterate -p <project-id> \
 If you build the PartyServer backend locally instead of asking Poof's AI to edit backend source, deploy the bundled Worker with `poof deploy backend`. Build from Wrangler's processed output, not raw TypeScript `dist`:
 
 ```bash
-bunx wrangler deploy --dry-run --outdir .poof-backend-bundle
+bun run build
+rm -rf .poof-backend-bundle backend-worker.tar.gz
+bunx wrangler deploy src/index.ts \
+  --dry-run \
+  --outdir .poof-backend-bundle \
+  --name poof-backend-bundle \
+  --compatibility-date 2025-08-15 \
+  --compatibility-flag nodejs_compat \
+  --compatibility-flag nodejs_compat_populate_process_env
+mkdir -p .poof-backend-bundle/generated
+cp generated/api-spec.json .poof-backend-bundle/generated/api-spec.json
 cat > .poof-backend-bundle/poof-backend-artifact.json <<'JSON'
 {
   "entrypoint": "index.js",
@@ -143,6 +153,8 @@ source-backed API/backend task supersedes it.
 
 See [backend-artifact-deploy.md](backend-artifact-deploy.md) for the full manifest contract,
 queue/heartbeat metadata, security scan behavior, and lifecycle verification checklist.
+For source-owned backend development, including local frontend-only projects that need backend source, read [local-backend-guide.md](local-backend-guide.md)
+before editing routes, auth, Heartbeat tasks, queues, or Poof-native AI calls.
 
 ## Extracting the Generated SDK
 
@@ -400,7 +412,9 @@ cd ./my-frontend && npm run build && cd ..
 tar czf dist.tar.gz -C ./my-frontend/dist .
 
 # 5. Optional: deploy a local built backend artifact if you own the backend bundle
-# bunx wrangler deploy --dry-run --outdir .poof-backend-bundle
+# bunx wrangler deploy src/index.ts --dry-run --outdir .poof-backend-bundle --compatibility-date 2025-08-15 --compatibility-flag nodejs_compat --compatibility-flag nodejs_compat_populate_process_env
+# mkdir -p .poof-backend-bundle/generated
+# cp generated/api-spec.json .poof-backend-bundle/generated/api-spec.json
 # tar czf backend-worker.tar.gz -C .poof-backend-bundle .
 # poof deploy backend -p "$PROJECT_ID" --archive backend-worker.tar.gz
 

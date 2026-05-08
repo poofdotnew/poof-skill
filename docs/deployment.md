@@ -116,7 +116,8 @@ See [static-deploy.md](static-deploy.md) for the full guide, API reference, and 
 If you're building the PartyServer backend outside of Poof and want to deploy that exact Worker bundle, use `poof deploy backend`. This uploads a Wrangler-bundled Worker artifact and deploys it through Poof's platform-owned Cloudflare dispatch namespace.
 
 ```bash
-bunx wrangler deploy --dry-run --outdir .poof-backend-bundle
+bunx wrangler deploy src/index.ts --dry-run --outdir .poof-backend-bundle --compatibility-date 2025-08-15 --compatibility-flag nodejs_compat --compatibility-flag nodejs_compat_populate_process_env
+# copy generated/api-spec.json, queues.json, and heartbeat.json into .poof-backend-bundle/ if the manifest references them
 # add .poof-backend-bundle/poof-backend-artifact.json
 tar czf backend-worker.tar.gz -C .poof-backend-bundle .
 poof deploy backend -p <id> --archive backend-worker.tar.gz

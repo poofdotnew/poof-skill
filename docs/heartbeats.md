@@ -6,7 +6,7 @@ Poof has a first-class **Heartbeat** primitive for recurring backend jobs. **Use
 - A separate Cloudflare Worker with a `scheduled()` handler
 - A GitHub Actions schedule that hits an API route
 - A VPS cron job
-- A Poofy-daemon side-channel scheduler
+- An external orchestrator side-channel scheduler
 
 All of those are wrong for Poof products. Heartbeats run on the user worker (same project, same billing as HTTP requests) via the platform's dispatch namespace. Setting one up is a single `poof iterate` call.
 
@@ -118,7 +118,7 @@ UTC only — no timezone field. Convert local times yourself.
 6. **Don't call your own API routes from within a task** — direct DB / env access is available.
 7. **Don't create test/trigger API routes** — the Heartbeat UI Run button (and the `poof chat`/`iterate` manual-trigger path) handle this. No `/api/test-heartbeat` or `/api/run-publish` routes needed.
 
-## Spec convention (Poofy products)
+## Spec convention
 
 When writing `spec.md` for a Poof product that has scheduled work, list it under `**Heartbeat tasks:**` with one row per task:
 
