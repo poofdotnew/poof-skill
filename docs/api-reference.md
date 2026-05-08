@@ -211,19 +211,28 @@ Everything else — `PUT /items`, `GET /items`, `POST /queries`, offchain submit
 
 ## MCP
 
-Poof exposes two MCP servers over HTTP/JSON-RPC 2.0:
+Poof exposes two MCP servers over HTTP/JSON-RPC 2.0. **Default to the top-level server** — it covers nearly every external-agent workflow, including the Poofnet faucet:
 
 | Server | Endpoint | Scope |
 |---|---|---|
-| Top-level Poof MCP | `POST /api/mcp` | Account-wide; tools take `projectId` per call. Mirrors the full CLI surface — create/delete projects, chat, deploy, manage secrets/domains, top up credits. |
-| External Project MCP | `POST /api/project/<projectId>/mcp` | Bound to one project; tools do **not** take `projectId` (it's in the URL). Project introspection, Tarobase data plane, lifecycle tests, formal verification, mobile publish readiness. |
+| **Top-level Poof MCP (default)** | `POST /api/mcp` | Account-wide; tools take `projectId` per call. Full external-agent surface — create/delete projects, chat, deploy, manage secrets/domains, logs, analytics, top up credits, **and `request_faucet_tokens` for Poofnet airdrops**. |
+| External Project MCP (optional) | `POST /api/project/<projectId>/mcp` | Bound to one project; tools do **not** take `projectId` (it's in the URL). Adds the Tarobase data plane (`get`/`set`/`set_many`/etc.), lifecycle execution, formal verification, mobile publish readiness — useful when you want to run those operations through MCP rather than the CLI. Same auth as the top-level endpoint. |
+
+For most agents, **the top-level MCP is all you need**. Reach for the project MCP only when you specifically want the project-data-plane tools.
 
 ### Auth
 
-Both endpoints accept the same Cognito **`idToken`** the CLI uses, sent as `Authorization: Bearer <token>` (or `x-tarobase-token` for the project-scoped endpoint). Two carryovers from the data-plane HTTP layer:
+**Both endpoints accept the same credential: the Cognito `idToken` the CLI uses (`poof auth login`).** There is no separate "Tarobase token" to obtain — the Cognito ID token *is* the Tarobase token. Pass it as:
 
-- Use `idToken`, not `accessToken` — the latter returns `401 "Error verifying auth token"`.
-- For the project-scoped endpoint, the token must be scoped to the project's per-environment app ID (`connectionInfo.<env>.tarobaseAppId` from `poof project status --json`). A session scoped to the wrong app returns `401`.
+```
+Authorization: Bearer <idToken>
+X-Wallet-Address: <wallet-address>
+```
+
+Two carryovers from the data-plane HTTP layer:
+
+- Use `idToken`, not `accessToken` — the latter returns `401`.
+- The credential is the **top-level CLI token**, not a project-scoped session. Tokens scoped to the project's per-environment app ID (`connectionInfo.<env>.tarobaseAppId` from `poof project status --json`) are for `poof data` only — they will be rejected by both MCP endpoints. If you see `401` with "Authentication failed" on `/api/project/<id>/mcp`, double-check you're sending the same token that already works on `/api/mcp`.
 
 ### Discover tools with `tools/list`
 
@@ -233,7 +242,31 @@ The MCP server self-describes. Always enumerate the live tool inventory with the
 { "jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {} }
 ```
 
-Do not assume tool names from CLI commands or training data. Common hallucinations like `add_faucet_funds`, `airdrop`, or `deploy` will fail; the canonical names live in the server's response. (For reference, the actual faucet tool is `request_faucet_tokens`.)
+Do not assume tool names from CLI commands or training data. Common hallucinations like `add_faucet_funds`, `airdrop`, or `deploy` will fail; the canonical names live in the server's response. (For reference, the actual faucet tool is `request_faucet_tokens` and it lives on the top-level MCP.)
+
+### `request_faucet_tokens` example
+
+Top-level MCP (recommended — matches the auth you're already using for everything else):
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "request_faucet_tokens",
+    "arguments": {
+      "projectId": "<project-id>",
+      "walletAddress": "<recipient-solana-address>",
+      "amount": 1000
+    }
+  }
+}
+```
+
+Add `mintAddress` for any SPL token (e.g. test USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`); omit it for native test SOL. Poofnet tokens have no real-world value. The project must already have a Poofnet app id (auto-provisioned on first draft build); if you get a `409` saying "Project has no Poofnet app id," run a draft build first.
+
+The same tool is also available on the project MCP (without the `projectId` argument, since the URL already pins it). Either path works; the top-level MCP is preferred so you don't manage two endpoints.
 
 ### What's *not* exposed via the External Project MCP
 
