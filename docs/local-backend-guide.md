@@ -107,6 +107,25 @@ import { aiRun, aiRunForContext } from '../lib/poof-ai.js';
 
 Do not add generic provider secrets such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or OpenRouter keys for ordinary chat, classification, summarization, extraction, moderation, recommendations, scoring, or drafting. Poof supplies AI through its usage system. Only use a third-party AI credential when the user explicitly requires a non-Poof external provider and the reason is documented.
 
+## Secrets
+
+Local dev and the deployed Worker do **not** share secret state. Local credentials never travel with the bundle — set them on the Poof project separately, per environment.
+
+**Read in code.** The template enables `nodejs_compat_populate_process_env`, so secrets are `process.env.MY_SECRET`. Reserve `wrangler.toml` `[vars]` for non-sensitive config only.
+
+**Local dev.** Put `KEY=VALUE` lines in `partyserver/.dev.vars` for `bunx wrangler dev`. Add `.dev.vars` to `.gitignore`. Never commit it.
+
+**Deployed Worker.** `.dev.vars` is not bundled by `wrangler deploy --dry-run`. After `poof deploy backend`, the Worker sees only secrets set on the Poof project. Set them before deploying to each environment:
+
+```bash
+poof secrets set -p <id> STRIPE_SECRET_KEY=sk_live_...
+poof secrets get -p <id> --environment development        # default
+poof secrets get -p <id> --environment mainnet-preview
+poof secrets get -p <id> --environment production
+```
+
+`poof secrets get` lists required and optional names with their per-environment status. Production deploys block until required secrets are set.
+
 ## Data, Auth, and Policies
 
 Local backend source should still treat Poof policy/database/auth as canonical:
@@ -214,6 +233,7 @@ Do not download Poof backend source for this path unless the task is explicitly 
 
 ## Anti-Patterns
 
+- Assuming `partyserver/.dev.vars` is bundled into the deployed Worker. It is not — set deployed secrets with `poof secrets set` per environment.
 - Creating `backend/`, `server/`, `api/`, or `jobs/` beside the PartyServer backend root for product runtime logic.
 - Editing platform middleware to work around a route bug.
 - Adding generic LLM provider keys for ordinary AI work.

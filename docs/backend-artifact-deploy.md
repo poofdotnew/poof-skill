@@ -65,6 +65,14 @@ Archive the bundled output:
 tar czf backend-worker.tar.gz -C .poof-backend-bundle .
 ```
 
+Before deploying, confirm secrets are set on the project for the target environment — local `.dev.vars` is not bundled with the archive:
+
+```bash
+poof secrets get -p <project-id> --environment development
+```
+
+See [local-backend-guide.md](local-backend-guide.md#secrets) for the local-vs-deployed split.
+
 Deploy it to the draft backend:
 
 ```bash
