@@ -229,6 +229,8 @@ Each call is one short LLM run that loads context, advances the workflow, persis
 
 Don't try to keep state only in the DO if you also need to query it from `/api/*` routes — Tarobase is the join point.
 
+**Auto-compaction:** Flue compacts the session automatically when the running context approaches the model's window (default: keep ~20K recent tokens verbatim, summarize everything older into one condensed turn, reserve ~16K for the response). One internal LLM call per compaction, billed through the same proxy. The agent keeps running — there's no hard wall. The trade-off is that verbatim quotes and big tool-result blobs from much older turns become summary-only, which is the second reason business facts (prices, contracts, dealer contacts) belong in Tarobase rather than relying on conversation history to preserve them. Re-load them at each wake-up.
+
 ## Security model — what's gated and what isn't
 
 - The auto-mounted `/agents/<name>/<session>` HTTP path is **not exposed**. Agents are invoked only via DO binding from your own routes.
