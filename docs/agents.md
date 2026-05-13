@@ -154,6 +154,81 @@ The model picks which tool based on your prompt — you don't import or wire any
 | Many jobs, retries + DLQ | **Queue** — consumer calls `enqueueAgentRun` | See `docs/queues.md` |
 | On a schedule | **Heartbeat** — handler calls `runAgent` | See `docs/heartbeats.md` |
 
+## Long-running agents (one session, multiple triggers)
+
+For agents that "chug along" over hours/days — a negotiator that contacts dealers and waits for replies, a research agent that polls sources, a workflow that resumes when external events arrive — pin a **stable `sessionId`** per workflow and invoke the same agent from multiple triggers. The DO holds conversation history; Tarobase (or another store) holds business state that arrived between turns.
+
+Pattern shape:
+
+```ts
+// .flue/agents/<workflow>.ts — one handler, multiple triggers
+export default async function ({ init, payload }: FlueContext) {
+  const harness = await init({ model: 'anthropic/claude-sonnet-4-6' });
+  const session = await harness.session();
+  const p = payload as
+    | { trigger: 'start'; ...inputs }
+    | { trigger: 'poll' }
+    | { trigger: 'user_update'; message: string }
+    | { trigger: 'inbound_event'; ...event };
+  // Read durable state (counterparties, prices, status) from Tarobase
+  // so each trigger sees what other handlers have stored since the
+  // last wake-up.
+  const state = await get(`workflows/${ctx.id}`);
+  const { data } = await session.prompt(routerPromptFor(p, state), { schema });
+  return data;
+}
+```
+
+Then wire each trigger to the same `sessionId`:
+
+```ts
+// Tenant route — start
+app.post('/api/negotiations', async (c) => {
+  await validatePoofAuth(c);
+  const sessionId = `neg-${userId}-${Date.now()}`;
+  await set(`workflows/${sessionId}`, { status: 'active', ... });
+  const { runId } = await enqueueAgentRun(c.env, 'car-negotiator', {
+    sessionId, payload: { trigger: 'start', ...inputs },
+  });
+  return sendSuccess(c, { sessionId, runId });
+});
+
+// Tenant route — user reacts
+app.post('/api/negotiations/:id/update', async (c) => {
+  await validatePoofAuth(c);
+  const { id } = c.req.param();
+  await enqueueAgentRun(c.env, 'car-negotiator', {
+    sessionId: id, payload: { trigger: 'user_update', message: (await c.req.json()).message },
+  });
+  return sendSuccess(c, {});
+});
+
+// Heartbeat — periodic poll over every active workflow
+export async function pollWorkflowsHandler({ env }) {
+  const { negotiations } = await getMany([{ collection: 'negotiations', where: { status: 'active' } }]);
+  for (const n of negotiations) {
+    await enqueueAgentRun(env, 'car-negotiator', { sessionId: n.id, payload: { trigger: 'poll' } });
+  }
+}
+
+// Queue consumer — inbound external events (email reply, webhook, ...)
+export async function handleInboundQueue(batch, env) {
+  for (const msg of batch.messages) {
+    const { sessionId, ...event } = msg.body;
+    await runAgent(env, 'car-negotiator', { sessionId, payload: { trigger: 'inbound_event', ...event } });
+    msg.ack();
+  }
+}
+```
+
+Each call is one short LLM run that loads context, advances the workflow, persists results, and exits. The agent isn't "running" continuously — it's a series of stateful, short invocations against the same session. That matches the worker model (no long-lived processes) and bounds each wake-up's compute + cost.
+
+**State split:**
+- **DO (`session`)**: conversation history, tool-call cache, prompt context. Auto-managed by the harness.
+- **Tarobase / your data store**: business state others can read independently (status, counterparties, contracts, prices). The agent reads at wake-up, writes before exit.
+
+Don't try to keep state only in the DO if you also need to query it from `/api/*` routes — Tarobase is the join point.
+
 ## Security model — what's gated and what isn't
 
 - The auto-mounted `/agents/<name>/<session>` HTTP path is **not exposed**. Agents are invoked only via DO binding from your own routes.
