@@ -56,7 +56,7 @@ cat > .poof-backend-bundle/poof-backend-artifact.json <<'JSON'
 JSON
 ```
 
-If the manifest includes `queuesPath` or `heartbeatPath`, copy those JSON files
+If the manifest includes `queuesPath`, `heartbeatPath`, or `agentsPath`, copy those JSON files
 into `.poof-backend-bundle/` too before archiving.
 
 Archive the bundled output:
@@ -98,6 +98,7 @@ The archive must include `poof-backend-artifact.json` at the archive root.
 | `apiSpecPath` | No | Path to generated API metadata, usually `generated/api-spec.json`. |
 | `queuesPath` | No | Path to queue config JSON if the backend uses Poof Cloud Queues. |
 | `heartbeatPath` | No | Path to heartbeat/scheduled task config JSON. |
+| `agentsPath` | No | Path to agent config JSON if the backend uses Poof AI agents (`poof-agents.json`). |
 
 Example with optional platform metadata:
 
@@ -107,9 +108,12 @@ Example with optional platform metadata:
   "wranglerVersion": "4.80.0",
   "apiSpecPath": "generated/api-spec.json",
   "queuesPath": "config/queues.json",
-  "heartbeatPath": "config/heartbeat.json"
+  "heartbeatPath": "config/heartbeat.json",
+  "agentsPath": "config/poof-agents.json"
 }
 ```
+
+The four optional metadata files are read at deploy time: Poof materializes wrangler bindings (queue producer/consumer, agent Durable Objects), registers heartbeat schedules with the platform dispatcher, and snapshots each JSON to S3 so the platform UI's Heartbeat / Queues / Agents tabs reflect what you declared locally.
 
 ## Validation Rules
 
@@ -120,7 +124,7 @@ The CLI and server both validate the archive before deploying:
 - Symlinks, hard links, absolute paths, parent traversal, and special entries are rejected.
 - `poof-backend-artifact.json` must parse as JSON.
 - `entrypoint` must point to a regular file inside the archive.
-- Optional `apiSpecPath`, `queuesPath`, and `heartbeatPath` must point to regular files when present.
+- Optional `apiSpecPath`, `queuesPath`, `heartbeatPath`, and `agentsPath` must point to regular files when present.
 
 ## Lifecycle Semantics
 

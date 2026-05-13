@@ -40,11 +40,15 @@ partyserver/
 |-- src/routes/index.ts           # product API routes and routeSpec[]
 |-- src/lib/api-response.ts       # standard { success, data, error } responses
 |-- src/lib/poof-auth.ts          # Poof auth validation for protected routes
-|-- src/lib/poof-ai.ts            # Poof-native AI helper
+|-- src/lib/poof-ai.ts            # Poof-native AI helper (aiRun)
+|-- src/lib/poof-flue-runtime.ts  # agent runtime + runAgent/streamAgent helpers (only if you use agents)
+|-- src/lib/poof-mcp-fanout.ts    # platform fanout routes for agent MCP+AI calls (only if you use agents)
 |-- src/heartbeat/index.ts        # heartbeat registry and internal routes
 |-- src/queues/index.ts           # queue registry and internal routes
+|-- .flue/agents/<kebab>.ts       # per-agent handler files (only if you use agents)
 |-- heartbeat.json                # recurring task declarations
 |-- queues.json                   # queue declarations
+|-- poof-agents.json              # agent declarations (only if you use agents)
 |-- scripts/generate-api-spec.ts  # routeSpec -> generated API metadata
 `-- wrangler.toml.template        # deploy-time Worker config template
 ```
@@ -52,6 +56,21 @@ partyserver/
 Your repository can place this tree wherever its tooling expects it. The examples below use `partyserver/` as the backend root.
 
 Keep platform plumbing in `src/index.ts`, `src/lib/*`, `src/heartbeat/index.ts`, and `src/queues/index.ts` unless a template upgrade or explicit platform change requires it. Product behavior belongs in route handler files, heartbeat task files, queue handler files, and small product-specific helpers.
+
+## Picking the right primitive
+
+Read this table first. Each row is independent — pick by what the handler needs, and compose freely (a queue consumer can `runAgent`; a heartbeat can `enqueueQueue`; an agent can call `web_search`).
+
+| If your handler needs to... | Use | How |
+|---|---|---|
+| Make one LLM call inline (chat, classify, summarize) | **`aiRun()`** | `docs/aiRun.md` |
+| Run a multi-turn LLM loop with tool calls (web search, browser, structured output, multi-step research) | **An Agent** | `docs/agents.md` |
+| Process work async with retries, batching, or a DLQ | **A Queue** | `docs/queues.md` |
+| Run on a recurring schedule (every N minutes, daily, etc.) | **A Heartbeat** | `docs/heartbeats.md` |
+| Persist data across requests / sessions | **Tarobase** | `docs/database-sdk.md` |
+| Charge USDC per request | **x402** | `src/lib/x402-middleware.ts` paidRoutes |
+
+Anti-patterns: don't use `aiRun` from inside an Agent (the agent's own LLM provider config handles it); don't roll your own scheduler with `setInterval` (use a Heartbeat); don't expose `/agents/*` or `/__poof/*` publicly (platform-internal, will return 404/401); don't write paid actions on public routes without `validatePoofAuth` (anyone can drain your credits, capped only by overuse limit).
 
 ## API Routes
 
@@ -99,13 +118,11 @@ Protected route calls must include the Poof auth token. Frontend helpers should 
 
 ## Poof-Native AI
 
-For runtime LLM work, use the template helper:
-
-```typescript
-import { aiRun, aiRunForContext } from '../lib/poof-ai.js';
-```
+For runtime LLM work, use the `aiRun()` helper imported from `../lib/poof-ai.js`. It routes through Poof's AI proxy, meters credits, and exposes OpenAI Chat Completions shape across providers.
 
 Do not add generic provider secrets such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or OpenRouter keys for ordinary chat, classification, summarization, extraction, moderation, recommendations, scoring, or drafting. Poof supplies AI through its usage system. Only use a third-party AI credential when the user explicitly requires a non-Poof external provider and the reason is documented.
+
+See `docs/aiRun.md` for the full helper contract — model picking, streaming, blocked-project handling, and which contexts `aiRun` works from (top-level fetch / queue / heartbeat — *not* from inside a Durable Object's fetch).
 
 ## Secrets
 
@@ -156,6 +173,16 @@ See `docs/heartbeats.md` for the full task contract.
 Use Poof Cloud Queues for durable asynchronous backend jobs. Declare queues in `queues.json`, register handlers through `src/queues/index.ts`, and keep `/__internal/queues/:queueName` reserved for the platform dispatcher.
 
 Do not create ad hoc polling loops or public "run queue" endpoints. Public routes enqueue work; queue handlers do the work.
+
+See `docs/queues.md` for the full producer + consumer contract — declaration shape, DLQ wiring, job-status tracking, and what runs in a queue handler.
+
+## Agents (with web + browser tools)
+
+Use Poof's agent runtime when a flow is multi-turn, needs tool calls (web search, page fetch, browser automation), or needs schema-validated structured output. Don't reach for `aiRun` for that — agents add session state, tool dispatch, and SSE-streamable progress.
+
+Agent files live at `partyserver/.flue/agents/<kebab>.ts`, get listed in `poof-agents.json`, registered in `src/index.ts` via `definePoofAgent`, and invoked from your own `/api/*` routes via the platform helpers (`runAgent`, `streamAgent`, `enqueueAgentRun`). The auto-mounted `/agents/*` HTTP path is platform-internal — agents are only callable through a tenant route, the same way `aiRun` is wrapped in `/api/chat`.
+
+See `docs/agents.md` for the full agent contract — handler shape, the 11 default tools (web_search, browse_*), session continuation, helper API, and security model.
 
 ## Build and Local Checks
 

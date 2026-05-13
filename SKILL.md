@@ -199,12 +199,12 @@ Copy this checklist and track your progress. Pick the variant that matches your 
 
 ```
 - [ ] Setup: poof keygen >> .env && poof auth login
-- [ ] Implement API routes, Heartbeats, queues, and Poof-native AI using docs/local-backend-guide.md
+- [ ] Implement API routes, Heartbeats, queues, agents, and Poof-native AI using docs/local-backend-guide.md
 - [ ] Build local backend: bun run build inside the PartyServer backend root
 - [ ] Build/create a Poof project with policies/source baseline as needed
 - [ ] Bundle backend: bunx wrangler deploy src/index.ts --dry-run --outdir .poof-backend-bundle --compatibility-date 2025-08-15 --compatibility-flag nodejs_compat --compatibility-flag nodejs_compat_populate_process_env
-- [ ] Copy referenced metadata into the bundle: generated/api-spec.json, queues.json, heartbeat.json when included in the manifest
-- [ ] Add .poof-backend-bundle/poof-backend-artifact.json with entrypoint + wranglerVersion + copied metadata paths
+- [ ] Copy referenced metadata into the bundle: generated/api-spec.json, queues.json, heartbeat.json, poof-agents.json when included in the manifest
+- [ ] Add .poof-backend-bundle/poof-backend-artifact.json with entrypoint + wranglerVersion + copied metadata paths (apiSpecPath / queuesPath / heartbeatPath / agentsPath)
 - [ ] Package: tar czf backend-worker.tar.gz -C .poof-backend-bundle .
 - [ ] Dry run: poof deploy backend -p <id> --archive backend-worker.tar.gz --dry-run
 - [ ] Deploy backend artifact: poof deploy backend -p <id> --archive backend-worker.tar.gz
@@ -215,9 +215,11 @@ Copy this checklist and track your progress. Pick the variant that matches your 
 
 See [docs/backend-artifact-deploy.md](docs/backend-artifact-deploy.md). Use Wrangler's bundled output,
 not raw `tsc` `dist`. The archive must contain `poof-backend-artifact.json`; optional
-`apiSpecPath`, `queuesPath`, and `heartbeatPath` files are promoted with the artifact.
+`apiSpecPath`, `queuesPath`, `heartbeatPath`, and `agentsPath` files are promoted with the artifact
+(Poof reads each, materializes wrangler bindings, and renders them in the platform UI's Heartbeat /
+Queues / Agents tabs).
 For source-owned backend development, read [docs/local-backend-guide.md](docs/local-backend-guide.md)
-before editing routes, Heartbeat tasks, queue handlers, auth, or Poof-native AI calls.
+before editing routes, Heartbeat tasks, queue handlers, agents, auth, or Poof-native AI calls.
 
 **Static-deploy UI tests:** do not ask Poof's AI to invent UI tests from a statically-deployed
 frontend. After `poof deploy static`, the server has your minified `dist/` bundle, not the local
