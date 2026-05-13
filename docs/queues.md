@@ -1,6 +1,8 @@
 # Queues
 
-Poof Cloud Queues are the only supported async primitive for durable backend jobs. Use them for: retries, batching of similar work, decoupled producers/consumers, dead-letter-queue handling, or anything that exceeds a single Worker request's CPU/wall-clock budget.
+Use Poof Cloud Queues when you need any of: retries, batching of similar work, decoupled producers/consumers, dead-letter-queue handling, or work that exceeds a single Worker request's CPU/wall-clock budget. Queues compose with the other primitives — a queue consumer can `aiRun` / `runAgent`; a heartbeat can `enqueueQueue`; an agent can drop jobs onto a queue.
+
+For scheduled recurring work use Heartbeats instead. For multi-turn LLM loops with tools use Agents. See `local-backend-guide.md#picking-the-right-primitive` for the full decision table.
 
 Do **not** create polling loops, public "run queue" endpoints, `setInterval` daemons, or third-party schedulers.
 

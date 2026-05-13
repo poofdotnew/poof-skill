@@ -57,6 +57,21 @@ Your repository can place this tree wherever its tooling expects it. The example
 
 Keep platform plumbing in `src/index.ts`, `src/lib/*`, `src/heartbeat/index.ts`, and `src/queues/index.ts` unless a template upgrade or explicit platform change requires it. Product behavior belongs in route handler files, heartbeat task files, queue handler files, and small product-specific helpers.
 
+## Picking the right primitive
+
+Read this table first. Each row is independent — pick by what the handler needs, and compose freely (a queue consumer can `runAgent`; a heartbeat can `enqueueQueue`; an agent can call `web_search`).
+
+| If your handler needs to... | Use | How |
+|---|---|---|
+| Make one LLM call inline (chat, classify, summarize) | **`aiRun()`** | `docs/aiRun.md` |
+| Run a multi-turn LLM loop with tool calls (web search, browser, structured output, multi-step research) | **An Agent** | `docs/agents.md` |
+| Process work async with retries, batching, or a DLQ | **A Queue** | `docs/queues.md` |
+| Run on a recurring schedule (every N minutes, daily, etc.) | **A Heartbeat** | `docs/heartbeats.md` |
+| Persist data across requests / sessions | **Tarobase** | `docs/database-sdk.md` |
+| Charge USDC per request | **x402** | `src/lib/x402-middleware.ts` paidRoutes |
+
+Anti-patterns: don't use `aiRun` from inside an Agent (the agent's own LLM provider config handles it); don't roll your own scheduler with `setInterval` (use a Heartbeat); don't expose `/agents/*` or `/__poof/*` publicly (platform-internal, will return 404/401); don't write paid actions on public routes without `validatePoofAuth` (anyone can drain your credits, capped only by overuse limit).
+
 ## API Routes
 
 Add product routes in `src/routes/index.ts` or files imported by it. For every route:
