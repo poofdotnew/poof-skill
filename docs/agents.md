@@ -144,6 +144,34 @@ Prices are flat per call, billed to your project. Prefer `web_fetch` / `web_extr
 
 The model picks which tool based on your prompt — you don't import or wire any of them. To opt out entirely: `init({ poofTools: false })`.
 
+## Custom tools (database writes, internal APIs, anything)
+
+Pass your own tools alongside the platform ones — `init({ tools: [...] })` merges them with the auto-injected MCP tools. Use this for database writes, querying internal APIs, or any side-effect the model needs to perform.
+
+```ts
+import { tool } from '@flue/sdk/tool';
+import * as v from 'valibot';
+import { set } from '@pooflabs/server';
+
+const saveLead = tool({
+  name: 'save_lead',
+  description: 'Persist a vendor lead. Call after extracting contact details.',
+  parameters: v.object({ company: v.string(), email: v.string(), notes: v.optional(v.string()) }),
+  async execute({ company, email, notes }) {
+    const id = crypto.randomUUID();
+    await set(`leads/${id}`, { company, email, notes, createdAt: Date.now() });
+    return { id, status: 'saved' };
+  },
+});
+
+const harness = await init({
+  model: 'anthropic/claude-sonnet-4-6',
+  tools: [saveLead],
+});
+```
+
+The model sees `web_search` / `browse_*` / `save_lead` together and picks which to call. Tools run in the agent's DO context; Tarobase calls (or any public-URL fetch) work fine from there — only the platform's `poof-{ai,mcp}.internal` sentinels need the fanout. Gate destructive ops inside your `execute` (preconditions, ownership checks). Avoid the `mcp__poof__*` name prefix — it's reserved; the runtime hard-rejects collisions at init.
+
 ## Triggering pattern matrix
 
 | Trigger | Tenant route uses | How it connects |
