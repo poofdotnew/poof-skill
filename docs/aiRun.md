@@ -2,7 +2,9 @@
 
 `aiRun()` is the helper for one-shot LLM calls from a top-level handler (fetch route, queue consumer, heartbeat task, alarm). It routes through Poof's AI proxy on Cloudflare AI Gateway and meters usage against project credits (`$15 = 50 credits`, exact CF cost × 1.05). No tenant-held provider keys; Poof attaches sealed script identity at the edge.
 
-For multi-turn LLM loops with tool calling (web search, browser, structured output), use Agents — they have their own LLM provider config that handles sessions, tools, and streaming. See `docs/agents.md` and the decision table in `local-backend-guide.md#picking-the-right-primitive`.
+For stateful chat, assistant, negotiator, intake, resumable workflows, or multi-turn LLM loops with tool calling (web search, browser, structured output), use Agents — they have their own LLM provider config that handles sessions, tools, and streaming. See `docs/agents.md` and the decision table in `local-backend-guide.md#picking-the-right-primitive`.
+
+Do not make the browser send a full transcript to an `aiRun` route to simulate memory. That puts conversation state in the client, prevents durable resume, and hides whether the Poof Agent runtime is wired. The browser should send latest message + stable id; the backend owns persisted state.
 
 For ordinary chat completions, do **not** import `openai` / `@anthropic-ai/sdk` / `@ai-sdk/*`, bind `AI` directly in `wrangler.toml`, or call provider URLs.
 

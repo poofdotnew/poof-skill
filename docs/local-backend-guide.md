@@ -63,14 +63,14 @@ Read this table first. Each row is independent — pick by what the handler need
 
 | If your handler needs to... | Use | How |
 |---|---|---|
-| Make one LLM call inline (chat, classify, summarize) | **`aiRun()`** | `docs/aiRun.md` |
-| Run a multi-turn LLM loop with tool calls (web search, browser, structured output, multi-step research) | **An Agent** | `docs/agents.md` |
+| Make one stateless LLM call inline (classify, summarize, extract, draft one response) | **`aiRun()`** | `docs/aiRun.md` |
+| Run a chat, assistant, negotiator, intake, resumable workflow, or multi-turn LLM loop with tool calls/state | **An Agent** | `docs/agents.md` |
 | Process work async with retries, batching, or a DLQ | **A Queue** | `docs/queues.md` |
 | Run on a recurring schedule (every N minutes, daily, etc.) | **A Heartbeat** | `docs/heartbeats.md` |
 | Persist data across requests / sessions | **Tarobase** | `docs/database-sdk.md` |
 | Charge USDC per request | **x402** | `src/lib/x402-middleware.ts` paidRoutes |
 
-Anti-patterns: don't use `aiRun` from inside an Agent (the agent's own LLM provider config handles it); don't roll your own scheduler with `setInterval` (use a Heartbeat); don't expose `/agents/*` or `/__poof/*` publicly (platform-internal, will return 404/401); don't write paid actions on public routes without `validatePoofAuth` (anyone can drain your credits, capped only by overuse limit).
+Anti-patterns: don't implement stateful product chat by sending the full browser transcript to a route that calls `aiRun`; the browser sends latest message + stable id, and the backend Agent owns persisted transcript/state. Don't use `aiRun` from inside an Agent (the agent's own LLM provider config handles it); don't roll your own scheduler with `setInterval` (use a Heartbeat); don't expose `/agents/*` or `/__poof/*` publicly (platform-internal, will return 404/401); don't write paid actions on public routes without `validatePoofAuth` (anyone can drain your credits, capped only by overuse limit).
 
 ## API Routes
 

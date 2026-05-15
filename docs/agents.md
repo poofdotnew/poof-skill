@@ -10,6 +10,8 @@ Poof's agent runtime gives your local backend stateful, multi-turn LLM workflows
 
 **Use plain `aiRun` instead when:** one model call → one response, no memory, no tools.
 
+For product chat/assistant flows, the route contract should be explicit: browser sends the latest user `message` plus a stable `sessionId`/`dealId`/workflow id; the backend invokes the Agent with that id and persists transcript/business state server-side. Do not send the whole browser transcript to `/api/*`, and do not model "one wallet = one conversation" unless that is an intentional product rule.
+
 ## File layout
 
 ```text
