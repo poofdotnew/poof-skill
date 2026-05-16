@@ -16,7 +16,7 @@ Use this guide when you're building your own UI (React, Vue, Svelte, React Nativ
 - [Real-Time Subscriptions (React)](#real-time-subscriptions-react)
 - [Mobile / Desktop Modal Split](#mobile--desktop-modal-split)
 - [Special Utilities & Gotchas](#special-utilities--gotchas)
-- [Mock Auth for Local Dev + Stagehand](#mock-auth-for-local-dev--stagehand)
+- [Real Auth for Local UI Tests](#real-auth-for-local-ui-tests)
 - [Anti-Patterns](#anti-patterns)
 - [Complete React Example](#complete-react-example)
 - [Complete Vanilla JS Example](#complete-vanilla-js-example)
@@ -621,15 +621,16 @@ if (!user) return <LoginButton />;
 return <Dashboard />;
 ```
 
-## Mock Auth for Local Dev + Stagehand
+## Real Auth for Local UI Tests
 
-The poof v3 template's `poofClient.ts` recognizes `?mockAuth=true` on `localhost` and during local Stagehand UI-test runs:
+Current Poofy Control Plane local UI tests use daemon-injected real auth sessions, not a product-side mock-auth query flag:
 
-- `poofClient` seeds a mock user address in `sessionStorage` (`poof:mockUserAddress` or `test-user-address`) before calling `init()` / `login()`.
-- The default mock address is `HKbZbRR7jWWR5VRN8KFjvTCHEzJQgameYxKQxh2gPoof`.
-- Stagehand opens `/?mockAuth=true&appId=<tarobaseAppId>`; if the bound project's `tarobaseAppId` is missing from `poof.config.json`, every test returns `status: 'skipped'` with `project-unbound`.
+- The daemon signs a real test-wallet session from `POOFY_TEST_SOLANA_PRIVATE_KEY` / `POOFY_TEST_SOLANA_WALLET_ADDRESS`.
+- Before navigation, the runner seeds the app origin with the same auth storage shape used by normal Poof login, then opens `/?appId=<tarobaseAppId>`.
+- If a flow crosses to another origin, such as a checkout page, add that origin to `authSessions` in the `ui-test-*.json` file so the daemon seeds it too.
+- If the bound project's `tarobaseAppId` is missing from `poof.config.json`, local UI tests return `status: 'skipped'` with `project-unbound`.
 
-**Mock-auth race.** The most common failure: your `init()` / `startInit()` flips `ready` before `await login()` resolves. First render paints the "Connect wallet" fallback copy, Stagehand reads it, every test fails. Gate render on `ready`, show a distinctive pre-ready loading state (e.g. `"Loading room…"`), await mock login before flipping. Don't trust the fact that `useAuth().user` is populated; check your own `ready` flag that only flips after `await login()` returns.
+Do not add product-only mock auth handling just to satisfy local UI tests. Keep `@pooflabs/web` wired to the normal auth flow; the runner provides the signed session. The most common app-side failure is flipping a local `ready` flag before the SDK has loaded the injected session. Gate auth-dependent UI on the SDK/user state and show a distinctive pre-ready loading state instead of rendering a permanent "Connect wallet" wall.
 
 ## Anti-Patterns
 

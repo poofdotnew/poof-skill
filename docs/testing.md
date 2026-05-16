@@ -91,7 +91,7 @@ Bootstraps set up required state (configs, counters, default data). They run cli
 
 UI test files use browser automation (Browserbase + Stagehand) to verify the full stack works end-to-end: UI renders correctly, forms submit, navigation works, and on-chain operations complete. Prefer deterministic `action` steps when source selectors, roles, labels, placeholders, or unique text are known; use natural-language `act` only as a fallback.
 
-All UI tests run as a mock authenticated user with address: **`HKbZbRR7jWWR5VRN8KFjvTCHEzJQgameYxKQxh2gPoof`**. The test runner opens the app with `?mockAuth=true` — no real wallet needed.
+Poofy Control Plane local UI tests run with daemon-injected real auth. The runner signs a session for the configured test wallet, seeds the app origin before navigation, and opens the app with `?appId=<tarobaseAppId>`. Do not add product-side mock auth or "Connect Wallet" steps for these local UI tests.
 
 ```json
 {
@@ -380,7 +380,7 @@ UI test files verify that the app's frontend works correctly — buttons functio
 1. A source-aware agent creates `ui-test-*.json` files in `lifecycle-actions/`
    - For `full` or `ui,policy` projects, Poof's AI can generate them because it owns the UI source
    - For local/static frontends, the external agent must generate them from the local source
-2. The test runner opens your draft app in a real browser with mock authentication
+2. The test runner opens your app in a real browser with daemon-injected real auth
 3. Each step executes a deterministic `action` or fallback natural-language `act`, then runs a structured `verify` assertion
 4. Results are aggregated into `poof task test-results` alongside policy test results
 
@@ -388,23 +388,23 @@ For Poof-generated UIs, external agents can trigger UI test generation and execu
 
 If `poof task test-results` comes back with `summary.total = 0`, do not treat that as a pass. Inspect `poof task list -p <id> --json`, `poof chat active -p <id> --json`, and `poof logs -p <id>` first. When `chat active` stays `true` but no new task ids or recent logs appear, record that stale-state evidence, run `poof chat cancel -p <id>`, then do at most one targeted retry for lifecycle/UI artifact generation before escalating the gap. If that retry clearly resumes stale Claude Code context, run `poof chat clear -p <id>` once before the final targeted retry.
 
-### Mock Test User
+### Real-Auth Test User
 
-All UI tests run as: **`HKbZbRR7jWWR5VRN8KFjvTCHEzJQgameYxKQxh2gPoof`**
+Poofy Control Plane local UI tests run as the daemon's configured test wallet (`POOFY_TEST_SOLANA_WALLET_ADDRESS`), with the private key only used by the daemon to sign the session.
 
 The test runner automatically:
 
-1. Opens the app with `?mockAuth=true` (no real wallet needed)
-2. Seeds `sessionStorage` with the mock address for SDK auto-login
-3. Clicks "Connect Wallet" as a fallback if auto-login doesn't trigger
+1. Opens the app homepage with `?appId=<tarobaseAppId>`
+2. Seeds the app origin with signed Poof auth session storage before navigation
+3. Seeds any extra `authSessions` origins declared by the UI test file
 
-Policy rules using `$userId == @user.address` will match this address. Data written by the test user appears under this address.
+Policy rules using `$userId == @user.address` will match this wallet. Data written by the test user appears under this address.
 
-### Funding the Mock User (Required for Onchain Features)
+### Funding the Test Wallet (Required for Onchain Features)
 
-If the app has onchain features (staking, transfers, swaps), the mock user needs tokens in their Poofnet wallet before UI tests run. Ask the Poof AI to fund the test user:
+If the app has onchain features (staking, transfers, swaps), the daemon's test wallet needs tokens in its Poofnet wallet before UI tests run. Ask the Poof AI to fund the test wallet:
 
-> "Fund the mock test user HKbZbRR7jWWR5VRN8KFjvTCHEzJQgameYxKQxh2gPoof with 10 SOL and 100 USDC on Poofnet before running UI tests."
+> "Fund the configured UI-test wallet with 10 SOL and 100 USDC on Poofnet before running UI tests."
 
 ### File Format
 
@@ -446,8 +446,8 @@ Before writing JSON, inspect the local UI files or Poof-generated source and lis
 - Exact visible labels for buttons, links, tabs, dialogs, form fields, and submit actions
 - Required form fields, validation messages, empty states, and success states
 - Data the flow creates, updates, deletes, or reads back from Poof
-- Auth behavior: whether the mock-auth user should already be treated as signed in
-- Onchain behavior: whether the mock user needs SOL or tokens funded before the test
+- Auth behavior: whether the daemon-injected test wallet should already be treated as signed in
+- Onchain behavior: whether the test wallet needs SOL or tokens funded before the test
 - Stable selectors: `data-testid`, accessible role/name, labels, placeholders, and unique visible text
 
 For React/Vite apps, useful files are usually `src/App.*`, `src/pages/**`, `src/components/**`,
@@ -472,8 +472,8 @@ Start with the highest-value flows:
 - **Create/read:** submit a form with unique test data and verify that data appears in the UI
 - **Update/delete:** change or remove an existing item and verify the resulting UI state
 - **Validation/error handling:** submit invalid or missing input and verify the exact error or disabled state
-- **Auth-gated behavior:** verify signed-in mock-user actions work and signed-out paths fail gracefully when applicable
-- **Onchain behavior:** fund the mock user first, perform the action, then verify a concrete confirmation or record
+- **Auth-gated behavior:** verify signed-in test-wallet actions work and signed-out paths fail gracefully when applicable
+- **Onchain behavior:** fund the test wallet first, perform the action, then verify a concrete confirmation or record
 
 ### 3. Name the Test Clearly
 
@@ -542,8 +542,8 @@ Good action / `act` discipline:
 - Use exact UI copy: `"Click the 'New Post' button"` beats `"open the modal"`
 - Name labels users can see: `"Type 'Launch notes' in the input labeled 'Title'"`
 - Keep one user intent per step. For short forms, filling fields and submitting can be one step if the verify block checks the result.
-- Do not include full URLs; the runner starts on the app homepage with `?mockAuth=true`
-- Do not add "Connect Wallet" steps; the runner seeds mock auth automatically
+- Do not include full URLs; the runner starts on the app homepage with `?appId=<tarobaseAppId>`
+- Do not add "Connect Wallet" steps; the runner seeds real auth automatically
 - Do not use component names, minified filenames, or asset hashes
 - Use CSS selectors only as a last resort when no accessible target or `data-testid` exists
 
@@ -669,7 +669,7 @@ Before uploading, check:
 - One action per step — avoid compound: "click X then type Y then click Z"
 - Use the app's actual UI text, not generic descriptions
 - Use `act` only when no stable deterministic target exists
-- The browser starts on the app's homepage with mock auth — do NOT include URLs
+- The browser starts on the app's homepage with daemon-injected real auth — do NOT include URLs
 - The user is already logged in — do NOT include "Connect Wallet" steps
 
 ### Writing Good `verify` Blocks
@@ -947,7 +947,7 @@ Validate the full stack through browser interaction:
 - **Navigation**: Verify routing between pages
 - **CRUD through UI**: Create, read, update, delete via the interface
 - **Error handling**: Submit invalid input, verify error messages
-- **Onchain interactions**: Fund mock user first, then test staking/transfers/swaps
+- **Onchain interactions**: Fund the test wallet first, then test staking/transfers/swaps
 
 ```
 Example: ui-test-create-post.json → Fill form, submit, verify post appears in list
