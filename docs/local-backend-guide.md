@@ -215,13 +215,16 @@ bunx wrangler deploy src/index.ts \
 mkdir -p .poof-backend-bundle/generated
 cp generated/api-spec.json .poof-backend-bundle/generated/api-spec.json
 cp queues.json heartbeat.json .poof-backend-bundle/
+# If this backend uses agents:
+# cp poof-agents.json .poof-backend-bundle/poof-agents.json
 cat > .poof-backend-bundle/poof-backend-artifact.json <<'JSON'
 {
   "entrypoint": "index.js",
   "wranglerVersion": "4.45.2",
   "apiSpecPath": "generated/api-spec.json",
   "queuesPath": "queues.json",
-  "heartbeatPath": "heartbeat.json"
+  "heartbeatPath": "heartbeat.json",
+  "agentsPath": "poof-agents.json"
 }
 JSON
 tar czf backend-worker.tar.gz -C .poof-backend-bundle .
@@ -229,7 +232,8 @@ poof deploy backend -p <project-id> --archive backend-worker.tar.gz --dry-run
 poof deploy backend -p <project-id> --archive backend-worker.tar.gz
 ```
 
-Keep the `cp` steps in sync with the manifest. Any path referenced by `apiSpecPath`, `queuesPath`, or `heartbeatPath` must exist inside `.poof-backend-bundle/` before the archive is created.
+Omit `queuesPath`, `heartbeatPath`, or `agentsPath` when the backend does not use that primitive.
+Keep the `cp` steps in sync with the manifest. Any path referenced by `apiSpecPath`, `queuesPath`, `heartbeatPath`, or `agentsPath` must exist inside `.poof-backend-bundle/` before the archive is created.
 
 See `docs/backend-artifact-deploy.md` for the manifest contract and preservation semantics. Static UI deploys preserve the active backend artifact, and backend artifact deploys preserve the active static UI artifact.
 

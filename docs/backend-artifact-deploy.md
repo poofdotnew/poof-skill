@@ -115,6 +115,12 @@ Example with optional platform metadata:
 
 The four optional metadata files are read at deploy time: Poof materializes wrangler bindings (queue producer/consumer, agent Durable Objects), registers heartbeat schedules with the platform dispatcher, and snapshots each JSON to S3 so the platform UI's Heartbeat / Queues / Agents tabs reflect what you declared locally.
 
+For agent artifacts, the deployer cross-checks `agentsPath` against the bundled entrypoint. Each
+declared agent name must have a matching exported `definePoofAgent` class in the entrypoint bundle
+(`intake` -> `export const Intake = definePoofAgent('intake', ...)`). If the archive declares an agent
+but the compiled entrypoint does not export the derived class, fix the bundle instead of hand-editing
+Wrangler bindings.
+
 ## Validation Rules
 
 The CLI and server both validate the archive before deploying:
@@ -164,6 +170,8 @@ Recommended checks after every backend artifact deploy:
 - Draft API URL responds to health and representative API routes.
 - CORS preflight works for the draft UI origin if the frontend calls the API.
 - If a static UI is active, the draft UI still serves the uploaded static marker after backend deploy.
+- For agent-backed routes, make an authenticated draft call and inspect the SSE body or JSON result.
+  HTTP 200 alone is not enough: an SSE `event: error` frame still means the agent did not run.
 - Before preview/production, run `poof security scan -p <id> --wait` or let `poof ship` run the scan.
 
 ## Troubleshooting
@@ -173,5 +181,6 @@ Recommended checks after every backend artifact deploy:
 | `archive is not a gzip-compressed tar file` | Archive is missing gzip wrapper | Use `tar czf backend-worker.tar.gz -C .poof-backend-bundle .` |
 | `backend archive must include poof-backend-artifact.json` | Manifest missing from archive root | Add the manifest before archiving |
 | `entrypoint ... was not found` | Manifest points at the wrong bundled file | Inspect `.poof-backend-bundle` and update `entrypoint` |
+| `[poof-flue] Agent binding <Name> not on env` in an SSE `event: error` frame | The deployed Worker is missing the agent Durable Object binding | Confirm the archive includes `poof-agents.json`, the manifest has `agentsPath`, and the bundled entrypoint exports `export const <Name> = definePoofAgent(...)`; then redeploy the backend artifact. If all three are true, the deploy backend is stale or platform-owned, not a product route/test issue. |
 | Deploy serves old backend | Preview/production promoted before backend task completed | Re-check `poof task get <taskId>` and `poof project status` |
 | Production deploy blocked | Missing security review, membership, or required secrets | Run `poof security scan --wait`, `poof deploy check`, and `poof secrets get --environment production` |
