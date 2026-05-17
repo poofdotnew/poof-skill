@@ -4,6 +4,8 @@
 
 **From the agent's perspective, everything here runs through `poof data ...` CLI commands.** The `@pooflabs/web` / `@pooflabs/server` SDKs are what the generated *frontend and backend code in the deployed app* use at runtime — agents and dev tools should drive the CLI.
 
+For transaction-producing onchain work, `setMany` is the composition primitive. Do not replace a missing bundle/action with raw Solana RPC, Anchor clients, protocol SDKs, or browser wallet transaction submission. If an action or guard needed for the bundle is missing from Poof, stop with `blocked:platform-poof-onchain-primitive-missing` and document the missing collection/action, fields, guard predicate, signer/actor boundary, target program, and postconditions.
+
 ## Project ID vs appId — and two ways to target
 
 Before the examples, the thing to understand: a Poof **project ID** (what most CLI commands take via `-p <id>`) is your handle on the project you build and deploy. A Tarobase **appId** is the data-plane address of a *specific deployed policy instance*. **Each project has multiple appIds — one per environment** (draft = off-chain Poofnet, preview = real mainnet preview, production = real mainnet production), so the instances stay cleanly separated.

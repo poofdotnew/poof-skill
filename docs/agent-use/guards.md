@@ -9,6 +9,8 @@ Two kinds of guards:
 
 Every guard has a matching `simulate` query that re-runs its predicate read-only, so an agent can poll before submitting and avoid landing a known-failing bundle.
 
+If the guard needed for a safe transaction is missing, do not approximate it with a local read-check-write or a raw public SDK transaction. Emit `blocked:platform-poof-onchain-primitive-missing` with the missing guard predicate and the action it protects.
+
 For how to compose these with actions, see [set-many.md](set-many.md). For the action catalog they gate, see [onchain-actions.md](onchain-actions.md).
 
 ## The simple user-scoped guards

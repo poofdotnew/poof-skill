@@ -29,6 +29,18 @@ Data plane:      Your Agent ──► poof data set/get/query ──► Poof pro
 
 Both modes share the same CLI binary, auth, and config; only the commands and the cadence differ.
 
+## Onchain TX / Write Boundary
+
+For agents, Poof is the default and required path for transaction-producing onchain behavior. Any transfer, mint, burn, swap, trade, order, escrow, settlement, vault movement, program instruction, or other onchain mutation should be expressed through one of these Poof surfaces:
+
+- `poof build --mode backend,policy` / `poof iterate` policy, rules, hooks, plugins, and generated typed SDK calls inside the deployed app.
+- `poof data set` or `poof data set-many` against a Poof project appId or the shared generic-onchain primitives appid.
+- A documented Poof runtime/payment primitive such as Poofy Pay, x402 integration contracts, Agents, Heartbeats, or Cloud Queues when those own the workflow.
+
+Do not reach for public Solana SDKs, raw RPC transaction construction, Anchor clients, protocol SDKs, or wallet `sendTransaction` fallbacks just because a requirement sounds onchain. First check `docs/agent-use/onchain-actions.md`, `docs/agent-use/set-many.md`, and `docs/agent-use/guards.md`. If the needed TX primitive is not exposed, stop with `blocked:platform-poof-onchain-primitive-missing` and include the missing action, target program, required fields, guards/preconditions, signer/actor boundary, and expected postconditions. That blocker is the right outcome; silently hand-rolling a public SDK path is not.
+
+Read-only indexing/analytics is separate. Public RPC or indexer APIs are acceptable only when the task is explicitly read-only, names its data source, and the code path never signs, builds, submits, or mutates transactions. Read-only evidence cannot satisfy a TX/write acceptance criterion.
+
 ## CLI Version and Updates
 
 If the CLI prints an update notice, or you suspect behavior depends on a recent CLI fix, run `poof update --check` first. Use `poof update` only when the user asks for an update or the current CLI version is blocking the workflow. For Homebrew-managed installs, prefer `brew upgrade poofdotnew/tap/poof`; self-update will tell the user to use Homebrew. For scripts, JSON/quiet output, redirected output, or deterministic logs, use `--no-update-check` or set `POOF_NO_UPDATE_CHECK=1` so update notices do not appear.

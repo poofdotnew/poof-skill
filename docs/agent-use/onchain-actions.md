@@ -2,6 +2,10 @@
 
 Every onchain action the generic-onchain Poof appid exposes as a collection you can write to via `poof data set` or `poof data set-many`. Writing a doc triggers the plugin hook that CPIs into the target Solana program; the collection's fields are exactly what the hook needs.
 
+This catalog is the first stop for transaction-producing onchain work. Agents should not substitute raw Solana RPC, Anchor clients, protocol SDKs, or browser wallet `sendTransaction` flows for actions listed here. If a TX/write requirement is not represented in this catalog or in a product's Poof policy/hooks/plugins, emit `blocked:platform-poof-onchain-primitive-missing` with the missing action, target program, fields, guards, signer/actor boundary, and expected postconditions. Missing Poof coverage is a platform blocker, not permission to hand-roll a public SDK fallback.
+
+Read-only indexing and analytics are the exception: public RPC/indexers can be used for reads when the task explicitly names a read-only data source and no code path signs, builds, submits, or mutates a transaction. Read-only evidence does not satisfy a transfer/swap/trade/mint/order/settlement acceptance criterion.
+
 User-scoping (`user/$userId/<Collection>/$id` with `$userId == @user.address`) is enforced on every write. That means:
 
 - A caller can only write under their own wallet prefix.
