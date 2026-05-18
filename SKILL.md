@@ -37,7 +37,7 @@ For agents, Poof is the default and required path for transaction-producing onch
 - `poof data set` or `poof data set-many` against a Poof project appId or the shared generic-onchain primitives appid.
 - A documented Poof runtime/payment primitive such as Poofy Pay, x402 integration contracts, Agents, Heartbeats, or Cloud Queues when those own the workflow.
 
-Do not reach for public Solana SDKs, raw RPC transaction construction, Anchor clients, protocol SDKs, or wallet `sendTransaction` fallbacks just because a requirement sounds onchain. First check `docs/agent-use/onchain-actions.md`, `docs/agent-use/set-many.md`, and `docs/agent-use/guards.md`. If the needed TX primitive is not exposed, stop with `blocked:platform-poof-onchain-primitive-missing` and include the missing action, target program, required fields, guards/preconditions, signer/actor boundary, and expected postconditions. That blocker is the right outcome; silently hand-rolling a public SDK path is not.
+Do not reach for public Solana SDKs, raw RPC transaction construction, Anchor clients, protocol SDKs, or wallet `sendTransaction` fallbacks just because a requirement sounds onchain. **Custom Anchor/Rust Solana programs are never the answer — there is no `Platform: anchor` opt-out.** Before concluding Poof can't express something, you MUST run the decision procedure in **[`docs/agent-use/capability-catalog.md`](docs/agent-use/capability-catalog.md)** — the authoritative behavior→primitive lookup (escrow/vault/treasury, voting/governance, equal-stake, perp execution, proportional payouts, conditional transfers, allowlists, etc. are all expressible). Anything on-chain not on that doc's short closed "genuinely cannot" list is presumed expressible. If, and only if, every catalog mapping genuinely fails, stop with `blocked:platform-poof-onchain-primitive-missing` and include the missing action, target program, required fields, guards/preconditions, signer/actor boundary, and expected postconditions. That blocker escalates to the operator to extend Poof — it is the right outcome; silently hand-rolling a public SDK or Anchor path is not.
 
 Read-only indexing/analytics is separate. Public RPC or indexer APIs are acceptable only when the task is explicitly read-only, names its data source, and the code path never signs, builds, submits, or mutates transactions. Read-only evidence cannot satisfy a TX/write acceptance criterion.
 
@@ -314,6 +314,7 @@ Read **How Poof Works** first if you're writing prompts for the Poof AI.
 | Doc                                                               | What it covers                                                                                                                                           |
 | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [**How Poof Works**](docs/how-poof-works.md)             | Architecture, policy system, plugins, on-chain vs off-chain, what Poof can/can't do. **Read this to write effective prompts.**                           |
+| [**On-Chain Capability Catalog**](docs/agent-use/capability-catalog.md) | **Consult before ever concluding Poof can't do an on-chain behavior.** Behavior→primitive lookup + decision procedure. No `Platform: anchor` opt-out; genuine gaps escalate to extend Poof. |
 | [**Building & Chat**](docs/building-and-chat.md)         | Project creation, chat workflow, follow-up patterns, generation modes.                                                                                   |
 | [**Backend-Only Mode**](docs/backend-only.md)            | Using `backend,policy` generation mode with a local frontend — connection info, `@pooflabs/web` setup, PartyServer integration.                          |
 | [**Built Backend Artifact Deploy**](docs/backend-artifact-deploy.md) | Deploying a pre-built PartyServer Worker artifact — Wrangler bundle packaging, manifest contract, preservation across static/preview/production deploys. |
@@ -332,6 +333,7 @@ Read **Onchain actions** to see what's available to write against, then **setMan
 
 | Doc                                                                 | What it covers                                                                                                                                          |
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [**On-Chain Capability Catalog**](docs/agent-use/capability-catalog.md) | **Start here for any "can Poof express X on-chain?" question.** Authoritative behavior→primitive lookup + forced decision procedure. Custom Anchor is never the answer; genuine gaps escalate to extend Poof. |
 | [**Onchain action catalog**](docs/agent-use/onchain-actions.md)     | Every onchain action exposed by the generic-onchain primitives library — Token, NFT, Pump.fun, Meteora, DFlow, Tensor, Phoenix. Fields + a minimal example per category. |
 | [**Guard primitives**](docs/agent-use/guards.md)                    | BalanceCheck, TimeWindow, NftOwnershipCheck, Allowlist (on/off-chain trios), RateLimit counters, Escrow trio — what each asserts, field shape, simulate query, composition. |
 | [**setMany & Atomic Batches**](docs/agent-use/set-many.md)          | The atomicity story — when to reach for `setMany`, `--app-id` vs `-p`, composition patterns (transfer+guard, swap+price guard, escrow create+fund), failure semantics. |
@@ -387,7 +389,7 @@ poof iterate -p <project-id> -m "Generate and run UI functional tests for the fe
 The Poof AI will:
 
 - Generate `lifecycle-actions/ui-test-*.json` files with browser-based tests
-- Fund the mock test user if the app has onchain features
+- Fund the mock test user if the app has onchain features — self-serve via the `request_faucet_tokens` MCP tool (see the MCP access note below and `docs/api-reference.md`); this is never an operator prerequisite, do not escalate draft/test funding as a blocker
 - Execute tests using browser automation against the draft app
 - Report results via `poof task test-results` (policy + UI results are aggregated there)
 

@@ -116,6 +116,7 @@ poof data set --app-id 69bcffc78d4b88997d0ed01a --chain mainnet \
 | `PhoenixLong` | `market: Address`, `baseLots: UInt` | — |
 | `PhoenixShort` | same as `PhoenixLong` | — |
 | `PhoenixClose` | `market, baseLots`, `side: UInt` | `side: 1` closes long; `side: 0` closes short. Reduce-only. |
+| `PhoenixWithdraw` | `amt: UInt` | Phoenix margin → USDC base units. Exact mirror of `PhoenixFund`; chains `withdrawFunds` + `emberWithdraw`. The exit path — close positions first or maintenance margin caps the amount. |
 
 See [perps.md](perps.md) for the full Phoenix integration: canonical market addresses, the seven commonQueries reads (`isRegistered`, `portfolioValue`, `unrealizedPnl`, `positionSize`, `hasPosition`, `markPrice`, etc.), lots-to-dollars math, and composition patterns.
 

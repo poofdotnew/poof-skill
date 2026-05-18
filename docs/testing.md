@@ -402,9 +402,22 @@ Policy rules using `$userId == @user.address` will match this address. Data writ
 
 ### Funding the Mock User (Required for Onchain Features)
 
-If the app has onchain features (staking, transfers, swaps), the mock user needs tokens in their Poofnet wallet before UI tests run. Ask the Poof AI to fund the test user:
+If the app has onchain features (staking, transfers, swaps), the mock user needs tokens in their Poofnet wallet before UI tests run.
 
-> "Fund the mock test user HKbZbRR7jWWR5VRN8KFjvTCHEzJQgameYxKQxh2gPoof with 10 SOL and 100 USDC on Poofnet before running UI tests."
+**This is self-serve. Funding a draft/test/mock wallet is NEVER an operator prerequisite and must not be escalated as a blocker.** Fund it directly via the top-level Poof MCP `request_faucet_tokens` tool (account-scoped, same Cognito auth the CLI uses — see [api-reference.md](api-reference.md#request_faucet_tokens-example)):
+
+```jsonc
+// POST /api/mcp → tools/call
+{ "name": "request_faucet_tokens",
+  "arguments": {
+    "projectId": "<project-id>",
+    "walletAddress": "HKbZbRR7jWWR5VRN8KFjvTCHEzJQgameYxKQxh2gPoof",
+    "amountSol": 10,
+    "mintAddress": "<usdc-mint>"   // optional, for SPL/USDC airdrop
+  } }
+```
+
+If it returns `409 "no Poofnet app id"`, run a draft build first so the project has a Poofnet appId, then retry. Only as a fallback (no MCP available) ask the Poof AI: *"Fund the mock test user HKbZbRR7jWWR5VRN8KFjvTCHEzJQgameYxKQxh2gPoof with 10 SOL and 100 USDC on Poofnet before running UI tests."* Either way the agent self-serves — it never blocks on the operator for draft/test funding.
 
 ### File Format
 
@@ -775,7 +788,7 @@ Before uploading, check:
 ### Execution Workflow
 
 1. **Check if app has onchain features** — look at the policy for `onchain: true` collections
-2. **Fund the mock test user if needed** — ask the Poof AI via `poof iterate` to fund the test user before running UI tests
+2. **Fund the mock test user if needed** — self-serve via the `request_faucet_tokens` MCP tool (see [Funding the Mock User](#funding-the-mock-user-required-for-onchain-features)); `poof iterate` is only a fallback. Draft/test wallet funding is never an operator prerequisite — do not escalate it as a blocker
 3. **Generate and run UI tests** — for Poof-generated UIs, use `poof iterate -p <id> -m "..."`; for static deploys, upload source-authored `ui-test-*.json` files and use the workflow below
 4. **Check results** — `poof task test-results` aggregates UI test results alongside policy test results
 5. Tests run sequentially (they may modify shared app state)

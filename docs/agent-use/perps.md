@@ -19,7 +19,7 @@ The Phoenix collections ship with the generic-onchain primitives library — poi
 
 ## What this gives you
 
-Five onchain-action collections (`PhoenixRegister`, `PhoenixFund`, `PhoenixLong`, `PhoenixShort`, `PhoenixClose`) + one shared read-only collection (`commonQueries`) exposing seven reads from `@PhoenixPerpsPlugin`. All writes are user-scoped (`user/$userId/Phoenix*/...`) and pass through to Phoenix's mainnet program via CPI — the Poof service co-signs the CPI attestation, the caller's wallet pays the fees.
+Six onchain-action collections (`PhoenixRegister`, `PhoenixFund`, `PhoenixLong`, `PhoenixShort`, `PhoenixClose`, `PhoenixWithdraw`) + one shared read-only collection (`commonQueries`) exposing seven reads from `@PhoenixPerpsPlugin`. Together they cover the **complete** `@PhoenixPerpsPlugin` surface — all 8 mutating tx functions and all 7 reads — so the trader lifecycle round-trips end to end (deposited margin can always be withdrawn back to USDC). All writes are user-scoped (`user/$userId/Phoenix*/...`) and pass through to Phoenix's mainnet program via CPI — the Poof service co-signs the CPI attestation, the caller's wallet pays the fees.
 
 **The policy does not restrict which markets you can trade on.** `market` is just an address field on PhoenixLong/Short/Close. Any valid Phoenix perp market address works — new markets Phoenix adds don't require a policy redeploy. The plugin is a pass-through; market validation happens on Phoenix's program.
 
@@ -40,14 +40,15 @@ If Phoenix lists more markets, look up the pubkey on [Phoenix](https://phoenix.t
 A trader's journey, in the order an agent executes it:
 
 ```
-PhoenixRegister  ──►  PhoenixFund  ──►  PhoenixLong / PhoenixShort  ──►  PhoenixClose
-   (one-shot)        (USDC → margin)       (open position)              (reduce-only)
+PhoenixRegister ─► PhoenixFund ─► PhoenixLong / PhoenixShort ─► PhoenixClose ─► PhoenixWithdraw
+  (one-shot)      (USDC→margin)       (open position)           (reduce-only)    (margin→USDC)
 ```
 
 - **PhoenixRegister** creates the trader PDA for cross-margin. Required before anything else — unregistered traders get "trader account not found" on every downstream op. Idempotent at the plugin level: re-registering is a no-op but costs a tx. Poll `commonQueries.isRegistered` first.
 - **PhoenixFund** bridges USDC to PhUSD and deposits into margin in one atomic hook. `amt` is in 6-dec USDC base units — convert human amounts client-side (`100 USDC = 100_000_000`).
 - **PhoenixLong / PhoenixShort** place market orders. No slippage param — Phoenix market orders eat the book. If that's a concern, split into smaller `baseLots` and pace.
 - **PhoenixClose** is reduce-only. `side: 1` (Ask) closes a long; `side: 0` (Bid) closes a short. Wrong side triggers a Phoenix ReduceOnly error. Always read `commonQueries.positionSize` first and pick `side = (size > 0 ? 1 : 0)`.
+- **PhoenixWithdraw** is the exit path and the exact mirror of PhoenixFund: it withdraws margin and bridges PhUSD back to USDC in one atomic hook (`withdrawFunds` + `emberWithdraw`). `amt` is in 6-dec USDC base units. Close open positions first — withdrawable collateral is capped by maintenance margin, and an over-withdraw reverts on-chain. Without this step, deposited funds would be stuck in Phoenix; it makes the lifecycle a true round-trip.
 
 ## Write collections
 
@@ -100,6 +101,15 @@ poof data set -p <id> --path "user/<addr>/PhoenixClose/close-1" \
 ```
 
 Fields: `market: Address!`, `baseLots: UInt!`, `side: UInt!` (0 = Bid / close-short, 1 = Ask / close-long).
+
+### PhoenixWithdraw
+
+```bash
+poof data set -p <id> --path "user/<addr>/PhoenixWithdraw/wd-1" \
+  --data '{"amt": 50000000}'   # withdraw 50 USDC of margin
+```
+
+Fields: `amt: UInt!` (6-dec USDC base units; PhUSD bridges 1:1). The exact mirror of `PhoenixFund` — the hook chains `withdrawFunds` (margin → PhUSD) + `emberWithdraw` (PhUSD → USDC), so funds land back in the caller's USDC wallet. Close any open positions first: withdrawable collateral is capped by maintenance margin and Phoenix reverts an over-withdraw on-chain. Confirm the round-trip with `commonQueries.collateralBalance` before/after.
 
 ## Read queries
 
@@ -217,6 +227,7 @@ The `PriceGuard` primitive (see [set-many.md](set-many.md#poll-then-submit-with-
 - **PhoenixClose `side` is a direction, not a fill side.** `1 = Ask` closes a long; `0 = Bid` closes a short. Read `positionSize` first, pick side by its sign.
 - **Register is not idempotent at the tx level.** Re-registering succeeds but costs a tx. Gate on `isRegistered` before calling.
 - **Funding uses PhUSD bridge internally.** The `PhoenixFund` hook handles the USDC → PhUSD conversion for you; don't try to call `depositFunds` directly on USDC.
+- **Exit via `PhoenixWithdraw`, not raw plugin calls.** `PhoenixWithdraw` is the only exit collection and bundles `withdrawFunds` + `emberWithdraw` atomically (the exact inverse of `PhoenixFund`). There is no separate margin-only or PhUSD-only withdraw collection by design — the round-trip is always margin → USDC. Withdrawable amount is capped by maintenance margin, so close positions before withdrawing the full balance.
 - **No subaccount index support in `commonQueries`.** All reads use cross-margin (subaccount 0). Isolated subaccount reads would need a new commonQueries entry.
 - **Non-Phoenix market addresses fail on-chain, not at the policy.** Since the policy no longer whitelists markets, a bad address is an on-chain revert (Phoenix CPI), which costs a fee via `--skip-preflight` or is silently rejected in preflight. Validate the market address before submitting.
 

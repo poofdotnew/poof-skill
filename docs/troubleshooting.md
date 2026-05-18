@@ -125,6 +125,11 @@ Bash tool: command="poof security scan -p <id>", timeout=600000
 
 ## Agent Recovery Patterns
 
+### Unfunded Test/Draft Wallet (self-serve — never escalate)
+Symptom: a UI/draft test fails with insufficient SOL/token balance, or a flow needs the mock/test wallet funded on Poofnet.
+Cause: the draft/test/mock wallet has no Poofnet tokens.
+Fix: **self-serve — this is never an operator prerequisite or a blocker.** Call the top-level Poof MCP `request_faucet_tokens` tool with `projectId` + `walletAddress` (+ `mintAddress` for USDC/SPL). If it returns `409 "no Poofnet app id"`, run a draft build first so the project has a Poofnet appId, then retry. Fallback only: `poof iterate -p <id> -m "Fund the mock test user <addr> with 10 SOL and 100 USDC on Poofnet."` Do not emit `blocked:operator-*` for draft/test funding.
+
 ### Stuck Build Recovery
 ```bash
 poof chat cancel -p <id>

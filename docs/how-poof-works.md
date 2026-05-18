@@ -173,21 +173,21 @@ Each collection file exports typed functions: `setItems()`, `getItems()`, `getMa
 
 ## What Poof Can and Can't Do
 
-### Can Do
-- Data persistence (on-chain + off-chain)
-- Real-time subscriptions (WebSocket)
-- Wallet authentication
-- All Solana token/NFT/DeFi operations (via plugins)
-- Verifiable randomness (VRF)
-- Prediction markets
-- Access control and business logic (policy rules)
-- Cross-document atomic operations — multi-write guarantees via `setMany`, all-or-nothing per Solana tx; see [set-many.md](agent-use/set-many.md)
+> **Before concluding Poof can't express an on-chain behavior, you MUST consult the [On-Chain Capability Catalog](agent-use/capability-catalog.md).** It is the authoritative behavior→primitive lookup + decision procedure. Custom Anchor/Rust Solana programs and raw `@solana/web3.js`/RPC are **never** the answer — there is no `Platform: anchor` opt-out. A genuine gap is escalated (`blocked:platform-poof-onchain-primitive-missing`) so the operator extends Poof; it is never hand-rolled.
 
-### Cannot Do
+### Can Do — and the presumption is expressibility
+
+Poof expresses essentially all on-chain behavior. Concretely, **Poof CAN express: escrow / vault / treasury holding pooled funds (Escrow trio, project vault, `@AccountPlugin` PDAs); equal-stake / exact-fee enforcement (`rules.create` predicates); voting / proposals / majority governance (votes-as-collections + policy tally); perp trade execution (the complete Phoenix perps lifecycle); spot swaps & liquidity (`@DeFiPlugin`); proportional / multi-party payouts (hook-chained transfers or `setMany`); conditional / gated transfers (guard + action in one `setMany`); allowlists, rate limits, time windows, admin gating, VRF randomness, prediction markets, and NFT operations.** Plus: data persistence (on-chain + off-chain), real-time WebSocket subscriptions, wallet auth, and cross-document atomic operations (`setMany`, all-or-nothing per Solana tx — see [set-many.md](agent-use/set-many.md)).
+
+**Anything on-chain not on the closed "Cannot Do" list below is presumed expressible.** "I couldn't immediately see how" is not proof of a gap — run the [capability catalog](agent-use/capability-catalog.md) decision procedure first.
+
+### Cannot Do (closed list)
 - ML/AI model training → use external API via backend
 - Video/audio processing → use external service via backend
 - Non-Solana blockchains → Solana only
 - Native SOL staking → use liquid staking tokens via `@DeFiPlugin.swap`
+
+Everything on-chain else is presumed expressible; verify against the [capability catalog](agent-use/capability-catalog.md) and escalate the specific missing primitive only if every mapping there genuinely fails.
 
 ### Key Constraints
 - On-chain collections must have `"read": "true"`
