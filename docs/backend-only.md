@@ -286,14 +286,13 @@ poof deploy static -p <project-id> --archive dist.tar.gz
 poof verify -p <project-id> --ui-tests=true -m "Run the existing source-authored lifecycle-actions/ui-test-*.json files against the deployed draft app. Do not create, rewrite, or replace UI tests from the dist bundle. If a UI test fails, report the failing file and step instead of weakening the assertion."
 ```
 
-5. Gate on fresh results:
+5. Inspect recorded structured results:
 
 ```bash
 poof task test-results -p <project-id> --json
 ```
 
-If no fresh UI results appear, inspect `poof project messages -p <id> --limit 100 --json` to confirm
-whether `run_all_ui_tests` was invoked. Treat missing results as a blocker, not a pass.
+This is a diagnostic view of recorded results, not a freshness gate — `task test-results` has no before/after logic. Use `poof verify` for actual pass/fail when freshness matters; see [verify-diagnostics.md](verify-diagnostics.md) for ghost-row caveats. If no UI results appear, inspect `poof project messages -p <id> --limit 100 --json` to confirm whether `run_all_ui_tests` was invoked. Treat missing results as a blocker, not a pass.
 
 ### Agent-Local Browser Smoke Tests
 

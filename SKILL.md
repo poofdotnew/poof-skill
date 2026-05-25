@@ -68,7 +68,7 @@ In Claude Code, the Bash tool's max `timeout` is 600000ms (10 min). For commands
 
 **Internal poll deadline:** The CLI itself enforces a 30-minute poll deadline on build/iterate/verify, so a legitimate verify run that generates tests, fixes failures, and reruns is no longer cut off at 10 minutes. If the 30-minute deadline is hit, the CLI **automatically cancels the AI session** so subsequent commands (e.g. `poof ship`) aren't blocked by a stale active session. `poof ship` has its own tighter polling: up to 10 minutes for the security scan, then 2 minutes waiting for the AI session to wind down, then another 10-minute deploy task wait — total internal ceiling ~22 minutes.
 
-**Important:** `poof build` now waits for the initial AI turn plus draft deploy health, but it still does **not** prove lifecycle or UI tests passed. Use `poof verify -p <id>` for the canonical post-build verification flow. `poof iterate` is still a general chat command, so test-generation prompts should be followed by `poof verify` or `poof task test-results --json` if you need strict programmatic pass/fail behavior. `iterate` now reports **fresh** test counts (results created during this turn) and will say "no tests ran during this turn" instead of falsely claiming an older suite passed — but the strict gate is still `verify`.
+**Important:** `poof build` now waits for the initial AI turn plus draft deploy health, but it still does **not** prove lifecycle or UI tests passed. Use `poof verify -p <id>` for the canonical post-build verification flow. `poof iterate` is still a general chat command, so test-generation prompts should be followed by `poof verify` for strict programmatic pass/fail. `poof task test-results --json` is a diagnostic result view, not a pass/fail gate — it is subject to the ghost-row caveat documented in [Verify & Test Diagnostics](docs/verify-diagnostics.md). `iterate` reports **fresh** test counts derived from a bounded before/after diff of the result-page IDs around this turn (single page of 100 in each snapshot), then collapsed per file (`source|fileName`) — a row counted as fresh is one that appeared in the after-snapshot's page but not the before-snapshot's page and is the latest for its file in that fresh set, not strictly "created during this turn." It will say "no tests ran during this turn" instead of falsely claiming an older suite passed — but the strict gate is still `verify`.
 
 **Important:** `poof build` success text is not the same as a healthy draft deploy. After build, run `poof project status -p <id> --json` and confirm the canonical project plus `publishState.draft.deployed`. If you need draft UI evidence, probe the advertised draft URL too. Treat HTTP `404` as missing deploy evidence, and treat `publishState.draft.deployed=false` plus a non-`404`/`200` smoke probe as inconsistent evidence that still needs explicit logging and follow-up before you call the build QA-ready.
 
@@ -250,11 +250,17 @@ placeholders, or unique visible text; use natural-language `act` only as a fallb
 checks like "page loaded", "heading exists", or "interactive elements are present". See
 [docs/testing.md#how-to-generate-ui-test-json](docs/testing.md#how-to-generate-ui-test-json).
 
-`poof verify` is the only test command an agent should rely on for pass/fail. It snapshots
-existing test result IDs, sends the canonical lifecycle + UI verification prompt, then only
-counts results created during that run. It exits non-zero if no fresh results appear or if
-any fresh result failed, so a successful exit code is real evidence that tests ran and passed.
-`poof iterate` is still a general chat command — only fall back to it for free-form fixes.
+`poof verify` is the only test command an agent should use as the strict pass/fail gate.
+It snapshots the first page of existing test result IDs (single page of 100), sends the
+canonical lifecycle + UI verification prompt, then computes a bounded before/after diff
+(a row counts as "fresh" iff it appears in the after-snapshot's page-of-100 but not the
+before-snapshot's), applies the CLI's per-file collapse to that fresh set, and evaluates
+pass/fail on the collapsed summary. It exits non-zero if the collapsed-fresh view is empty
+or if any row in it is failed/error. A successful exit means the bounded-diff + per-file-
+collapsed gate passed — strong evidence that test work happened around this verify run, but
+not authoritative proof of current suite state. See [Verify & Test Diagnostics](docs/verify-diagnostics.md)
+for the full caveat. `poof iterate` is still a general chat command — only fall back to it
+for free-form fixes.
 
 **Backend-only and `poof verify`:** when the project's generationMode excludes `ui` (i.e. `policy` or
 `backend,policy`), the CLI auto-detects that and sends a lifecycle-only verification prompt. This
@@ -288,12 +294,12 @@ backend source of truth until a later source-backed API/backend task supersedes 
 - After `poof build`, always run `poof project status -p <id> --json`. Record the project id, URLs, and deploy state before you start retries or testing so later wakes do not guess which project is canonical.
 - If `poof task test-results -p <id> --json` reports `summary.total == 0`, inspect `poof task list -p <id> --json`, `poof chat active -p <id> --json`, `poof logs -p <id>`, and `poof project messages -p <id> --limit 100 --json` before you assume tests passed or failed.
 - For deployed client failures, use `poof analytics -p <id> --environment <draft|preview|production> --range 1h --json` before guessing. It reports first-party Cloudflare Analytics Engine data: page/route traffic, browser JS errors, unhandled rejections, failed resources, failed browser API calls, RUM metrics, and edge 4xx/5xx/R2/dispatch failures. Use `poof logs` after analytics points at backend/API issues.
-- `poof task test-results`, `poof iterate`, `poof verify`, and `poof doctor` now collapse test results to the **latest run per test file** by default (collapse key is `source|fileName`, not per-testName — so if the AI renames a test inside a file between runs, only the latest file state wins). If you need to see the full history (e.g. to debug why an earlier run failed), use `poof task test-results -p <id> --history`.
+- `poof task test-results`, `poof iterate`, `poof verify`, and `poof doctor` collapse test results to the **latest run per test file** by default (collapse key is `source|fileName`, not per-testName). The server response is already deduped by `(source, fileName, testName)` before the CLI ever sees it; `--history` only bypasses the CLI's additional per-file collapse, so multiple `testName` variants within the same file become visible. `--history` does **not** surface raw run history — the platform doesn't expose that. See [Verify & Test Diagnostics](docs/verify-diagnostics.md).
 - If `poof chat active -p <id> --json` stays `true` while task list shows no new work and logs show no recent activity, cancel that stale chat once with `poof chat cancel -p <id>` before the single allowed targeted retry.
 - If a targeted retry keeps inheriting bad Claude Code context, tool loops, or stale assumptions even after the active run is canceled, run `poof chat clear -p <id>` once to clear the saved AI session ID, then send one precise retry prompt.
 - If the only visible tasks are still bootstrap/constants work and the targeted retry also returns an empty test summary, treat that as a Poof execution incident rather than a prompt-quality problem. Record `poof project status`, smoke probes, and the missing test-artifact evidence, then block or escalate.
 - If the retry still ends with `summary.total == 0` or the CLI prints `Done, but no test results were found.`, treat that as missing-artifact failure and block or escalate instead of calling the build verified.
-- `poof iterate` distinguishes two empty-test cases: `Done, but no tests ran during this turn.` (prior suite exists, but this turn didn't touch it — expected for non-test prompts) vs `Done, but no test results were found.` (no suite exists at all). Neither counts as a pass — only `poof verify` produces canonical pass/fail evidence.
+- `poof iterate` distinguishes two empty-test cases: `Done, but no tests ran during this turn.` (the bounded one-page before/after diff produced zero fresh rows — likely that the turn didn't add or rerun tests visible in the page, *not* a project-wide guarantee that no test work happened) vs `Done, but no test results were found.` (the after-snapshot's bounded page is empty — likely no suite is recorded, but the bounded fetch can also miss results stored beyond the page window). Neither counts as a pass; only `poof verify` is the strict gate, and its result is also a bounded-diff signal — see [Verify & Test Diagnostics](docs/verify-diagnostics.md).
 - If `poof ship --target preview` fails because security review is required, capture that as an external unblock gate. `ship` is not equivalent to a successful deploy, and a security-review stop should be treated as a real blocker rather than retried blindly.
 - **Deploy eligibility is gated on `critical` findings only.** `high`, `medium`, `low` findings are surfaced in the scan output but don't block `poof deploy check` / `poof ship`. Default posture: still flag high findings to the user so they can make the call, but don't hard-stop a deploy on non-critical findings the way you would on a critical.
 
@@ -325,6 +331,7 @@ Read **How Poof Works** first if you're writing prompts for the Poof AI.
 | [**Client App Analytics**](docs/analytics.md)             | Cloudflare-only analytics, failure/RUM telemetry, `poof analytics`, and MCP retrieval via `get_client_app_analytics`.                                    |
 | [**Static Frontend Deploy**](docs/static-deploy.md)      | Deploy a self-built static frontend to Poof — tar.gz upload via CLI.                                                                                     |
 | [**Testing**](docs/testing.md)                           | Lifecycle actions, test files, bootstrap scripts, UI functional tests, static-deploy UI test workflow, expression syntax, testing strategy by layer.     |
+| [**Verify & Test Diagnostics**](docs/verify-diagnostics.md) | Failure-mode reference for `poof verify` and `poof task test-results` — server vs. CLI collapse semantics, the `0 fresh = fail` gate, and the cross-check pattern when results look wrong. |
 | [**Heartbeats / Scheduled Tasks**](docs/heartbeats.md)   | Built-in cron primitive — task config, handler files, dispatcher, manual trigger on draft for seeding, per-environment schedules. **Use this instead of building local cron services for any recurring work.** |
 
 ### For runtime agent use (`docs/agent-use/`)
@@ -357,7 +364,7 @@ After the Poof AI finishes building, **don't assume it works correctly**. Always
 poof verify -p <project-id>
 ```
 
-This runs the standard policy verification prompt, includes UI verification where appropriate, waits on the same runtime signals the web app uses, and fails if no fresh structured test results appear or if any new results fail.
+This runs the standard policy verification prompt, includes UI verification where appropriate, waits on the same runtime signals the web app uses, and fails if no fresh structured test results appear or if the per-file-collapsed view of the bounded before/after result-page diff is empty or includes failures/errors. See [Verify & Test Diagnostics](docs/verify-diagnostics.md) for what "fresh" and the bounded diff mean in this context.
 
 ### 1a. Run Lifecycle Tests Manually (Optional)
 

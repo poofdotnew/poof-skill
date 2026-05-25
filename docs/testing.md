@@ -851,14 +851,13 @@ only when the uploaded `ui-test-*.json` files were authored from local source:
 poof verify -p <project-id> --ui-tests=true -m "Run the existing source-authored lifecycle-actions/ui-test-*.json files against the deployed draft app. Do not create, rewrite, or replace UI tests from the dist bundle. If a UI test fails, report the failing file and step instead of weakening the assertion."
 ```
 
-6. Check fresh structured results:
+6. Inspect recorded structured results:
 
 ```bash
 poof task test-results -p <project-id> --json
 ```
 
-Treat `summary.total == 0`, UI test validation errors, browser console errors, and failed assertions
-as blockers. Fix the local source or the source-authored test, rebuild, redeploy static, and rerun.
+This is a diagnostic view of recorded results, not a freshness check — `task test-results` has no before/after logic. Use `poof verify` as the actual pass/fail gate when freshness matters. See [verify-diagnostics.md](verify-diagnostics.md) for ghost-row caveats. Treat `summary.total == 0`, UI test validation errors, browser console errors, and failed assertions as blockers, with the ghost-row caveat applied before treating a single failure row as authoritative. Fix the local source or the source-authored test, rebuild, redeploy static, and rerun.
 
 **Rules for static-deploy UI tests:**
 
@@ -1041,7 +1040,7 @@ Generating and running tests goes through `poof iterate` (or `poof chat send`), 
 
 ## Checking Test Results Programmatically
 
-Use `poof task test-results` to evaluate test outcomes with structured data instead of parsing chat messages. This returns aggregated results for **both policy tests and normalized UI tests**.
+Use `poof task test-results` to evaluate test outcomes with structured data instead of parsing chat messages. This returns aggregated results for **both policy tests and normalized UI tests**. Interpreting these results carries pitfalls — ghost rows for deleted files, bounded-page semantics, `--history` flag confusion. See [verify-diagnostics.md](verify-diagnostics.md) before drawing conclusions from a failure row.
 
 ```bash
 # Get test results for the current project
@@ -1057,7 +1056,7 @@ The response includes:
 
 This is more reliable than parsing chat output — it reads from the structured policy test records plus normalized UI test execution records.
 
-If `summary.total = 0` but you expected tests to run, inspect `poof project messages -p <id> --limit 100 --json` before assuming nothing happened. Tool-call messages can reveal whether Poof wrote test files, ran `run_all_lifecycle_tests`, or stopped before `run_all_ui_tests`.
+If `summary.total = 0` but you expected tests to run, inspect `poof project messages -p <id> --limit 100 --json` before assuming nothing happened. Tool-call messages can reveal whether Poof wrote test files, ran `run_all_lifecycle_tests`, or stopped before `run_all_ui_tests`. See [verify-diagnostics.md](verify-diagnostics.md) for the full set of pitfalls in interpreting test-results output (ghost rows for deleted files, bounded-page semantics, the `--history` flag's actual behaviour).
 
 ## Asking Poof to Generate Tests
 
