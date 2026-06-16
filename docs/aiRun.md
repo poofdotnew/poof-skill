@@ -31,7 +31,7 @@ Native Cloudflare Workers AI models do **not** all return chat shape. Embeddings
 |---|---|
 | General-purpose default | `anthropic/claude-sonnet-4-6` |
 | Cheap / fast | `anthropic/claude-haiku-4-5` |
-| Hardest reasoning | `anthropic/claude-opus-4-7` |
+| Hardest reasoning | `anthropic/claude-opus-4-8` |
 | OpenAI flagship | `openai/gpt-5.2` |
 | Cheap Google | `google-ai-studio/gemini-2.5-flash` |
 | CF-hosted Llama | `@cf/meta/llama-3.3-70b-instruct-fp8-fast` |
