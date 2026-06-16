@@ -135,6 +135,7 @@ Point your agent's context/knowledge configuration at the [`SKILL.md`](SKILL.md)
 - **Composite workflows** — `poof build` (create + wait), `poof iterate` (chat + wait + test results), `poof ship` (scan + check + deploy)
 - **Testing workflows** — Lifecycle action tests, including source-authored UI tests for statically deployed local frontends
 - **Local source workflows** — Local frontend and PartyServer backend development with Poof-hosted policy/auth/database bindings
+- **Poof-native AI** — Metered runtime `aiRun` calls for chat, embeddings, Workers AI image input/vision/OCR, image generation, STT/TTS, and classifiers without provider keys
 - **Deployment pipeline** — Draft → Preview → Production with security scanning, static frontend artifacts, and built backend artifacts
 - **Client analytics** — Cloudflare-only traffic, RUM, browser/API/resource failure, and edge failure telemetry via CLI and MCP
 - **Troubleshooting** — Common errors and recovery patterns
@@ -161,6 +162,7 @@ Poof supports source-owned local frontend and backend artifacts layered on top o
 | [**Backend-Only Mode**](docs/backend-only.md) | Custom frontend with Poof backend |
 | [**Built Backend Artifact Deploy**](docs/backend-artifact-deploy.md) | Deploy a self-built PartyServer backend bundle |
 | [**Local Backend Guide**](docs/local-backend-guide.md) | Source-owned PartyServer backend development with routeSpec, auth, Poof-native AI, Heartbeats, queues, packaging, and verification |
+| [**Poof-Native AI / aiRun**](docs/aiRun.md) | Metered runtime AI from backend routes: chat, embeddings, Workers AI image input/vision/OCR, image generation, STT/TTS, streaming, usage, and unsupported endpoints |
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | SDK init, wallet auth, database access, React hooks |
 | [**Database SDK**](docs/database-sdk.md) | Generated typed SDK, collections, read/write patterns |
 | [**Deployment**](docs/deployment.md) | Environments, publishing, code downloads, custom domains |

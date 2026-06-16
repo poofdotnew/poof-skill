@@ -21,7 +21,9 @@ const result = await aiRun(c.env, 'anthropic/claude-sonnet-4-6', {
 const text = result.choices[0].message.content;
 ```
 
-Returns the OpenAI Chat Completions shape regardless of provider — `.choices[0].message.content` for text, `.choices[0].message.tool_calls` for tool calls.
+Chat-compatible providers return OpenAI Chat Completions shape — `.choices[0].message.content` for text, `.choices[0].message.tool_calls` for tool calls.
+
+Native Cloudflare Workers AI models do **not** all return chat shape. Embeddings, vision/image input, classifiers, image generation, STT, and TTS use their model-native shapes. Type the generic to the model you call and read the fields documented below.
 
 ## Picking a model
 
@@ -69,9 +71,9 @@ try {
 }
 ```
 
-## Non-chat Workers AI models
+## Non-chat and native Workers AI models
 
-Embeddings, image, STT, TTS through `@cf/*` model ids work too — type the generic to match the model's native shape:
+Native Cloudflare Workers AI model ids (`@cf/*`) route through Workers AI's native endpoint. Use this path for embeddings, image input/vision, OCR-style text extraction from images, classifiers, object detection, image generation, STT, and TTS. The proxy unwraps Cloudflare's envelope and returns the model's native output shape directly.
 
 ```ts
 const emb = await aiRun<{ data: number[][]; shape: number[] }>(
@@ -81,7 +83,111 @@ const emb = await aiRun<{ data: number[][]; shape: number[] }>(
 );
 ```
 
-Third-party embeddings / image / audio (OpenAI text-embedding, DALL-E, Anthropic vision) are not wired — use CF-hosted equivalents.
+Common native shapes:
+
+- Embeddings: `{ data, shape }`
+- Gemma vision chat / OCR: OpenAI-style `choices`, but prefer `extractWorkersAiText(result)` because some Workers AI vision models expose `response`, `description`, or `text`.
+- LLaVA image-to-text: `{ description }`
+- Whisper STT: `{ text }`
+- Image/audio generation: `ArrayBuffer`
+
+### Image input / vision
+
+Use Gemma vision chat when you want multimodal chat, image descriptions, or OCR-style visible text extraction:
+
+```ts
+import {
+  aiRun,
+  extractWorkersAiText,
+  imageDataUrl,
+  imageUrlPart,
+  textPart,
+  type WorkersAiVisionOutput,
+} from '../lib/poof-ai.js';
+
+const result = await aiRun<WorkersAiVisionOutput>(
+  c.env,
+  '@cf/google/gemma-4-26b-a4b-it',
+  {
+    messages: [{
+      role: 'user',
+      content: [
+        textPart('Describe this image and extract any visible totals.'),
+        imageUrlPart(imageDataUrl(base64Png, 'image/png')),
+      ],
+    }],
+  },
+  { max_completion_tokens: 128 },
+);
+
+const description = extractWorkersAiText(result);
+```
+
+For OCR-style text extraction, use the same model and a stricter prompt:
+
+```ts
+const result = await aiRun<WorkersAiVisionOutput>(
+  c.env,
+  '@cf/google/gemma-4-26b-a4b-it',
+  {
+    messages: [{
+      role: 'user',
+      content: [
+        textPart('Read all visible text exactly. Preserve line breaks. If no text is visible, return an empty string.'),
+        imageUrlPart(imageDataUrl(base64Png, 'image/png')),
+      ],
+    }],
+  },
+  { max_completion_tokens: 256 },
+);
+
+const visibleText = extractWorkersAiText(result);
+```
+
+For byte-oriented image models such as LLaVA, classifiers, or object detectors, pass a number array. Number arrays expand quickly inside JSON, so guard image size before calling:
+
+```ts
+import {
+  aiRun,
+  imageBytesToNumberArray,
+  POOF_AI_MAX_NUMBER_ARRAY_IMAGE_BYTES,
+} from '../lib/poof-ai.js';
+
+if (uploadedImage.size > POOF_AI_MAX_NUMBER_ARRAY_IMAGE_BYTES) {
+  return ApiErrors.badRequest(c, 'Image is too large for Workers AI');
+}
+
+const bytes = await uploadedImage.arrayBuffer();
+const caption = await aiRun<{ description?: string }>(
+  c.env,
+  '@cf/llava-hf/llava-1.5-7b-hf',
+  {
+    image: imageBytesToNumberArray(bytes),
+    prompt: 'Generate a concise caption for this image.',
+    max_tokens: 128,
+  },
+);
+```
+
+### Image generation and audio
+
+```ts
+const imageBytes = await aiRun<ArrayBuffer>(
+  c.env,
+  '@cf/black-forest-labs/flux-1-schnell',
+  { prompt: 'a sunset over Lisbon rooftops', steps: 4 },
+);
+
+const transcript = await aiRun<{ text: string }>(
+  c.env,
+  '@cf/openai/whisper-large-v3-turbo',
+  { audio: [...new Uint8Array(await audioFile.arrayBuffer())] },
+);
+```
+
+Keep image payloads small enough that the full JSON request stays under Poof's 8 MiB proxy limit. Data URLs/base64 fit vision-chat inputs; decimal `number[]` payloads are much larger, so the helper's default number-array cap is intentionally lower.
+
+Third-party provider-native embeddings, image generation/editing, audio, and video endpoints (for example OpenAI text embeddings, DALL-E, provider-native Anthropic vision/file APIs, Stability, etc.) are not wired through `aiRun` — use Cloudflare-hosted native Workers AI models for those use cases.
 
 Realtime voice + stateful provider APIs (Assistants, Files) are not supported.
 
@@ -95,3 +201,4 @@ Realtime voice + stateful provider APIs (Assistants, Files) are not supported.
 - Don't add `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / etc. as project secrets for ordinary LLM work.
 - Don't try to shortcut by fetching `poof-ai.internal` with custom headers — the proxy ignores caller-supplied identity.
 - Don't import `@cloudflare/voice` (not wired).
+- Don't parse every result as `choices[0].message.content`; native Workers AI models can return `{ description }`, `{ text }`, `{ data, shape }`, label arrays, or binary `ArrayBuffer`.

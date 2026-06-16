@@ -118,11 +118,11 @@ Protected route calls must include the Poof auth token. Frontend helpers should 
 
 ## Poof-Native AI
 
-For runtime LLM work, use the `aiRun()` helper imported from `../lib/poof-ai.js`. It routes through Poof's AI proxy, meters credits, and exposes OpenAI Chat Completions shape across providers.
+For runtime LLM and native Workers AI work, use the `aiRun()` helper imported from `../lib/poof-ai.js`. It routes through Poof's AI proxy and meters credits. Chat-compatible models expose OpenAI Chat Completions shape; Cloudflare-hosted native Workers AI models such as embeddings, vision/image input/OCR, classifiers, image generation, STT, and TTS return their model-native shapes.
 
 Do not add generic provider secrets such as `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or OpenRouter keys for ordinary chat, classification, summarization, extraction, moderation, recommendations, scoring, or drafting. Poof supplies AI through its usage system. Only use a third-party AI credential when the user explicitly requires a non-Poof external provider and the reason is documented.
 
-See `docs/aiRun.md` for the full helper contract — model picking, streaming, blocked-project handling, and which contexts `aiRun` works from (top-level fetch / queue / heartbeat — *not* from inside a Durable Object's fetch).
+See `docs/aiRun.md` for the full helper contract — model picking, native Workers AI image-input helpers, streaming, blocked-project handling, and which contexts `aiRun` works from (top-level fetch / queue / heartbeat — *not* from inside a Durable Object's fetch).
 
 ## Secrets
 

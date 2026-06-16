@@ -1,33 +1,40 @@
 ---
 name: poof
 description: >-
-  Use when working with the Poof CLI (poof.new) in either of its two modes:
+  Use when working with the Poof CLI (poof.new) and Poof runtime surfaces:
   (1) chat-driven app building — creating, iterating on, and shipping
   full-stack Solana dApps via `poof build`/`iterate`/`ship`; or (2) agent
   runtime data plane — using `poof data` to read, write, and atomically
   compose onchain actions (Token/NFT/Pump.fun/Meteora/Phoenix perps/DFlow/
-  Tensor) against a deployed Poof project or a shared primitives appid.
+  Tensor) against a deployed Poof project or a shared primitives appid; or
+  (3) product runtime AI — using `aiRun` in a Poof/PartyServer backend for
+  metered chat, embeddings, Workers AI image input/vision/OCR, image
+  generation, STT/TTS, and classifiers without provider keys.
   Triggers: "poof build", "poof iterate", "poof ship", "poof data",
   "poof.new", "poof CLI", "poof-cli", "Solana agent", "onchain agent",
   "Phoenix perps", "setMany", "shared appid", "@pooflabs/web",
-  "PartyServer", "local backend", "backend artifact".
+  "PartyServer", "local backend", "backend artifact", "Poof-native AI",
+  "aiRun", "Workers AI", "image analysis", "vision AI", "OCR",
+  "image input".
 ---
 
-# Poof CLI
+# Poof CLI and Runtime
 
-The `poof` CLI has two distinct modes. An agent reading this skill should know which one applies to the task at hand before picking commands.
+The `poof` CLI and runtime have three distinct surfaces. An agent reading this skill should know which one applies to the task at hand before picking commands or backend APIs.
 
 1. **App building** — ask Poof's AI to create, iterate on, and ship full-stack Solana apps on [poof.new](https://poof.new). Driven by commands like `poof build`, `poof iterate`, `poof verify`, `poof ship`, `poof deploy`. Long-running (5–15+ min per call). See the app-building docs at `docs/` (how-poof-works, building-and-chat, etc.).
 2. **Runtime data plane** — use `poof data` against a deployed Poof project (yours or a shared primitives library). The canonical shared generic-onchain library — covers Token / NFT / Pump.fun / Meteora / DFlow / Tensor / Phoenix perps plus composable guards — is live on Solana mainnet at appid `69bcffc78d4b88997d0ed01a`; any wallet can point at it with `--app-id 69bcffc78d4b88997d0ed01a --chain mainnet`, no project access needed. Fast, synchronous, designed for per-tick agent loops. See the agent-use docs at `docs/agent-use/`.
+3. **Product runtime AI** — use `aiRun` inside a top-level Poof/PartyServer backend handler for metered chat, embeddings, Workers AI image input/vision/OCR, classifiers, image generation, STT/TTS, and related one-shot AI calls. See `docs/aiRun.md` and `docs/local-backend-guide.md`.
 
 ## How It Works
 
 ```
 App building:    Your Agent ──► poof build/iterate/ship ──► poof.new (AI builds for you)
 Data plane:      Your Agent ──► poof data set/get/query ──► Poof project's Tarobase appId
+Runtime AI:      Product API ──► aiRun(...) ──► Poof AI proxy / Workers AI / AI Gateway
 ```
 
-Both modes share the same CLI binary, auth, and config; only the commands and the cadence differ.
+These surfaces share Poof auth, policy, metering, and project ownership, but the commands and runtime APIs differ.
 
 ## Onchain TX / Write Boundary
 
@@ -311,7 +318,7 @@ Every project also gets a server-managed **project vault** wallet, exposed in po
 
 ## Documentation
 
-Docs are grouped by the two CLI modes. Pick the section that matches your task.
+Docs are grouped by Poof's app-building, runtime data-plane, and product runtime surfaces. Pick the section that matches your task.
 
 ### For app building (in `docs/`)
 
@@ -325,6 +332,7 @@ Read **How Poof Works** first if you're writing prompts for the Poof AI.
 | [**Backend-Only Mode**](docs/backend-only.md)            | Using `backend,policy` generation mode with a local frontend — connection info, `@pooflabs/web` setup, PartyServer integration.                          |
 | [**Built Backend Artifact Deploy**](docs/backend-artifact-deploy.md) | Deploying a pre-built PartyServer Worker artifact — Wrangler bundle packaging, manifest contract, preservation across static/preview/production deploys. |
 | [**Local Backend Guide**](docs/local-backend-guide.md) | Building source-owned local PartyServer backends — routeSpec discipline, auth, Poof-native AI, Heartbeats, queues, packaging, and verification. |
+| [**Poof-Native AI / aiRun**](docs/aiRun.md) | Metered runtime AI from product backend routes — chat completions, Workers AI embeddings, image input/vision/OCR, classifiers, image generation, STT/TTS, streaming, usage metadata, and unsupported provider-native endpoints. |
 | [**Local Frontend Guide**](docs/local-frontend-guide.md) | Building a frontend that connects to a Poof backend — SDK init, mount-first-then-init, wallet auth, `Promise<boolean>` mutation contract, database access, real-time subscriptions, mobile/desktop modal split, mock-auth for Stagehand, anti-patterns. |
 | [**Database SDK**](docs/database-sdk.md)                 | The generated db-client + collections pattern — typed functions, read/write, frontend vs backend, how to extract and use.                                |
 | [**Deployment**](docs/deployment.md)                     | Environments (draft/preview/production/mobile), publishing, code downloads, custom domains.                                                              |
