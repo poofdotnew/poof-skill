@@ -1,6 +1,6 @@
 # Poof-Native AI: `aiRun`
 
-`aiRun()` is the helper for one-shot LLM calls from a top-level handler (fetch route, queue consumer, heartbeat task, alarm). It routes through Poof's AI proxy on Cloudflare AI Gateway and meters usage against project credits (`$15 = 50 credits`, exact CF cost × 1.05). No tenant-held provider keys; Poof attaches sealed script identity at the edge.
+`aiRun()` is the helper for one-shot AI calls from a top-level handler (fetch route, queue consumer, heartbeat task, alarm). It routes through Poof's metered AI proxy and charges usage against project credits (`$15 = 50 credits`, exact CF cost × 1.05). Chat-compatible models go through Cloudflare AI Gateway; Cloudflare-hosted embeddings, image input/vision/OCR, classifiers, image generation, STT, and TTS go through Workers AI's native endpoint. No tenant-held provider keys are needed; Poof attaches sealed script identity at the edge.
 
 For multi-turn LLM loops with tool calling (web search, browser, structured output), use Agents — they have their own LLM provider config that handles sessions, tools, and streaming. See `docs/agents.md` and the decision table in `local-backend-guide.md#picking-the-right-primitive`.
 

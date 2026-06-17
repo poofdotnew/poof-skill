@@ -26,6 +26,8 @@ The `poof` CLI and runtime have three distinct surfaces. An agent reading this s
 2. **Runtime data plane** — use `poof data` against a deployed Poof project (yours or a shared primitives library). The canonical shared generic-onchain library — covers Token / NFT / Pump.fun / Meteora / DFlow / Tensor / Phoenix perps plus composable guards — is live on Solana mainnet at appid `69bcffc78d4b88997d0ed01a`; any wallet can point at it with `--app-id 69bcffc78d4b88997d0ed01a --chain mainnet`, no project access needed. Fast, synchronous, designed for per-tick agent loops. See the agent-use docs at `docs/agent-use/`.
 3. **Product runtime AI** — use `aiRun` inside a top-level Poof/PartyServer backend handler for metered chat, embeddings, Workers AI image input/vision/OCR, classifiers, image generation, STT/TTS, and related one-shot AI calls. See `docs/aiRun.md` and `docs/local-backend-guide.md`.
 
+**Runtime AI routing rule:** for ordinary product AI features, use `aiRun` and Poof-native helpers instead of provider SDKs, raw `env.AI`, or new provider secrets. Chat-compatible models return OpenAI Chat Completions shape through AI Gateway; Cloudflare-hosted native Workers AI models such as embeddings, image input/vision/OCR, classifiers, image generation, STT, and TTS route through the native Workers AI path and return model-native shapes. For image analysis or OCR, read `docs/aiRun.md` before coding so you use the `textPart` / `imageUrlPart` / `imageDataUrl` helpers and `extractWorkersAiText(...)`.
+
 ## How It Works
 
 ```
