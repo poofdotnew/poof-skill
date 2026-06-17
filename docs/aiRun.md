@@ -58,6 +58,39 @@ return new Response(stream, { headers: { 'content-type': 'text/event-stream' } }
 //   data: {"billableUsd":0.0012,"costCredits":0.004,...}
 ```
 
+## Tool calls and options
+
+OpenAI-format tool calling works through chat-compatible providers. Each loop iteration is another billed `aiRun` call, so persist the tool result into `messages` and make the follow-up call explicitly:
+
+```ts
+const tools = [{
+  type: 'function',
+  function: {
+    name: 'get_weather',
+    description: 'Get weather for a city',
+    parameters: {
+      type: 'object',
+      properties: { city: { type: 'string' } },
+      required: ['city'],
+    },
+  },
+}];
+
+const result = await aiRun(c.env, 'openai/gpt-4o-mini', { messages, tools });
+const message = result.choices[0].message;
+```
+
+Pass model inputs such as `messages`, `tools`, `image`, `prompt`, `audio`, or `text` in the third argument. The fourth `options` argument is filtered before it reaches the gateway. Supported model options are:
+
+- `stream`, `stream_options`
+- `max_tokens`, `max_completion_tokens`
+- `temperature`, `top_p`, `n`, `stop`, `seed`
+- `frequency_penalty`, `presence_penalty`, `logit_bias`, `logprobs`, `top_logprobs`
+- `response_format`, `tools`, `tool_choice`, `parallel_tool_calls`
+- `user`, `reasoning_effort`
+
+Poof-only option: `includeUsage`. It does not reach the model; it asks Poof to return usage metadata or append the final streaming usage event. Unknown option keys are silently dropped, so do not hide required model inputs in `options`.
+
 ## Blocked projects
 
 When a project crosses its overuse limit, `aiRun` throws `AiBlockedError`. Catch and surface a clean error:
@@ -71,9 +104,9 @@ try {
 }
 ```
 
-## Non-chat and native Workers AI models
+## Native Workers AI models
 
-Native Cloudflare Workers AI model ids (`@cf/*`) route through Workers AI's native endpoint. Use this path for embeddings, image input/vision, OCR-style text extraction from images, classifiers, object detection, image generation, STT, and TTS. The proxy unwraps Cloudflare's envelope and returns the model's native output shape directly.
+Native Cloudflare Workers AI model ids (`@cf/*`, or `workers-ai/@cf/*`) route through Workers AI. Text-only chat models can use the chat-completions compatibility path, while embeddings, image input/vision, OCR-style text extraction from images, classifiers, object detection, image generation, STT, and TTS use Workers AI's native endpoint. The proxy unwraps Cloudflare's envelope and returns the model's native output shape directly.
 
 ```ts
 const emb = await aiRun<{ data: number[][]; shape: number[] }>(
@@ -88,8 +121,9 @@ Common native shapes:
 - Embeddings: `{ data, shape }`
 - Gemma vision chat / OCR: OpenAI-style `choices`, but prefer `extractWorkersAiText(result)` because some Workers AI vision models expose `response`, `description`, or `text`.
 - LLaVA image-to-text: `{ description }`
+- Image classifiers / object detectors: model-native label or detection arrays.
 - Whisper STT: `{ text }`
-- Image/audio generation: `ArrayBuffer`
+- Image/audio generation and TTS: `ArrayBuffer`
 
 ### Image input / vision
 
