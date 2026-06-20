@@ -180,6 +180,27 @@ The db-client and collections files are **generated from the policy** by the Poo
 - **Do regenerate** after any policy change by sending a chat message like: *"Regenerate the db-client and collection files to match the updated policy."*
 - The Poof AI automatically regenerates these files when it modifies the policy during a `poof iterate` / `poof chat send` interaction.
 
+## Realtime Collections
+
+On the **realtime network** (`--network realtime`), collections support an optional `"tier"` field in the policy that controls storage durability:
+
+```json
+{
+  "presenceData/$odId": {
+    "fields": { "cursor": "String", "status": "String" },
+    "tier": "ephemeral"
+  }
+}
+```
+
+| Tier | Behavior |
+|------|----------|
+| `durable` | Default. Persisted to Durable Object disk storage. |
+| `checkpointed` | Periodic snapshots; lower cost, slightly relaxed durability. |
+| `ephemeral` | In-memory only. Ideal for presence, cursors, or typing indicators. Lost on eviction. |
+
+The generated SDK is unchanged — `subscribe()` and `subscribeMany()` work the same way. On the realtime network, subscriptions deliver **instant deltas** (sub-millisecond fan-out) rather than polling-based updates, making them suitable for collaborative and presence-heavy use cases.
+
 ## For External Agents — Using the Database SDK
 
 If you're building an agent that needs to interact with a Poof project's database:

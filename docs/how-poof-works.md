@@ -29,6 +29,12 @@ Poof is a **fully-managed Backend-as-a-Service** for Solana. You don't write bac
 
 When chatting with Poof, **don't ask for a backend unless you actually need external API secrets**. The policy system handles data, auth, rules, and blockchain.
 
+## Realtime Network
+
+Poof supports a **Realtime** database network backed by Cloudflare Durable Objects. Create a realtime project with `poof build --network realtime`. The policy DSL and generated SDK are identical — same collections, rules, hooks, queries, and `subscribe()` calls — but the storage layer switches to Durable Objects for ultra-low-latency reads/writes and instant subscription delivery.
+
+Realtime collections support a `"tier"` field that controls storage durability: **durable** (default, persisted to disk), **checkpointed** (periodic snapshots, lower cost), and **ephemeral** (in-memory only, ideal for presence or cursor data). Queries on the realtime network are auto-indexed — no manual index configuration required.
+
 ## The Policy System
 
 A policy is a JSON file (`poof.json`) that defines:
